@@ -1,0 +1,185 @@
+"use client";
+
+import { useState } from "react";
+import { useRouter, useParams } from "next/navigation";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { toast } from "@/components/ui/use-toast";
+import { ArrowLeft, Loader2, UserPlus } from "lucide-react";
+import Link from "next/link";
+
+const roles = [
+    { value: "ADMIN", label: "Administrador do Contrato" },
+    { value: "SUPERVISOR", label: "Supervisor de Área" },
+    { value: "TECHNICIAN", label: "Técnico Residente" },
+];
+
+const categories = [
+    { value: "AR_CONDICIONADO", label: "Ar Condicionado" },
+    { value: "CIVIL", label: "Civil / Predial" },
+    { value: "ELETRICA", label: "Elétrica" },
+    { value: "HIDRAULICA", label: "Hidráulica" },
+    { value: "INCENDIO", label: "Incêndio" },
+    { value: "GERAL", label: "Geral" },
+];
+
+export default function NewContractUserPage() {
+    const router = useRouter();
+    const params = useParams();
+    const contractId = params.id as string;
+    const [loading, setLoading] = useState(false);
+    const [selectedRole, setSelectedRole] = useState("TECHNICIAN");
+
+    async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
+        event.preventDefault();
+        setLoading(true);
+
+        const formData = new FormData(event.currentTarget);
+        const data = {
+            name: formData.get("name"),
+            email: formData.get("email"),
+            password: formData.get("password"),
+            role: formData.get("role"),
+            category: formData.get("role") === "TECHNICIAN" ? formData.get("category") : null,
+        };
+
+        try {
+            const res = await fetch(`/api/contracts/${contractId}/users`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(data),
+            });
+
+            if (!res.ok) {
+                const error = await res.json();
+                throw new Error(error.message || "Erro ao criar usuário");
+            }
+
+            toast({
+                title: "Sucesso",
+                description: "Colaborador adicionado ao contrato",
+            });
+            router.push(`/contracts/${contractId}?tab=team`);
+            router.refresh();
+        } catch (error: any) {
+            toast({
+                variant: "destructive",
+                title: "Erro",
+                description: error.message,
+            });
+        } finally {
+            setLoading(false);
+        }
+    }
+
+    return (
+        <div className="max-w-2xl mx-auto space-y-6">
+            <div className="flex items-center gap-4">
+                <Link href={`/contracts/${contractId}?tab=team`}>
+                    <Button variant="outline" size="icon" className="rounded-xl">
+                        <ArrowLeft className="h-4 w-4" />
+                    </Button>
+                </Link>
+                <div>
+                    <h1 className="text-3xl font-black tracking-tighter uppercase italic">Adicionar à Equipe</h1>
+                    <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Novo acesso para este contrato</p>
+                </div>
+            </div>
+
+            <Card className="border-border/60 shadow-xl rounded-[2rem] overflow-hidden">
+                <CardHeader className="bg-muted/30 border-b border-border/40 p-8">
+                    <CardTitle className="text-xl font-bold flex items-center gap-3 text-primary">
+                        <UserPlus className="h-6 w-6" />
+                        Acesso do Colaborador
+                    </CardTitle>
+                </CardHeader>
+                <CardContent className="p-8">
+                    <form onSubmit={onSubmit} className="space-y-6">
+                        <div className="grid gap-6 sm:grid-cols-2">
+                            <div className="space-y-2">
+                                <Label htmlFor="name" className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Nome Completo</Label>
+                                <Input
+                                    id="name"
+                                    name="name"
+                                    placeholder="Ex: João Silva"
+                                    required
+                                    className="h-12 rounded-xl bg-muted/30 focus:bg-background border-border/40 font-bold"
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="email" className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">E-mail de Acesso</Label>
+                                <Input
+                                    id="email"
+                                    name="email"
+                                    type="email"
+                                    placeholder="joao@empresa.com"
+                                    required
+                                    className="h-12 rounded-xl bg-muted/30 focus:bg-background border-border/40 font-bold"
+                                />
+                            </div>
+                        </div>
+
+                        <div className="grid gap-6 sm:grid-cols-2">
+                            <div className="space-y-2">
+                                <Label htmlFor="password" className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Senha Inicial</Label>
+                                <Input
+                                    id="password"
+                                    name="password"
+                                    type="password"
+                                    placeholder="••••••••"
+                                    required
+                                    className="h-12 rounded-xl bg-muted/30 focus:bg-background border-border/40 font-bold"
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="role" className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Nível de Permissão</Label>
+                                <select
+                                    id="role"
+                                    name="role"
+                                    className="flex h-12 w-full rounded-xl border border-border/40 bg-muted/30 px-4 py-2 text-sm font-bold focus:bg-background transition-all cursor-pointer"
+                                    value={selectedRole}
+                                    onChange={(e) => setSelectedRole(e.target.value)}
+                                >
+                                    {roles.map((role) => (
+                                        <option key={role.value} value={role.value}>{role.label}</option>
+                                    ))}
+                                </select>
+                            </div>
+                        </div>
+
+                        {selectedRole === "TECHNICIAN" && (
+                            <div className="space-y-2 animate-in slide-in-from-top-2">
+                                <Label htmlFor="category" className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Especialidade / Trade</Label>
+                                <select
+                                    id="category"
+                                    name="category"
+                                    className="flex h-12 w-full rounded-xl border border-border/40 bg-muted/30 px-4 py-2 text-sm font-bold focus:bg-background transition-all cursor-pointer"
+                                >
+                                    {categories.map((cat) => (
+                                        <option key={cat.value} value={cat.value}>{cat.label.toUpperCase()}</option>
+                                    ))}
+                                </select>
+                                <p className="text-[9px] text-muted-foreground font-bold uppercase tracking-widest mt-1 ml-1 opacity-70">
+                                    * O técnico verá apenas equipamentos marcados com esta especialidade.
+                                </p>
+                            </div>
+                        )}
+
+                        <div className="pt-4">
+                            <Button
+                                type="submit"
+                                className="w-full h-14 rounded-xl font-black text-xs uppercase tracking-[0.2em] shadow-lg shadow-primary/20 transition-all hover:scale-[1.01] hover:shadow-primary/30"
+                                disabled={loading}
+                            >
+                                {loading ? <Loader2 className="h-5 w-5 animate-spin mr-2" /> : <UserPlus className="h-5 w-5 mr-3" />}
+                                Criar Acesso e Vincular
+                            </Button>
+                        </div>
+                    </form>
+                </CardContent>
+            </Card>
+        </div>
+    );
+}

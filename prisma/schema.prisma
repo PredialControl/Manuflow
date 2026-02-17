@@ -1,0 +1,306 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  OWNER
+  ADMIN
+  SUPERVISOR
+  TECHNICIAN
+}
+
+enum Frequency {
+  DAILY
+  WEEKLY
+  MONTHLY
+  QUARTERLY
+  SEMIANNUAL
+  ANNUAL
+}
+
+enum InspectionStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+}
+
+enum StepStatus {
+  PENDING
+  OK
+  WARNING
+  CRITICAL
+  SKIPPED
+}
+
+enum ReportCategory {
+  ELECTRICAL
+  FIRE
+  HYDRAULIC
+  HOSPITAL
+  STRUCTURAL
+}
+
+enum RecurrenceType {
+  MONTHLY
+  QUARTERLY
+  SEMIANNUAL
+  ANNUAL
+}
+
+enum ReportStatus {
+  DRAFT
+  APPROVED              // Em dia
+  EXPIRING_SOON        // Próximo ao vencimento
+  IN_PROGRESS          // Em andamento
+  BUDGET_PENDING       // Aguardando aprovação de orçamento
+  BUDGETING            // Em orçamento
+  EXPIRED              // Vencidos
+  PENDING_APPROVAL
+  RENEWED
+}
+
+enum EmailType {
+  ALERT_60
+  ALERT_30
+  EXPIRED
+}
+
+enum EmailStatus {
+  PENDING
+  SENT
+  FAILED
+}
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  name          String
+  password      String
+  role          Role      @default(TECHNICIAN)
+  category      String?   // Specialty (e.g., AR_CONDICIONADO, CIVIL, ELETRICA)
+  avatar        String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  contracts     UserContract[]
+  inspections   Inspection[]
+  reports       Report[]
+  auditLogs     AuditLog[]
+}
+
+model Contract {
+  id              String    @id @default(cuid())
+  name            String
+  company         String
+  logo            String?
+  responsible     String
+  email           String
+  phone           String?
+  active          Boolean   @default(true)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  deletedAt       DateTime?
+  
+  assets          Asset[]
+  users           UserContract[]
+  reports         Report[]
+  inspections     Inspection[]
+  emailQueue      EmailQueue[]
+}
+
+model UserContract {
+  userId          String
+  contractId      String
+  assignedAt      DateTime  @default(now())
+  
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  contract        Contract  @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  
+  @@id([userId, contractId])
+}
+
+model Asset {
+  id              String    @id @default(cuid())
+  contractId      String
+  name            String
+  type            String
+  category        String?   // Specialty category (e.g., AR_CONDICIONADO, CIVIL, ELETRICA)
+  location        String
+  brand           String?
+  model           String?
+  power           String?
+  image           String?
+  frequency       Frequency @default(MONTHLY)
+  active          Boolean   @default(true)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  deletedAt       DateTime?
+  
+  contract        Contract  @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  scripts         AssetScript[]
+  inspections     Inspection[]
+  reports         Report[]
+}
+
+model AssetScript {
+  id              String    @id @default(cuid())
+  assetId         String
+  order           Int
+  question        String
+  required        Boolean   @default(true)
+  requirePhoto    Boolean   @default(false)
+  
+  asset           Asset     @relation(fields: [assetId], references: [id], onDelete: Cascade)
+}
+
+model Inspection {
+  id              String    @id @default(cuid())
+  contractId      String
+  assetId         String
+  userId          String
+  status          InspectionStatus @default(PENDING)
+  notes           String?
+  startedAt       DateTime  @default(now())
+  completedAt     DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  
+  contract        Contract  @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  asset           Asset     @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  steps           InspectionStep[]
+  photos          Photo[]
+}
+
+model InspectionStep {
+  id              String    @id @default(cuid())
+  inspectionId    String
+  scriptId        String?
+  question        String
+  status          StepStatus @default(PENDING)
+  requirePhoto    Boolean   @default(false)
+  photoUrl        String?
+  notes           String?
+  completedAt     DateTime?
+  
+  inspection      Inspection @relation(fields: [inspectionId], references: [id], onDelete: Cascade)
+}
+
+model Report {
+  id              String    @id @default(cuid())
+  contractId      String
+  assetId         String?
+  userId          String
+  templateId      String?
+  
+  title           String
+  executionDate   DateTime
+  expirationDate  DateTime
+  recurrence      RecurrenceType @default(MONTHLY)
+  status          ReportStatus @default(DRAFT)
+  
+  technicalResponsible String
+  crea             String
+  signatureUrl     String?
+  qrCode           String?
+  
+  notes            String?
+  recommendations  String?
+  
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  deletedAt        DateTime?
+  
+  contract         Contract  @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  asset            Asset?    @relation(fields: [assetId], references: [id], onDelete: SetNull)
+  user             User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  template         ReportTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
+  versions         ReportVersion[]
+  photos           Photo[]
+  emailQueue       EmailQueue[]
+}
+
+model ReportTemplate {
+  id              String    @id @default(cuid())
+  name            String
+  category        ReportCategory
+  description     String?
+  frequency       Frequency @default(MONTHLY)
+  
+  checklist       Json
+  requiredPhotos  String[]
+  
+  isDefault       Boolean   @default(false)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  
+  reports         Report[]
+}
+
+model ReportVersion {
+  id              String    @id @default(cuid())
+  reportId        String
+  version         Int
+  data            Json
+  notes           String?
+  createdAt       DateTime  @default(now())
+  createdBy       String
+  
+  report          Report    @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  
+  @@unique([reportId, version])
+}
+
+model Photo {
+  id              String    @id @default(cuid())
+  url             String
+  filename        String
+  width           Int?
+  height          Int?
+  size            Int?
+  
+  inspectionId    String?
+  reportId        String?
+  reportVersionId String?
+  
+  createdAt       DateTime  @default(now())
+  
+  inspection      Inspection? @relation(fields: [inspectionId], references: [id], onDelete: Cascade)
+  report          Report?    @relation(fields: [reportId], references: [id], onDelete: Cascade)
+}
+
+model EmailQueue {
+  id              String    @id @default(cuid())
+  contractId      String
+  reportId        String?
+  type            EmailType
+  
+  status          EmailStatus @default(PENDING)
+  errorMessage    String?
+  
+  createdAt       DateTime  @default(now())
+  sentAt          DateTime?
+  
+  contract        Contract  @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  report          Report?   @relation(fields: [reportId], references: [id], onDelete: Cascade)
+}
+
+model AuditLog {
+  id              String    @id @default(cuid())
+  userId          String
+  action          String
+  entity          String
+  entityId        String
+  changes         Json?
+  ipAddress       String?
+  userAgent       String?
+  
+  createdAt       DateTime  @default(now())
+  
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
