@@ -152,15 +152,15 @@ function ReportCard({ report }: { report: Report }) {
                     </div>
                 </div>
 
-                <div className="flex gap-2 pt-1">
+                <div className="flex gap-1.5 pt-1">
                     <Link href={`/reports/${report.id}`} className="flex-1">
-                        <Button variant="outline" size="sm" className="w-full h-8 rounded-xl text-[11px] font-bold border-border/60 hover:bg-primary hover:text-primary-foreground transition-all duration-300">
-                            <Eye className="h-3.5 w-3.5 mr-1.5" />
+                        <Button variant="outline" size="sm" className="w-full h-7 rounded-lg text-[10px] font-bold border-border/60 hover:bg-primary hover:text-primary-foreground transition-all duration-300 px-2">
+                            <Eye className="h-3 w-3 mr-1" />
                             Detalhes
                         </Button>
                     </Link>
-                    <Button variant="ghost" size="sm" className="h-8 w-8 rounded-xl hover:bg-muted border border-transparent hover:border-border/60">
-                        <Download className="h-3.5 w-3.5" />
+                    <Button variant="ghost" size="sm" className="h-7 w-7 rounded-lg hover:bg-muted border border-transparent hover:border-border/60 p-0">
+                        <Download className="h-3 w-3" />
                     </Button>
                 </div>
             </div>
@@ -184,7 +184,7 @@ function DroppableColumn({
     return (
         <div
             ref={setNodeRef}
-            className={`flex flex-col h-full min-w-[280px] rounded-3xl transition-all duration-300 ${isOver ? "bg-primary/5 ring-1 ring-primary/20" : ""
+            className={`flex flex-col h-full min-w-[220px] rounded-2xl transition-all duration-300 ${isOver ? "bg-primary/5 ring-1 ring-primary/20" : ""
                 }`}
         >
             <div className="px-4 py-5 flex items-center justify-between">
@@ -293,7 +293,7 @@ export function ReportsKanban({ initialReports }: { initialReports: Report[] }) 
             onDragStart={handleDragStart}
             onDragEnd={handleDragEnd}
         >
-            <div className="flex gap-6 overflow-x-auto pb-8 scrollbar-hide px-1">
+            <div className="flex gap-3 overflow-x-auto pb-8 scrollbar-hide px-1">
                 {columns.map((column) => {
                     const columnReports = reports.filter((report) =>
                         column.status.includes(report.status)

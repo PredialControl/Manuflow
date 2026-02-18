@@ -63,7 +63,7 @@ export function AuthenticatedLayoutClient({
             <PwaInstallPrompt />
             {/* Sleek Glass Header */}
             <header className="glass shadow-sm shadow-black/5">
-                <div className="w-full px-6 h-16 flex items-center justify-between">
+                <div className="w-full px-4 h-16 flex items-center justify-between">
                     <div className="flex items-center gap-4">
                         <SidebarToggle />
                         <div className="h-8 w-[1px] bg-border mx-1 hidden lg:block" />
@@ -92,12 +92,12 @@ export function AuthenticatedLayoutClient({
                 </div>
             </header>
 
-            <div className="flex flex-1 w-full px-6 overflow-hidden">
+            <div className="flex flex-1 w-full px-4 overflow-hidden">
                 {/* Animated Sidebar */}
                 <aside
                     className={cn(
                         "hidden lg:flex flex-col py-8 transition-all duration-300 ease-in-out border-r border-border/40",
-                        isCollapsed ? "w-20 pr-0" : "w-64 pr-8"
+                        isCollapsed ? "w-20 pr-0" : "w-56 pr-6"
                     )}
                 >
                     <div className="flex flex-col h-full">
