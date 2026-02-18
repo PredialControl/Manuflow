@@ -43,7 +43,7 @@ const columns: KanbanColumn[] = [
     {
         id: "approved",
         title: "Em dia",
-        status: ["APPROVED"],
+        status: ["APPROVED", "RENEWED"],
         color: "text-emerald-600 dark:text-emerald-400",
         bgColor: "bg-emerald-500/10",
     },
@@ -60,6 +60,20 @@ const columns: KanbanColumn[] = [
         status: ["IN_PROGRESS"],
         color: "text-blue-600 dark:text-blue-400",
         bgColor: "bg-blue-500/10",
+    },
+    {
+        id: "pending_approval",
+        title: "Aguardando aprovação",
+        status: ["PENDING_APPROVAL"],
+        color: "text-orange-600 dark:text-orange-400",
+        bgColor: "bg-orange-500/10",
+    },
+    {
+        id: "approved_execution",
+        title: "Aprovado para execução",
+        status: ["APPROVED_FOR_EXECUTION"],
+        color: "text-cyan-600 dark:text-cyan-400",
+        bgColor: "bg-cyan-500/10",
     },
     {
         id: "budget_pending",

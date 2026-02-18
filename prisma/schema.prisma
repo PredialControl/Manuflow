@@ -61,6 +61,7 @@ enum ReportStatus {
   BUDGETING            // Em orçamento
   EXPIRED              // Vencidos
   PENDING_APPROVAL
+  APPROVED_FOR_EXECUTION // Aprovado para execução
   RENEWED
 }
 
