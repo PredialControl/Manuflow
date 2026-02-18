@@ -73,6 +73,7 @@ export default function LoginPage() {
                   id="email"
                   name="email"
                   type="email"
+                  autoComplete="username"
                   className="h-12 rounded-xl border-border/60 bg-muted/30 focus:bg-background transition-all"
                   placeholder="admin@manuflow.com"
                   required
@@ -86,10 +87,15 @@ export default function LoginPage() {
                   id="password"
                   name="password"
                   type="password"
+                  autoComplete="current-password"
                   className="h-12 rounded-xl border-border/60 bg-muted/30 focus:bg-background transition-all"
                   placeholder="••••••••"
                   required
                 />
+              </div>
+              <div className="flex items-center gap-2 px-1">
+                <input type="checkbox" id="remember" className="h-4 w-4 rounded border-border/60 text-primary focus:ring-primary" defaultChecked />
+                <Label htmlFor="remember" className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60 cursor-pointer">Manter conectado neste dispositivo</Label>
               </div>
               <Button type="submit" className="w-full h-12 rounded-xl font-black text-xs uppercase tracking-widest shadow-lg shadow-primary/20 transition-all hover:scale-[1.01] active:scale-[0.99] mt-2" disabled={loading}>
                 {loading ? "Autenticando..." : "Entrar no Sistema"}

@@ -6,13 +6,23 @@ import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/use-toast";
 import {
     Sun, Moon, Clock, CheckCircle2, PlayCircle, AlertCircle,
-    Building2, Calendar, ChevronRight, Loader2, ArrowRight, ArrowLeft, Check, MapPin, Camera, FileText
+    Building2, Calendar, ChevronRight, Loader2, ArrowRight, ArrowLeft, Check, MapPin, Camera, FileText, Download
 } from "lucide-react";
+import { cn } from "@/lib/utils";
+import dynamic from "next/dynamic";
+
+const PDFDownloadLink = dynamic(
+    () => import("@react-pdf/renderer").then((mod) => mod.PDFDownloadLink),
+    { ssr: false }
+);
+
+import { RondaPdf } from "./ronda-pdf";
 
 interface RondaStep {
     id: string;
     description: string;
     status: "PENDING" | "OK" | "WARNING" | "CRITICAL" | "SKIPPED";
+    notes?: string;
     asset?: { name: string };
 }
 
@@ -76,6 +86,10 @@ export function RondasHoje() {
     async function finishRonda() {
         if (!executingRonda) return;
 
+        // Salvar o último passo antes de finalizar
+        const lastStep = executingRonda.steps[currentStepIdx];
+        await saveStep(lastStep.id);
+
         const res = await fetch(`/api/rondas/${executingRonda.id}`, {
             method: "PATCH",
             headers: { "Content-Type": "application/json" },
@@ -88,6 +102,59 @@ export function RondasHoje() {
             fetchRondas();
         }
     }
+
+    function updateStep(stepId: string, data: Partial<RondaStep>) {
+        if (!executingRonda) return;
+        const updatedSteps = executingRonda.steps.map(s => s.id === stepId ? { ...s, ...data } : s);
+        setExecutingRonda({
+            ...executingRonda,
+            steps: updatedSteps
+        });
+
+        // Se estiver atualizando o status, salva imediatamente
+        if (data.status) {
+            const step = updatedSteps.find(s => s.id === stepId);
+            if (step) {
+                fetch(`/api/rondas/steps/${stepId}`, {
+                    method: "PATCH",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        status: step.status,
+                        notes: step.notes,
+                    }),
+                });
+            }
+        }
+    }
+
+    async function saveStep(stepId: string) {
+        if (!executingRonda) return;
+        const step = executingRonda.steps.find(s => s.id === stepId);
+        if (!step) return;
+
+        await fetch(`/api/rondas/steps/${stepId}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                status: step.status,
+                notes: step.notes,
+            }),
+        });
+    }
+
+    const nextStep = async () => {
+        if (!executingRonda) return;
+        const currentStep = executingRonda.steps[currentStepIdx];
+        await saveStep(currentStep.id);
+        setCurrentStepIdx(prev => prev + 1);
+    };
+
+    const prevStep = async () => {
+        if (!executingRonda) return;
+        const currentStep = executingRonda.steps[currentStepIdx];
+        await saveStep(currentStep.id);
+        setCurrentStepIdx(prev => prev - 1);
+    };
 
     if (loading) return (
         <div className="flex flex-col items-center justify-center py-20 gap-4">
@@ -149,15 +216,52 @@ export function RondasHoje() {
                             )}
                         </div>
 
-                        <div className="grid grid-cols-2 gap-4">
-                            <Button variant="outline" className="h-20 rounded-2xl border-dashed border-2 flex flex-col gap-1">
-                                <Camera className="h-5 w-5 text-muted-foreground" />
-                                <span className="text-[9px] font-black uppercase">Anexar Foto</span>
-                            </Button>
-                            <Button variant="outline" className="h-20 rounded-2xl border-dashed border-2 flex flex-col gap-1">
-                                <FileText className="h-5 w-5 text-muted-foreground" />
-                                <span className="text-[9px] font-black uppercase">Add Observação</span>
-                            </Button>
+                        <div className="space-y-6">
+                            <div className="flex flex-col gap-3">
+                                <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60 text-center">Status da Verificação</p>
+                                <div className="grid grid-cols-2 gap-3">
+                                    <Button
+                                        onClick={() => updateStep(currentStep.id, { status: "OK" })}
+                                        variant={currentStep.status === "OK" ? "default" : "outline"}
+                                        className={cn(
+                                            "h-16 rounded-2xl font-black uppercase tracking-widest text-[10px] border-2",
+                                            currentStep.status === "OK" ? "bg-emerald-500 hover:bg-emerald-600 border-emerald-500 shadow-lg shadow-emerald-500/20" : "border-emerald-500/20 text-emerald-600"
+                                        )}
+                                    >
+                                        <CheckCircle2 className="h-4 w-4 mr-2" />
+                                        Em Funcionamento
+                                    </Button>
+                                    <Button
+                                        onClick={() => updateStep(currentStep.id, { status: "WARNING" })}
+                                        variant={currentStep.status === "WARNING" ? "destructive" : "outline"}
+                                        className={cn(
+                                            "h-16 rounded-2xl font-black uppercase tracking-widest text-[10px] border-2",
+                                            currentStep.status === "WARNING" ? "bg-amber-500 hover:bg-amber-600 border-amber-500 shadow-lg shadow-amber-500/20" : "border-amber-500/20 text-amber-600"
+                                        )}
+                                    >
+                                        <AlertCircle className="h-4 w-4 mr-2" />
+                                        Atenção / Problema
+                                    </Button>
+                                </div>
+                            </div>
+
+                            <div className="space-y-3">
+                                <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60">Observações Adicionais</p>
+                                <textarea
+                                    value={currentStep.notes || ""}
+                                    onChange={(e) => updateStep(currentStep.id, { notes: e.target.value })}
+                                    onBlur={() => saveStep(currentStep.id)}
+                                    placeholder="Descreva detalhes se necessário..."
+                                    className="w-full bg-muted/30 border-2 border-border/40 rounded-2xl p-4 text-sm font-medium focus:border-primary/40 focus:ring-0 transition-all min-h-[100px] resize-none"
+                                />
+                            </div>
+
+                            <div className="grid grid-cols-1 gap-4">
+                                <Button variant="outline" className="h-14 rounded-2xl border-dashed border-2 flex items-center justify-center gap-2">
+                                    <Camera className="h-5 w-5 text-muted-foreground" />
+                                    <span className="text-[9px] font-black uppercase">Anexar Foto Técnica</span>
+                                </Button>
+                            </div>
                         </div>
                     </CardContent>
 
@@ -165,7 +269,7 @@ export function RondasHoje() {
                         <Button
                             variant="ghost"
                             disabled={currentStepIdx === 0}
-                            onClick={() => setCurrentStepIdx(prev => prev - 1)}
+                            onClick={prevStep}
                             className="h-14 px-8 rounded-2xl font-black uppercase tracking-widest text-xs"
                         >
                             Voltar
@@ -180,7 +284,7 @@ export function RondasHoje() {
                             </Button>
                         ) : (
                             <Button
-                                onClick={() => setCurrentStepIdx(prev => prev + 1)}
+                                onClick={nextStep}
                                 className="h-14 px-10 rounded-2xl bg-primary hover:bg-primary/90 text-white flex-1 font-black uppercase tracking-widest text-xs shadow-xl shadow-primary/20"
                             >
                                 Próximo Passo <ArrowRight className="h-4 w-4 ml-2" />
@@ -248,9 +352,25 @@ export function RondasHoje() {
                                         <ChevronRight className="h-4 w-4 ml-2" />
                                     </Button>
                                 ) : (
-                                    <Button variant="outline" className="h-12 px-6 rounded-xl border-emerald-500/20 text-emerald-600 bg-emerald-500/5 font-black text-[10px] uppercase tracking-widest">
-                                        Ver Relatório
-                                    </Button>
+                                    <PDFDownloadLink
+                                        document={<RondaPdf ronda={ronda} />}
+                                        fileName={`ronda-${ronda.id.slice(-6)}.pdf`}
+                                    >
+                                        {({ loading: pdfLoading }) => (
+                                            <Button
+                                                variant="outline"
+                                                disabled={pdfLoading}
+                                                className="h-12 px-6 rounded-xl border-primary/20 text-primary bg-primary/5 font-black text-[10px] uppercase tracking-widest hover:bg-primary hover:text-white transition-all"
+                                            >
+                                                {pdfLoading ? (
+                                                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                                                ) : (
+                                                    <Download className="h-4 w-4 mr-2" />
+                                                )}
+                                                PDF do Relatório
+                                            </Button>
+                                        )}
+                                    </PDFDownloadLink>
                                 )}
                             </div>
                         </CardContent>
