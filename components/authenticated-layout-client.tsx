@@ -8,6 +8,7 @@ import { SignOutButton } from "@/components/sign-out-button";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { SidebarToggle } from "@/components/sidebar-toggle";
 import { useSidebar } from "@/components/sidebar-context";
+import { PwaInstallPrompt } from "@/components/pwa-install-prompt";
 import {
     LayoutDashboard,
     Building2,
@@ -59,6 +60,7 @@ export function AuthenticatedLayoutClient({
 
     return (
         <div className="min-h-screen bg-background flex flex-col transition-colors duration-300">
+            <PwaInstallPrompt />
             {/* Sleek Glass Header */}
             <header className="glass shadow-sm shadow-black/5">
                 <div className="w-full px-6 h-16 flex items-center justify-between">
