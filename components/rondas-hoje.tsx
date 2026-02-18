@@ -1,13 +1,20 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/use-toast";
 import {
     Sun, Moon, Clock, CheckCircle2, PlayCircle, AlertCircle,
-    Building2, Calendar, ChevronRight, Loader2
+    Building2, Calendar, ChevronRight, Loader2, ArrowRight, ArrowLeft, Check, MapPin, Camera, FileText
 } from "lucide-react";
+
+interface RondaStep {
+    id: string;
+    description: string;
+    status: "PENDING" | "OK" | "WARNING" | "CRITICAL" | "SKIPPED";
+    asset?: { name: string };
+}
 
 interface Ronda {
     id: string;
@@ -16,12 +23,12 @@ interface Ronda {
     startedAt?: string;
     completedAt?: string;
     notes?: string;
+    steps: RondaStep[];
     schedule: {
         id: string;
         name: string;
         shift: "DAY" | "NIGHT";
         time: string;
-        days: string[];
     };
     contract: {
         id: string;
@@ -30,43 +37,11 @@ interface Ronda {
     };
 }
 
-const statusConfig = {
-    PENDING: {
-        label: "Pendente",
-        color: "text-amber-500",
-        bg: "bg-amber-500/10 border-amber-500/20",
-        icon: Clock,
-    },
-    IN_PROGRESS: {
-        label: "Em Andamento",
-        color: "text-blue-500",
-        bg: "bg-blue-500/10 border-blue-500/20",
-        icon: PlayCircle,
-    },
-    COMPLETED: {
-        label: "Concluída",
-        color: "text-emerald-500",
-        bg: "bg-emerald-500/10 border-emerald-500/20",
-        icon: CheckCircle2,
-    },
-    MISSED: {
-        label: "Não Realizada",
-        color: "text-rose-500",
-        bg: "bg-rose-500/10 border-rose-500/20",
-        icon: AlertCircle,
-    },
-};
-
 export function RondasHoje() {
     const [rondas, setRondas] = useState<Ronda[]>([]);
     const [loading, setLoading] = useState(true);
-    const [updating, setUpdating] = useState<string | null>(null);
-
-    const hoje = new Date().toLocaleDateString("pt-BR", {
-        weekday: "long",
-        day: "numeric",
-        month: "long",
-    });
+    const [executingRonda, setExecutingRonda] = useState<Ronda | null>(null);
+    const [currentStepIdx, setCurrentStepIdx] = useState(0);
 
     useEffect(() => {
         fetchRondas();
@@ -82,274 +57,206 @@ export function RondasHoje() {
         setLoading(false);
     }
 
-    async function updateStatus(id: string, status: string) {
-        setUpdating(id);
-        const res = await fetch(`/api/rondas/${id}`, {
+    async function startRonda(ronda: Ronda) {
+        const res = await fetch(`/api/rondas/${ronda.id}`, {
             method: "PATCH",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ status }),
+            body: JSON.stringify({ status: "IN_PROGRESS" }),
         });
 
         if (res.ok) {
             const updated = await res.json();
-            setRondas((prev) =>
-                prev.map((r) => (r.id === id ? { ...r, ...updated } : r))
-            );
-            toast({
-                title: status === "IN_PROGRESS" ? "Ronda iniciada!" : "Ronda concluída! ✓",
-                description: status === "COMPLETED" ? "Ótimo trabalho!" : undefined,
-            });
-        } else {
-            toast({ variant: "destructive", title: "Erro ao atualizar ronda" });
+            const fullRonda = { ...ronda, ...updated };
+            setExecutingRonda(fullRonda);
+            setCurrentStepIdx(0);
+            toast({ title: "Modo de execução iniciado", description: "Siga o roteiro passo a passo." });
         }
-        setUpdating(null);
     }
 
-    const pendentes = rondas.filter((r) => r.status === "PENDING");
-    const emAndamento = rondas.filter((r) => r.status === "IN_PROGRESS");
-    const concluidas = rondas.filter((r) => r.status === "COMPLETED");
+    async function finishRonda() {
+        if (!executingRonda) return;
 
-    if (loading) {
+        const res = await fetch(`/api/rondas/${executingRonda.id}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ status: "COMPLETED" }),
+        });
+
+        if (res.ok) {
+            toast({ title: "Ronda Finalizada!", description: "O relatório foi gerado com sucesso." });
+            setExecutingRonda(null);
+            fetchRondas();
+        }
+    }
+
+    if (loading) return (
+        <div className="flex flex-col items-center justify-center py-20 gap-4">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            <p className="text-sm font-bold text-muted-foreground uppercase tracking-widest">Carregando rondas...</p>
+        </div>
+    );
+
+    // MODO EXECUÇÃO (Passo a Passo)
+    if (executingRonda) {
+        const totalSteps = executingRonda.steps.length;
+        const currentStep = executingRonda.steps[currentStepIdx];
+        const isLastStep = currentStepIdx === totalSteps - 1;
+
         return (
-            <div className="flex flex-col items-center justify-center py-20 gap-4">
-                <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                <p className="text-sm font-bold text-muted-foreground uppercase tracking-widest">
-                    Carregando rondas...
-                </p>
+            <div className="max-w-2xl mx-auto space-y-6 animate-in fade-in zoom-in-95">
+                <div className="flex items-center justify-between">
+                    <Button variant="ghost" size="sm" onClick={() => setExecutingRonda(null)} className="text-muted-foreground">
+                        <ArrowLeft className="h-4 w-4 mr-2" /> Sair
+                    </Button>
+                    <div className="text-right">
+                        <p className="text-[10px] font-black uppercase text-primary tracking-widest">Progresso</p>
+                        <p className="text-sm font-black italic">{currentStepIdx + 1} de {totalSteps}</p>
+                    </div>
+                </div>
+
+                <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
+                    <div
+                        className="h-full bg-primary transition-all duration-500"
+                        style={{ width: `${((currentStepIdx + 1) / totalSteps) * 100}%` }}
+                    />
+                </div>
+
+                <Card className="border-2 border-primary/20 shadow-2xl rounded-[2.5rem] overflow-hidden">
+                    <div className="bg-primary/5 p-6 border-b border-primary/10 flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                            <div className="h-10 w-10 rounded-xl bg-primary text-white flex items-center justify-center font-black">
+                                {currentStepIdx + 1}
+                            </div>
+                            <div>
+                                <h3 className="font-black uppercase italic tracking-tight">{executingRonda.schedule.name}</h3>
+                                <p className="text-[10px] font-bold text-muted-foreground uppercase">{executingRonda.contract.name}</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <CardContent className="p-10 space-y-8">
+                        <div className="space-y-4 text-center">
+                            <div className="inline-flex h-16 w-16 rounded-full bg-primary/10 items-center justify-center text-primary mb-2">
+                                <MapPin className="h-8 w-8" />
+                            </div>
+                            <h2 className="text-3xl font-black tracking-tighter uppercase italic leading-none">
+                                {currentStep?.description || "Iniciar Verificação"}
+                            </h2>
+                            {currentStep?.asset && (
+                                <p className="text-sm font-bold text-primary uppercase tracking-widest">
+                                    Ativo: {currentStep.asset.name}
+                                </p>
+                            )}
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                            <Button variant="outline" className="h-20 rounded-2xl border-dashed border-2 flex flex-col gap-1">
+                                <Camera className="h-5 w-5 text-muted-foreground" />
+                                <span className="text-[9px] font-black uppercase">Anexar Foto</span>
+                            </Button>
+                            <Button variant="outline" className="h-20 rounded-2xl border-dashed border-2 flex flex-col gap-1">
+                                <FileText className="h-5 w-5 text-muted-foreground" />
+                                <span className="text-[9px] font-black uppercase">Add Observação</span>
+                            </Button>
+                        </div>
+                    </CardContent>
+
+                    <div className="p-6 bg-muted/30 border-t border-border/40 flex gap-4">
+                        <Button
+                            variant="ghost"
+                            disabled={currentStepIdx === 0}
+                            onClick={() => setCurrentStepIdx(prev => prev - 1)}
+                            className="h-14 px-8 rounded-2xl font-black uppercase tracking-widest text-xs"
+                        >
+                            Voltar
+                        </Button>
+
+                        {isLastStep ? (
+                            <Button
+                                onClick={finishRonda}
+                                className="h-14 px-10 rounded-2xl btn-premium flex-1 font-black uppercase tracking-widest text-xs shadow-xl shadow-primary/20"
+                            >
+                                <Check className="h-4 w-4 mr-2" /> Finalizar Ronda
+                            </Button>
+                        ) : (
+                            <Button
+                                onClick={() => setCurrentStepIdx(prev => prev + 1)}
+                                className="h-14 px-10 rounded-2xl bg-primary hover:bg-primary/90 text-white flex-1 font-black uppercase tracking-widest text-xs shadow-xl shadow-primary/20"
+                            >
+                                Próximo Passo <ArrowRight className="h-4 w-4 ml-2" />
+                            </Button>
+                        )}
+                    </div>
+                </Card>
             </div>
         );
     }
 
+    // LISTAGEM DE HOJE
     return (
         <div className="space-y-6">
-            {/* Header do dia */}
-            <div className="flex items-center gap-4 p-5 rounded-2xl bg-primary/5 border border-primary/10">
-                <div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
-                    <Calendar className="h-6 w-6" />
+            <div className="flex items-center gap-4 p-6 rounded-[2rem] bg-card border border-border/40 shadow-sm relative overflow-hidden group">
+                <div className="absolute top-0 right-0 p-8 opacity-[0.03] group-hover:scale-110 transition-transform">
+                    <Calendar className="h-32 w-32" />
                 </div>
-                <div>
-                    <p className="text-[10px] font-black uppercase tracking-[0.3em] text-muted-foreground">
-                        Rondas de Hoje
-                    </p>
-                    <h2 className="text-lg font-black uppercase italic tracking-tight capitalize">
-                        {hoje}
-                    </h2>
+                <div className="h-14 w-14 rounded-2xl bg-primary/10 flex items-center justify-center text-primary relative">
+                    <Calendar className="h-7 w-7" />
                 </div>
-                <div className="ml-auto flex gap-3 text-center">
-                    <div>
-                        <p className="text-2xl font-black text-primary">{rondas.length}</p>
-                        <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Total</p>
-                    </div>
-                    <div className="w-px bg-border" />
-                    <div>
-                        <p className="text-2xl font-black text-emerald-500">{concluidas.length}</p>
-                        <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Feitas</p>
-                    </div>
+                <div className="relative">
+                    <p className="text-[10px] font-black uppercase tracking-[0.3em] text-muted-foreground/60">Programação de Hoje</p>
+                    <h2 className="text-xl font-black uppercase italic tracking-tight">{new Date().toLocaleDateString("pt-BR", { weekday: "long", day: "numeric", month: "long" })}</h2>
                 </div>
             </div>
 
-            {rondas.length === 0 ? (
-                <Card className="border-dashed border-border/40 bg-muted/10 rounded-2xl">
-                    <CardContent className="flex flex-col items-center justify-center py-16">
-                        <CheckCircle2 className="h-12 w-12 text-emerald-500/30 mb-4" />
-                        <p className="text-sm font-bold text-muted-foreground uppercase tracking-widest">
-                            Sem rondas programadas para hoje
-                        </p>
-                    </CardContent>
-                </Card>
-            ) : (
-                <div className="space-y-8">
-                    {/* Em Andamento */}
-                    {emAndamento.length > 0 && (
-                        <div className="space-y-3">
-                            <p className="text-[10px] font-black uppercase tracking-[0.3em] text-blue-500 px-1">
-                                ● Em Andamento
-                            </p>
-                            {emAndamento.map((ronda) => (
-                                <RondaCard
-                                    key={ronda.id}
-                                    ronda={ronda}
-                                    onUpdate={updateStatus}
-                                    updating={updating}
-                                />
-                            ))}
-                        </div>
-                    )}
-
-                    {/* Pendentes */}
-                    {pendentes.length > 0 && (
-                        <div className="space-y-3">
-                            <p className="text-[10px] font-black uppercase tracking-[0.3em] text-amber-500 px-1">
-                                ○ Pendentes
-                            </p>
-                            {pendentes.map((ronda) => (
-                                <RondaCard
-                                    key={ronda.id}
-                                    ronda={ronda}
-                                    onUpdate={updateStatus}
-                                    updating={updating}
-                                />
-                            ))}
-                        </div>
-                    )}
-
-                    {/* Concluídas */}
-                    {concluidas.length > 0 && (
-                        <div className="space-y-3">
-                            <p className="text-[10px] font-black uppercase tracking-[0.3em] text-emerald-500 px-1">
-                                ✓ Concluídas
-                            </p>
-                            {concluidas.map((ronda) => (
-                                <RondaCard
-                                    key={ronda.id}
-                                    ronda={ronda}
-                                    onUpdate={updateStatus}
-                                    updating={updating}
-                                />
-                            ))}
-                        </div>
-                    )}
-                </div>
-            )}
-        </div>
-    );
-}
-
-function RondaCard({
-    ronda,
-    onUpdate,
-    updating,
-}: {
-    ronda: Ronda;
-    onUpdate: (id: string, status: string) => void;
-    updating: string | null;
-}) {
-    const cfg = statusConfig[ronda.status];
-    const StatusIcon = cfg.icon;
-    const isUpdating = updating === ronda.id;
-
-    return (
-        <Card
-            className={`rounded-2xl border transition-all ${ronda.status === "IN_PROGRESS"
-                    ? "border-blue-500/30 bg-blue-500/5 shadow-lg shadow-blue-500/5"
-                    : ronda.status === "COMPLETED"
-                        ? "border-emerald-500/20 bg-emerald-500/5 opacity-70"
-                        : "border-border/60 bg-card/40"
-                }`}
-        >
-            <CardContent className="p-5">
-                <div className="flex items-start gap-4">
-                    {/* Turno icon */}
-                    <div
-                        className={`h-12 w-12 rounded-xl flex items-center justify-center flex-shrink-0 ${ronda.schedule.shift === "DAY"
-                                ? "bg-amber-500/10 text-amber-500"
-                                : "bg-indigo-500/10 text-indigo-400"
-                            }`}
+            <div className="grid gap-6">
+                {rondas.length === 0 ? (
+                    <div className="py-20 text-center bg-muted/10 rounded-[2rem] border-2 border-dashed">
+                        <CheckCircle2 className="h-12 w-12 text-muted-foreground/20 mx-auto mb-4" />
+                        <p className="text-sm font-bold text-muted-foreground uppercase tracking-widest">Tudo em dia por aqui!</p>
+                    </div>
+                ) : rondas.map((ronda) => (
+                    <Card
+                        key={ronda.id}
+                        className={`rounded-[2rem] border-border/60 overflow-hidden transition-all hover:shadow-xl group ${ronda.status === 'COMPLETED' ? 'opacity-60 grayscale-[0.5]' : ''}`}
                     >
-                        {ronda.schedule.shift === "DAY" ? (
-                            <Sun className="h-6 w-6" />
-                        ) : (
-                            <Moon className="h-6 w-6" />
-                        )}
-                    </div>
-
-                    <div className="flex-1 min-w-0">
-                        <div className="flex items-start justify-between gap-2">
-                            <div>
-                                <h3 className="font-black uppercase italic tracking-tight text-base leading-tight">
-                                    {ronda.schedule.name}
-                                </h3>
-                                <div className="flex items-center gap-2 mt-1">
-                                    <Building2 className="h-3 w-3 text-muted-foreground" />
-                                    <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest truncate">
-                                        {ronda.contract.name}
-                                    </span>
+                        <CardContent className="p-0 flex flex-col sm:flex-row">
+                            <div className={`p-8 sm:w-40 flex flex-col items-center justify-center gap-2 ${ronda.schedule.shift === 'DAY' ? 'bg-amber-500/5 text-amber-500' : 'bg-indigo-500/5 text-indigo-400'}`}>
+                                {ronda.schedule.shift === 'DAY' ? <Sun className="h-8 w-8" /> : <Moon className="h-8 w-8" />}
+                                <span className="text-lg font-black">{ronda.schedule.time}</span>
+                            </div>
+                            <div className="flex-1 p-8 flex flex-col sm:flex-row sm:items-center justify-between gap-6">
+                                <div>
+                                    <h3 className="text-xl font-black uppercase italic tracking-tight group-hover:text-primary transition-colors">{ronda.schedule.name}</h3>
+                                    <div className="flex items-center gap-2 mt-2">
+                                        <Building2 className="h-3.5 w-3.5 text-muted-foreground" />
+                                        <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">{ronda.contract.name}</span>
+                                    </div>
+                                    {ronda.status === 'COMPLETED' && (
+                                        <div className="mt-4 flex items-center gap-2 text-emerald-500">
+                                            <CheckCircle2 className="h-4 w-4" />
+                                            <span className="text-[10px] font-black uppercase tracking-widest">Ronda Concluída ✓</span>
+                                        </div>
+                                    )}
                                 </div>
-                            </div>
 
-                            {/* Status badge */}
-                            <div
-                                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[9px] font-black uppercase tracking-widest flex-shrink-0 ${cfg.bg} ${cfg.color}`}
-                            >
-                                <StatusIcon className="h-3 w-3" />
-                                {cfg.label}
-                            </div>
-                        </div>
-
-                        {/* Horário */}
-                        <div className="flex items-center gap-1.5 mt-3">
-                            <Clock className="h-3.5 w-3.5 text-muted-foreground" />
-                            <span className="text-xs font-black text-muted-foreground">
-                                {ronda.schedule.time}
-                            </span>
-                            {ronda.startedAt && (
-                                <>
-                                    <span className="text-muted-foreground/30">·</span>
-                                    <span className="text-[10px] text-muted-foreground font-bold">
-                                        Iniciada às{" "}
-                                        {new Date(ronda.startedAt).toLocaleTimeString("pt-BR", {
-                                            hour: "2-digit",
-                                            minute: "2-digit",
-                                        })}
-                                    </span>
-                                </>
-                            )}
-                            {ronda.completedAt && (
-                                <>
-                                    <span className="text-muted-foreground/30">·</span>
-                                    <span className="text-[10px] text-emerald-500 font-bold">
-                                        Concluída às{" "}
-                                        {new Date(ronda.completedAt).toLocaleTimeString("pt-BR", {
-                                            hour: "2-digit",
-                                            minute: "2-digit",
-                                        })}
-                                    </span>
-                                </>
-                            )}
-                        </div>
-
-                        {/* Ações */}
-                        {ronda.status !== "COMPLETED" && ronda.status !== "MISSED" && (
-                            <div className="flex gap-2 mt-4">
-                                {ronda.status === "PENDING" && (
+                                {ronda.status !== 'COMPLETED' ? (
                                     <Button
-                                        size="sm"
-                                        onClick={() => onUpdate(ronda.id, "IN_PROGRESS")}
-                                        disabled={isUpdating}
-                                        className="h-9 px-5 rounded-xl text-[10px] font-black uppercase tracking-widest bg-blue-600 hover:bg-blue-700 text-white"
+                                        onClick={() => startRonda(ronda)}
+                                        className="h-14 px-8 rounded-2xl bg-primary hover:bg-primary/90 text-white font-black uppercase tracking-widest text-xs shadow-lg shadow-primary/20 group-hover:scale-105 transition-transform"
                                     >
-                                        {isUpdating ? (
-                                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                                        ) : (
-                                            <>
-                                                <PlayCircle className="h-3.5 w-3.5 mr-1.5" />
-                                                Iniciar Ronda
-                                            </>
-                                        )}
+                                        {ronda.status === 'IN_PROGRESS' ? 'Continuar Ronda' : 'Iniciar Ronda'}
+                                        <ChevronRight className="h-4 w-4 ml-2" />
                                     </Button>
-                                )}
-                                {ronda.status === "IN_PROGRESS" && (
-                                    <Button
-                                        size="sm"
-                                        onClick={() => onUpdate(ronda.id, "COMPLETED")}
-                                        disabled={isUpdating}
-                                        className="h-9 px-5 rounded-xl text-[10px] font-black uppercase tracking-widest bg-emerald-600 hover:bg-emerald-700 text-white"
-                                    >
-                                        {isUpdating ? (
-                                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                                        ) : (
-                                            <>
-                                                <CheckCircle2 className="h-3.5 w-3.5 mr-1.5" />
-                                                Concluir Ronda
-                                            </>
-                                        )}
+                                ) : (
+                                    <Button variant="outline" className="h-12 px-6 rounded-xl border-emerald-500/20 text-emerald-600 bg-emerald-500/5 font-black text-[10px] uppercase tracking-widest">
+                                        Ver Relatório
                                     </Button>
                                 )}
                             </div>
-                        )}
-                    </div>
-                </div>
-            </CardContent>
-        </Card>
+                        </CardContent>
+                    </Card>
+                ))}
+            </div>
+        </div>
     );
 }

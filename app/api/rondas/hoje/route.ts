@@ -64,10 +64,20 @@ export async function GET(request: Request) {
                         ...(session.user.role === "TECHNICIAN"
                             ? { assignedTo: session.user.id }
                             : {}),
+                        // Criar passos se existirem na agenda
+                        steps: {
+                            create: (schedule.steps as any[] || []).map((step: any) => ({
+                                description: step.task,
+                                assetId: step.assetId,
+                                status: "PENDING",
+                            })),
+                        },
                     },
                     include: {
                         assignee: { select: { id: true, name: true } },
-                        steps: true,
+                        steps: {
+                            include: { asset: { select: { name: true } } }
+                        },
                     },
                 });
             }
