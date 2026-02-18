@@ -91,6 +91,7 @@ model User {
   inspections   Inspection[]
   reports       Report[]
   auditLogs     AuditLog[]
+  assignedRondas ScheduledInspection[]
 }
 
 model Contract {
@@ -111,6 +112,8 @@ model Contract {
   reports         Report[]
   inspections     Inspection[]
   emailQueue      EmailQueue[]
+  schedules       InspectionSchedule[]
+  scheduledInspections ScheduledInspection[]
 }
 
 model UserContract {
@@ -145,6 +148,7 @@ model Asset {
   scripts         AssetScript[]
   inspections     Inspection[]
   reports         Report[]
+  scheduleSteps   ScheduledInspectionStep[]
 }
 
 model AssetScript {
@@ -303,4 +307,77 @@ model AuditLog {
   createdAt       DateTime  @default(now())
   
   user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// ─── Agendamento de Rondas ────────────────────────────────────────────────────
+
+enum DayOfWeek {
+  MON
+  TUE
+  WED
+  THU
+  FRI
+  SAT
+  SUN
+}
+
+enum ShiftType {
+  DAY    // Diurno
+  NIGHT  // Noturno
+}
+
+enum ScheduledInspectionStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  MISSED
+}
+
+model InspectionSchedule {
+  id            String      @id @default(cuid())
+  contractId    String
+  name          String      // Ex: "Ronda Diurna Seg-Sex"
+  description   String?
+  days          DayOfWeek[] // Dias da semana que a ronda ocorre
+  shift         ShiftType   @default(DAY)
+  time          String      // Horário no formato "HH:mm" ex: "08:00"
+  active        Boolean     @default(true)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  contract      Contract    @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  occurrences   ScheduledInspection[]
+}
+
+model ScheduledInspection {
+  id            String                     @id @default(cuid())
+  scheduleId    String
+  contractId    String
+  assignedTo    String?                    // userId do técnico responsável
+  date          DateTime                   // Data da ronda (sem hora)
+  status        ScheduledInspectionStatus  @default(PENDING)
+  startedAt     DateTime?
+  completedAt   DateTime?
+  notes         String?
+  createdAt     DateTime                   @default(now())
+  updatedAt     DateTime                   @updatedAt
+
+  schedule      InspectionSchedule  @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+  contract      Contract            @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  assignee      User?               @relation(fields: [assignedTo], references: [id], onDelete: SetNull)
+  steps         ScheduledInspectionStep[]
+}
+
+model ScheduledInspectionStep {
+  id            String    @id @default(cuid())
+  inspectionId  String
+  assetId       String?
+  description   String
+  status        StepStatus @default(PENDING)
+  notes         String?
+  photoUrl      String?
+  completedAt   DateTime?
+
+  inspection    ScheduledInspection @relation(fields: [inspectionId], references: [id], onDelete: Cascade)
+  asset         Asset?              @relation(fields: [assetId], references: [id], onDelete: SetNull)
 }

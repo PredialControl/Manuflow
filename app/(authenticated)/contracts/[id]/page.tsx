@@ -10,6 +10,7 @@ import { Plus, Building2, FileText, ClipboardCheck, History, Settings, Package, 
 import { formatDate } from "@/lib/utils";
 import { ReportsKanban } from "@/components/reports-kanban";
 import { ContractUserActions } from "@/components/contract-user-actions";
+import { ScheduleManager } from "@/components/schedule-manager";
 
 export const dynamic = "force-dynamic";
 
@@ -376,33 +377,7 @@ export default async function ContractDetailPage({
         </TabsContent>
 
         <TabsContent value="inspections" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Rondas Técnicas</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid gap-4 md:grid-cols-3 mb-4">
-                <div className="text-center p-4 bg-yellow-50 rounded-lg border border-yellow-200">
-                  <p className="text-2xl font-bold text-yellow-700">-</p>
-                  <p className="text-sm text-yellow-600">Pendentes</p>
-                </div>
-                <div className="text-center p-4 bg-blue-50 rounded-lg border border-blue-200">
-                  <p className="text-2xl font-bold text-blue-700">-</p>
-                  <p className="text-sm text-blue-600">Em Andamento</p>
-                </div>
-                <div className="text-center p-4 bg-green-50 rounded-lg border border-green-200">
-                  <p className="text-2xl font-bold text-green-700">-</p>
-                  <p className="text-sm text-green-600">Concluídas</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Link href={`/contracts/${contract.id}/inspections`}>
-            <Button variant="outline" className="w-full">
-              Ver todas as rondas
-            </Button>
-          </Link>
+          <ScheduleManager contractId={contract.id} />
         </TabsContent>
 
         <TabsContent value="reports" className="space-y-4 pt-4">
