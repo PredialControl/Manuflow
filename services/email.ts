@@ -1,7 +1,5 @@
 import { Resend } from "resend";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
-
 interface AlertEmailData {
   to: string;
   contractName: string;
@@ -17,6 +15,7 @@ export async function sendExpirationAlert({
   expirationDate,
   daysUntilExpiration,
 }: AlertEmailData) {
+  const resend = new Resend(process.env.RESEND_API_KEY);
   const subject = daysUntilExpiration
     ? `[ManuFlow] ${reportTitle} vence em ${daysUntilExpiration} dias`
     : `[ManuFlow] ${reportTitle} vencendo`;
@@ -81,7 +80,7 @@ export async function sendBatchAlerts(emails: AlertEmailData[]) {
   for (const email of emailsToSend) {
     const result = await sendExpirationAlert(email);
     results.push(result);
-    
+
     if (!result.success) {
       await new Promise(resolve => setTimeout(resolve, 100));
     }
