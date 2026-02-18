@@ -11,6 +11,7 @@ import { formatDate } from "@/lib/utils";
 import { ReportsKanban } from "@/components/reports-kanban";
 import { ContractUserActions } from "@/components/contract-user-actions";
 import { ScheduleManager } from "@/components/schedule-manager";
+import { DeleteAssetButton } from "@/components/delete-asset-button";
 
 export const dynamic = "force-dynamic";
 
@@ -242,67 +243,79 @@ export default async function ContractDetailPage({
           ) : (
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 pt-4">
               {contract.assets.map((asset: any) => (
-                <Link key={asset.id} href={`/contracts/${contract.id}/assets/${asset.id}`}>
-                  <Card className="group hover:shadow-2xl hover:shadow-primary/5 transition-all duration-300 cursor-pointer overflow-hidden border-border/60 hover:border-primary/40 rounded-2xl bg-card/40 backdrop-blur-sm">
-                    <div className="aspect-[16/10] w-full bg-muted overflow-hidden relative border-b border-border/40">
-                      {asset.image ? (
-                        <img src={asset.image} alt={asset.name} className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-110" />
-                      ) : (
-                        <div className="absolute inset-0 flex flex-col items-center justify-center text-muted-foreground/30 bg-muted/50">
-                          <Package className="h-12 w-12 mb-2 opacity-20" />
-                          <span className="text-[10px] font-black uppercase tracking-widest">Sem Imagem</span>
-                        </div>
-                      )}
-
-                      <div className="absolute top-4 left-4 flex flex-col gap-2">
-                        <span className="bg-background/80 backdrop-blur-md text-[10px] font-black px-3 py-1.5 rounded-lg border border-border/40 uppercase tracking-widest shadow-sm">
-                          {asset.type}
-                        </span>
-                        {asset.category && (
-                          <span className="bg-primary/10 backdrop-blur-md text-primary text-[8px] font-black px-2 py-1 rounded-md border border-primary/20 uppercase tracking-widest shadow-sm">
-                            {asset.category.replace('_', ' ')}
-                          </span>
-                        )}
-                      </div>
+                <div key={asset.id} className="relative group/asset">
+                  {isAdmin && (
+                    <div className="absolute top-4 right-4 z-10 opacity-0 group-hover/asset:opacity-100 transition-opacity">
+                      <DeleteAssetButton
+                        assetId={asset.id}
+                        contractId={contract.id}
+                        assetName={asset.name}
+                        variant="icon"
+                      />
                     </div>
-
-                    <CardContent className="p-6">
-                      <div className="space-y-4">
-                        <div>
-                          <h3 className="text-lg font-black tracking-tight uppercase italic leading-tight group-hover:text-primary transition-colors">{asset.name}</h3>
-                          <div className="flex items-center gap-2 mt-1.5">
-                            <MapPin className="h-3 w-3 text-muted-foreground" />
-                            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">{asset.location}</p>
+                  )}
+                  <Link href={`/contracts/${contract.id}/assets/${asset.id}`}>
+                    <Card className="group hover:shadow-2xl hover:shadow-primary/5 transition-all duration-300 cursor-pointer overflow-hidden border-border/60 hover:border-primary/40 rounded-2xl bg-card/40 backdrop-blur-sm h-full">
+                      <div className="aspect-[16/10] w-full bg-muted overflow-hidden relative border-b border-border/40">
+                        {asset.image ? (
+                          <img src={asset.image} alt={asset.name} className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-110" />
+                        ) : (
+                          <div className="absolute inset-0 flex flex-col items-center justify-center text-muted-foreground/30 bg-muted/50">
+                            <Package className="h-12 w-12 mb-2 opacity-20" />
+                            <span className="text-[10px] font-black uppercase tracking-widest">Sem Imagem</span>
                           </div>
-                          {(asset.brand || asset.power) && (
-                            <div className="flex items-center gap-2 mt-2">
-                              {asset.brand && (
-                                <span className="text-[9px] font-black bg-primary/5 text-primary px-2 py-0.5 rounded-md border border-primary/10 uppercase tracking-tighter">
-                                  {asset.brand}
-                                </span>
-                              )}
-                              {asset.power && (
-                                <span className="text-[9px] font-black bg-muted text-muted-foreground px-2 py-0.5 rounded-md border border-border/40 uppercase tracking-tighter">
-                                  {asset.power}
-                                </span>
-                              )}
-                            </div>
+                        )}
+
+                        <div className="absolute top-4 left-4 flex flex-col gap-2">
+                          <span className="bg-background/80 backdrop-blur-md text-[10px] font-black px-3 py-1.5 rounded-lg border border-border/40 uppercase tracking-widest shadow-sm">
+                            {asset.type}
+                          </span>
+                          {asset.category && (
+                            <span className="bg-primary/10 backdrop-blur-md text-primary text-[8px] font-black px-2 py-1 rounded-md border border-primary/20 uppercase tracking-widest shadow-sm">
+                              {asset.category.replace('_', ' ')}
+                            </span>
                           )}
                         </div>
+                      </div>
 
-                        <div className="pt-4 border-t border-border/40 flex items-center justify-between">
-                          <div className="flex flex-col">
-                            <span className="text-[9px] font-black text-muted-foreground/50 uppercase tracking-tighter">Frequência</span>
-                            <span className="text-xs font-black uppercase tracking-widest">{asset.frequency}</span>
+                      <CardContent className="p-6">
+                        <div className="space-y-4">
+                          <div>
+                            <h3 className="text-lg font-black tracking-tight uppercase italic leading-tight group-hover:text-primary transition-colors">{asset.name}</h3>
+                            <div className="flex items-center gap-2 mt-1.5">
+                              <MapPin className="h-3 w-3 text-muted-foreground" />
+                              <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">{asset.location}</p>
+                            </div>
+                            {(asset.brand || asset.power) && (
+                              <div className="flex items-center gap-2 mt-2">
+                                {asset.brand && (
+                                  <span className="text-[9px] font-black bg-primary/5 text-primary px-2 py-0.5 rounded-md border border-primary/10 uppercase tracking-tighter">
+                                    {asset.brand}
+                                  </span>
+                                )}
+                                {asset.power && (
+                                  <span className="text-[9px] font-black bg-muted text-muted-foreground px-2 py-0.5 rounded-md border border-border/40 uppercase tracking-tighter">
+                                    {asset.power}
+                                  </span>
+                                )}
+                              </div>
+                            )}
                           </div>
-                          <div className="h-8 w-8 rounded-full bg-primary/5 flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-white transition-all">
-                            <Plus className="h-4 w-4" />
+
+                          <div className="pt-4 border-t border-border/40 flex items-center justify-between">
+                            <div className="flex flex-col">
+                              <span className="text-[9px] font-black text-muted-foreground/50 uppercase tracking-tighter">Frequência</span>
+                              <span className="text-xs font-black uppercase tracking-widest">{asset.frequency}</span>
+                            </div>
+                            <div className="h-8 w-8 rounded-full bg-primary/5 flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-white transition-all">
+                              <Plus className="h-4 w-4" />
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </Link>
+                      </CardContent>
+                    </Card>
+                  </Link>
+                </div>
               ))}
             </div>
           )}

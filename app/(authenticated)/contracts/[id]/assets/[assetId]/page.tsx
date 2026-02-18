@@ -22,6 +22,7 @@ import {
     Info
 } from "lucide-react";
 import { formatDate } from "@/lib/utils";
+import { DeleteAssetButton } from "@/components/delete-asset-button";
 
 export const dynamic = "force-dynamic";
 
@@ -95,6 +96,11 @@ export default async function AssetDetailPage({
 
                 {session.user.role === "ADMIN" && (
                     <div className="flex gap-2">
+                        <DeleteAssetButton
+                            assetId={asset.id}
+                            contractId={params.id}
+                            assetName={asset.name}
+                        />
                         <Button variant="outline" className="rounded-xl border-border/60 font-bold uppercase tracking-widest text-[10px] h-10">
                             <Settings className="h-4 w-4 mr-2" />
                             Configurar
