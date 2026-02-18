@@ -129,9 +129,6 @@ export default async function ContractDetailPage({
           <TabsTrigger value="reports" asChild className="rounded-lg font-bold data-[state=active]:bg-background">
             <Link href={`/contracts/${contract.id}?tab=reports`}>Laudos</Link>
           </TabsTrigger>
-          <TabsTrigger value="history" asChild className="rounded-lg font-bold data-[state=active]:bg-background">
-            <Link href={`/contracts/${contract.id}?tab=history`}>Histórico</Link>
-          </TabsTrigger>
           {isAdmin && (
             <TabsTrigger value="team" asChild className="rounded-lg font-bold data-[state=active]:bg-background">
               <Link href={`/contracts/${contract.id}?tab=team`}>Equipe</Link>
@@ -395,40 +392,6 @@ export default async function ContractDetailPage({
           <ReportsKanban initialReports={contract.reports as any} />
         </TabsContent>
 
-        <TabsContent value="history" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Histórico de Laudos</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {contract.reports.length === 0 ? (
-                <p className="text-muted-foreground">Nenhum laudo encontrado</p>
-              ) : (
-                <div className="space-y-3">
-                  {contract.reports.map((report: any) => (
-                    <div
-                      key={report.id}
-                      className="flex items-center justify-between p-3 border rounded-lg"
-                    >
-                      <div>
-                        <p className="font-medium">{report.title}</p>
-                        <p className="text-sm text-muted-foreground">
-                          Executado em: {formatDate(report.executionDate)}
-                        </p>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-sm text-muted-foreground">
-                          Vencimento: {formatDate(report.expirationDate)}
-                        </p>
-                        <p className="text-sm">v{report.id.slice(-4)}</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
       </Tabs>
     </div>
   );
