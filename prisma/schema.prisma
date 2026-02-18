@@ -341,6 +341,7 @@ model InspectionSchedule {
   days          DayOfWeek[] // Dias da semana que a ronda ocorre
   shift         ShiftType   @default(DAY)
   time          String      // Horário no formato "HH:mm" ex: "08:00"
+  category      String?     // Categoria: ELETRICA, CIVIL, MECANICA, etc.
   steps         Json?       // Roteiro guiado: Array<{ task: string, assetId?: string }>
   active        Boolean     @default(true)
   createdAt     DateTime    @default(now())

@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "@/components/ui/use-toast";
-import { Plus, Trash2, Clock, Sun, Moon, Calendar, Edit2, X, Check, MapPin, GripVertical } from "lucide-react";
+import { Plus, Trash2, Clock, Sun, Moon, Calendar, Edit2, X, Check, MapPin, GripVertical, Wrench } from "lucide-react";
 
 const DAYS = [
     { value: "MON", label: "Seg" },
@@ -18,6 +18,16 @@ const DAYS = [
     { value: "SUN", label: "Dom" },
 ];
 
+const SPECIALTIES = [
+    { value: "GERAL", label: "Geral" },
+    { value: "CIVIL", label: "Civil / Predial" },
+    { value: "ELETRICA", label: "Elétrica" },
+    { value: "MECANICA", label: "Mecânica" },
+    { value: "HIDRAULICA", label: "Hidráulica" },
+    { value: "AR_CONDICIONADO", label: "Ar Condicionado" },
+    { value: "INCENDIO", label: "Incêndio" },
+];
+
 interface ScheduleStep {
     task: string;
     assetId?: string;
@@ -27,6 +37,7 @@ interface Schedule {
     id: string;
     name: string;
     description?: string;
+    category?: string;
     days: string[];
     shift: "DAY" | "NIGHT";
     time: string;
@@ -49,6 +60,7 @@ export function ScheduleManager({ contractId }: Props) {
     const [form, setForm] = useState({
         name: "",
         description: "",
+        category: "GERAL",
         days: [] as string[],
         shift: "DAY" as "DAY" | "NIGHT",
         time: "08:00",
@@ -96,7 +108,7 @@ export function ScheduleManager({ contractId }: Props) {
     }
 
     function resetForm() {
-        setForm({ name: "", description: "", days: [], shift: "DAY", time: "08:00", steps: [] });
+        setForm({ name: "", description: "", category: "GERAL", days: [], shift: "DAY", time: "08:00", steps: [] });
         setShowForm(false);
         setEditingId(null);
     }
@@ -105,6 +117,7 @@ export function ScheduleManager({ contractId }: Props) {
         setForm({
             name: s.name,
             description: s.description || "",
+            category: s.category || "GERAL",
             days: s.days,
             shift: s.shift,
             time: s.time,
@@ -156,7 +169,7 @@ export function ScheduleManager({ contractId }: Props) {
                         Agendas de Ronda
                     </h2>
                     <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest mt-1">
-                        Configure dias, horários e roteiros guiados
+                        Configure dias, especialidades e horários
                     </p>
                 </div>
                 {!showForm && (
@@ -188,21 +201,26 @@ export function ScheduleManager({ contractId }: Props) {
                                     <Input
                                         value={form.name}
                                         onChange={(e) => setForm({ ...form, name: e.target.value })}
-                                        placeholder="Ex: Ronda Predial Manhã"
+                                        placeholder="Ex: Ronda Elétrica Semanal"
                                         className="h-12 rounded-2xl bg-background border-border/40 font-bold focus:ring-primary/20"
                                         required
                                     />
                                 </div>
                                 <div className="space-y-2">
                                     <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">
-                                        Descrição
+                                        Especialidade Requerida *
                                     </Label>
-                                    <Input
-                                        value={form.description}
-                                        onChange={(e) => setForm({ ...form, description: e.target.value })}
-                                        placeholder="Ex: Roteiro de verificação de geradores e bombas"
-                                        className="h-12 rounded-2xl bg-background border-border/40 font-bold"
-                                    />
+                                    <select
+                                        value={form.category}
+                                        onChange={(e) => setForm({ ...form, category: e.target.value })}
+                                        className="flex h-12 w-full rounded-2xl border border-border/40 bg-background px-4 py-2 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all cursor-pointer"
+                                    >
+                                        {SPECIALTIES.map((spec) => (
+                                            <option key={spec.value} value={spec.value}>
+                                                {spec.label.toUpperCase()}
+                                            </option>
+                                        ))}
+                                    </select>
                                 </div>
                             </div>
 
@@ -278,6 +296,18 @@ export function ScheduleManager({ contractId }: Props) {
                                         />
                                     </div>
                                 </div>
+                            </div>
+
+                            <div className="space-y-2">
+                                <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">
+                                    Descrição da Atividade
+                                </Label>
+                                <Input
+                                    value={form.description}
+                                    onChange={(e) => setForm({ ...form, description: e.target.value })}
+                                    placeholder="Ex: Verificação de tensão e carga dos geradores"
+                                    className="h-12 rounded-2xl bg-background border-border/40 font-bold"
+                                />
                             </div>
 
                             {/* Roteiro Progressivo */}
@@ -370,9 +400,16 @@ export function ScheduleManager({ contractId }: Props) {
                             </div>
 
                             <div className="flex-1 p-6 flex flex-col justify-center gap-4">
-                                <div>
-                                    <h3 className="text-xl font-black uppercase italic tracking-tight leading-none group-hover:text-primary transition-colors">{s.name}</h3>
-                                    <div className="flex items-center gap-3 mt-3">
+                                <div className="space-y-2">
+                                    <div className="flex items-center gap-3">
+                                        <h3 className="text-xl font-black uppercase italic tracking-tight leading-none group-hover:text-primary transition-colors">{s.name}</h3>
+                                        {s.category && (
+                                            <span className="text-[9px] font-black bg-primary/10 text-primary px-2 py-0.5 rounded-md border border-primary/20 uppercase tracking-widest">
+                                                {s.category.replace('_', ' ')}
+                                            </span>
+                                        )}
+                                    </div>
+                                    <div className="flex items-center gap-3">
                                         <div className="flex gap-1">
                                             {DAYS.map((d) => (
                                                 <span
@@ -387,12 +424,13 @@ export function ScheduleManager({ contractId }: Props) {
                                             ))}
                                         </div>
                                     </div>
-                                    {s.steps && s.steps.length > 0 && (
-                                        <div className="mt-4 flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-primary/60">
-                                            <div className="h-1 w-1 rounded-full bg-primary" />
-                                            {s.steps.length} pontos de verificação
-                                        </div>
-                                    )}
+                                    <p className="text-xs text-muted-foreground/60 font-bold uppercase tracking-tight line-clamp-1">{s.description}</p>
+                                    <div className="flex items-center gap-2 pt-1">
+                                        <div className="h-1 w-1 rounded-full bg-primary" />
+                                        <span className="text-[10px] font-black uppercase tracking-widest text-primary/60">
+                                            {s.steps?.length || 0} pontos de verificação
+                                        </span>
+                                    </div>
                                 </div>
                             </div>
 
@@ -400,7 +438,7 @@ export function ScheduleManager({ contractId }: Props) {
                                 <Button
                                     variant="ghost"
                                     size="icon"
-                                    className="h-11 w-11 rounded-xl h-11 w-11 rounded-2xl hover:bg-primary/10 hover:text-primary transition-all"
+                                    className="h-11 w-11 rounded-2xl hover:bg-primary/10 hover:text-primary transition-all"
                                     onClick={() => startEdit(s)}
                                 >
                                     <Edit2 className="h-5 w-5" />
@@ -408,7 +446,7 @@ export function ScheduleManager({ contractId }: Props) {
                                 <Button
                                     variant="ghost"
                                     size="icon"
-                                    className="h-11 w-11 rounded-xl h-11 w-11 rounded-2xl hover:bg-rose-500/10 hover:text-rose-500 transition-all"
+                                    className="h-11 w-11 rounded-2xl hover:bg-rose-500/10 hover:text-rose-500 transition-all"
                                     onClick={() => handleDelete(s.id)}
                                 >
                                     <Trash2 className="h-5 w-5" />
