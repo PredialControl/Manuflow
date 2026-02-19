@@ -61,19 +61,29 @@ export function AuthenticatedLayoutClient({
     return (
         <div className="min-h-screen bg-background flex flex-col transition-colors duration-300">
             <PwaInstallPrompt />
-            {/* Sleek Glass Header */}
-            <header className="glass shadow-sm shadow-black/5">
-                <div className="w-full px-4 h-16 flex items-center justify-between">
-                    <div className="flex items-center gap-4">
+
+            {/* Header com padding fixo e logo com cache bust */}
+            <header className="glass shadow-sm shadow-black/5 z-50">
+                <div className="w-full px-6 lg:px-10 h-16 flex items-center justify-between">
+                    <div className="flex items-center gap-6">
                         <SidebarToggle />
                         <div className="h-8 w-[1px] bg-border mx-1 hidden lg:block" />
                         <div className="flex items-center gap-3">
-                            <div className="h-9 w-9 bg-primary shadow-lg shadow-primary/20 rounded-xl flex items-center justify-center">
-                                <span className="text-white text-lg font-bold">M</span>
+                            <div className="h-9 w-9 bg-primary shadow-lg shadow-primary/20 rounded-xl flex items-center justify-center overflow-hidden">
+                                <img
+                                    src={`/logo.png?v=${Date.now()}`}
+                                    alt="Logo"
+                                    className="h-full w-full object-cover"
+                                    onError={(e) => {
+                                        e.currentTarget.style.display = 'none';
+                                        if (e.currentTarget.parentElement) {
+                                            e.currentTarget.parentElement.innerHTML = '<span class="text-white text-lg font-bold">M</span>';
+                                        }
+                                    }}
+                                />
                             </div>
                             <div className={cn("hidden sm:flex flex-col transition-opacity duration-300", isCollapsed ? "lg:opacity-0 lg:pointer-events-none" : "opacity-100")}>
                                 <span className="text-lg font-bold tracking-tight text-foreground leading-none">ManuFlow</span>
-                                <span className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">Intelligence</span>
                             </div>
                         </div>
                     </div>
@@ -83,47 +93,38 @@ export function AuthenticatedLayoutClient({
                             <span className="text-xs font-bold text-foreground leading-none">{session.user.name}</span>
                             <span className="text-[9px] text-muted-foreground uppercase font-black tracking-tighter mt-1">{session.user.role}</span>
                         </div>
-
                         <div className="h-8 w-[1px] bg-border mx-1" />
-
                         <ThemeToggle />
                         <SignOutButton />
                     </div>
                 </div>
             </header>
 
-            <div className="flex flex-1 w-full px-4 overflow-hidden">
-                {/* Animated Sidebar */}
+            <div className="flex flex-1 w-full max-w-[1400px] mx-auto px-6 lg:px-10 gap-x-12">
+                {/* Sidebar */}
                 <aside
                     className={cn(
                         "hidden lg:flex flex-col py-8 transition-all duration-300 ease-in-out border-r border-border/40",
-                        isCollapsed ? "w-20 pr-0" : "w-56 pr-6"
+                        isCollapsed ? "w-16" : "w-52"
                     )}
                 >
-                    <div className="flex flex-col h-full">
+                    <div className="flex flex-col h-full pr-4">
                         {isContractRoute && (
                             <div className="mb-6">
                                 <Link
                                     href="/contracts"
                                     className={cn(
                                         "flex items-center gap-3 text-muted-foreground hover:text-primary transition-colors",
-                                        isCollapsed ? "justify-center" : "px-4 py-2"
+                                        isCollapsed ? "justify-center" : "px-3 py-2"
                                     )}
                                 >
                                     <ArrowLeft className="h-4 w-4" />
-                                    {!isCollapsed && <span className="text-[10px] font-black uppercase tracking-widest">Sair do Contrato</span>}
+                                    {!isCollapsed && <span className="text-[10px] font-black uppercase tracking-widest">Sair</span>}
                                 </Link>
                             </div>
                         )}
 
                         <nav className="space-y-1.5 flex-1">
-                            {!isCollapsed && !isContractRoute && (
-                                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground/40 mb-3 px-4">Menu Principal</p>
-                            )}
-                            {!isCollapsed && isContractRoute && (
-                                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-primary/60 mb-3 px-4">Gestão do Contrato</p>
-                            )}
-
                             {currentNavItems.map((item) => {
                                 const url = new URL(item.href, "http://x");
                                 const itemPath = url.pathname;
@@ -147,7 +148,7 @@ export function AuthenticatedLayoutClient({
                                         title={isCollapsed ? item.label : ""}
                                     >
                                         <item.icon className={cn(
-                                            "h-5 w-5 transition-all",
+                                            "h-5 w-5 transition-all text-current",
                                             isActive ? "text-white" : "opacity-60 group-hover:opacity-100"
                                         )} />
                                         {!isCollapsed && <span>{item.label}</span>}
@@ -158,9 +159,9 @@ export function AuthenticatedLayoutClient({
                     </div>
                 </aside>
 
-                {/* Workspace */}
-                <main className="flex-1 py-8 overflow-auto animate-in scrollbar-hide">
-                    <div className="max-w-full">
+                {/* Área de Conteúdo principal com margem garantida */}
+                <main className="flex-1 py-10 overflow-auto animate-in scrollbar-hide">
+                    <div className="w-full">
                         {children}
                     </div>
                 </main>
