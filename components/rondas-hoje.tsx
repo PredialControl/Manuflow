@@ -9,14 +9,7 @@ import {
     Building2, Calendar, ChevronRight, Loader2, ArrowRight, ArrowLeft, Check, MapPin, Camera, FileText, Download
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import dynamic from "next/dynamic";
-
-const PDFDownloadLink = dynamic(
-    () => import("@react-pdf/renderer").then((mod) => mod.PDFDownloadLink),
-    { ssr: false }
-);
-
-import { RondaPdf } from "./ronda-pdf";
+import { RondaPdfDownloadButton } from "./ronda-pdf-download-button";
 
 interface RondaStep {
     id: string;
@@ -343,35 +336,19 @@ export function RondasHoje() {
                                     )}
                                 </div>
 
-                                {ronda.status !== 'COMPLETED' ? (
-                                    <Button
-                                        onClick={() => startRonda(ronda)}
-                                        className="h-14 px-8 rounded-2xl bg-primary hover:bg-primary/90 text-white font-black uppercase tracking-widest text-xs shadow-lg shadow-primary/20 group-hover:scale-105 transition-transform"
-                                    >
-                                        {ronda.status === 'IN_PROGRESS' ? 'Continuar Ronda' : 'Iniciar Ronda'}
-                                        <ChevronRight className="h-4 w-4 ml-2" />
-                                    </Button>
-                                ) : (
-                                    <PDFDownloadLink
-                                        document={<RondaPdf ronda={ronda} />}
-                                        fileName={`ronda-${ronda.id.slice(-6)}.pdf`}
-                                    >
-                                        {({ loading: pdfLoading }) => (
-                                            <Button
-                                                variant="outline"
-                                                disabled={pdfLoading}
-                                                className="h-12 px-6 rounded-xl border-primary/20 text-primary bg-primary/5 font-black text-[10px] uppercase tracking-widest hover:bg-primary hover:text-white transition-all"
-                                            >
-                                                {pdfLoading ? (
-                                                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                                                ) : (
-                                                    <Download className="h-4 w-4 mr-2" />
-                                                )}
-                                                PDF do Relatório
-                                            </Button>
-                                        )}
-                                    </PDFDownloadLink>
-                                )}
+                                <div className="flex justify-end pt-4 sm:pt-0">
+                                    {ronda.status !== 'COMPLETED' ? (
+                                        <Button
+                                            onClick={() => startRonda(ronda)}
+                                            className="h-14 px-8 rounded-2xl bg-primary hover:bg-primary/90 text-white font-black uppercase tracking-widest text-xs shadow-lg shadow-primary/20 group-hover:scale-105 transition-transform"
+                                        >
+                                            {ronda.status === 'IN_PROGRESS' ? 'Continuar Ronda' : 'Iniciar Ronda'}
+                                            <ChevronRight className="h-4 w-4 ml-2" />
+                                        </Button>
+                                    ) : (
+                                        <RondaPdfDownloadButton ronda={ronda} />
+                                    )}
+                                </div>
                             </div>
                         </CardContent>
                     </Card>
