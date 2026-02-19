@@ -62,10 +62,9 @@ export function AuthenticatedLayoutClient({
         <div className="min-h-screen bg-background flex flex-col transition-colors duration-300">
             <PwaInstallPrompt />
 
-            {/* Header com padding fixo e logo com cache bust */}
             <header className="glass shadow-sm shadow-black/5 z-50">
-                <div className="w-full px-6 lg:px-10 h-16 flex items-center justify-between">
-                    <div className="flex items-center gap-6">
+                <div className="w-full px-6 h-16 flex items-center justify-between">
+                    <div className="flex items-center gap-4">
                         <SidebarToggle />
                         <div className="h-8 w-[1px] bg-border mx-1 hidden lg:block" />
                         <div className="flex items-center gap-3">
@@ -100,21 +99,21 @@ export function AuthenticatedLayoutClient({
                 </div>
             </header>
 
-            <div className="flex flex-1 w-full max-w-[1400px] mx-auto px-6 lg:px-10 gap-x-12">
-                {/* Sidebar */}
+            <div className="flex flex-1 w-full px-6 gap-x-6 overflow-hidden">
+                {/* Sidebar com tamanho otimizado */}
                 <aside
                     className={cn(
-                        "hidden lg:flex flex-col py-8 transition-all duration-300 ease-in-out border-r border-border/40",
-                        isCollapsed ? "w-16" : "w-52"
+                        "hidden lg:flex flex-col py-6 transition-all duration-300 ease-in-out border-r border-border/40",
+                        isCollapsed ? "w-16" : "w-48"
                     )}
                 >
-                    <div className="flex flex-col h-full pr-4">
+                    <div className="flex flex-col h-full pr-2">
                         {isContractRoute && (
                             <div className="mb-6">
                                 <Link
                                     href="/contracts"
                                     className={cn(
-                                        "flex items-center gap-3 text-muted-foreground hover:text-primary transition-colors",
+                                        "flex items-center gap-2 text-muted-foreground hover:text-primary transition-colors",
                                         isCollapsed ? "justify-center" : "px-3 py-2"
                                     )}
                                 >
@@ -124,7 +123,7 @@ export function AuthenticatedLayoutClient({
                             </div>
                         )}
 
-                        <nav className="space-y-1.5 flex-1">
+                        <nav className="space-y-1 flex-1">
                             {currentNavItems.map((item) => {
                                 const url = new URL(item.href, "http://x");
                                 const itemPath = url.pathname;
@@ -140,7 +139,7 @@ export function AuthenticatedLayoutClient({
                                         href={item.href}
                                         className={cn(
                                             "group flex items-center gap-3 rounded-xl transition-all duration-200",
-                                            isCollapsed ? "justify-center p-3" : "px-4 py-2.5",
+                                            isCollapsed ? "justify-center p-3" : "px-3 py-2",
                                             isActive
                                                 ? "bg-primary text-white shadow-lg shadow-primary/20"
                                                 : "text-muted-foreground hover:bg-primary/5 hover:text-primary font-bold text-sm"
@@ -159,7 +158,7 @@ export function AuthenticatedLayoutClient({
                     </div>
                 </aside>
 
-                {/* Área de Conteúdo principal com margem garantida */}
+                {/* Área Principal otimizada */}
                 <main className="flex-1 py-10 overflow-auto animate-in scrollbar-hide">
                     <div className="w-full">
                         {children}
