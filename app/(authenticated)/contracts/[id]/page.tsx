@@ -393,7 +393,7 @@ export default async function ContractDetailPage({
         <TabsContent value="reports" className="space-y-4 pt-4">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-xl font-black tracking-tight uppercase text-muted-foreground/40">Gestão de Laudos</h2>
-            {isAdmin && (
+            {(session.user.role === "ADMIN" || session.user.role === "OWNER") && (
               <Link href={`/contracts/${contract.id}/reports/new`}>
                 <Button size="sm" className="btn-premium">
                   <Plus className="h-4 w-4 mr-2" />
