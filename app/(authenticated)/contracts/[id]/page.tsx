@@ -65,22 +65,24 @@ export default async function ContractDetailPage({
               email: true,
               role: true,
               category: true,
-            } as any
+              avatar: true,
+            }
+          }
+        }
+      },
+      measurementDevices: {
+        where: { active: true },
+        include: {
+          entries: {
+            orderBy: { date: "desc" },
+            take: 5,
+            include: { user: { select: { name: true } } }
           }
         },
-        measurementDevices: {
-          where: { active: true },
-          include: {
-            entries: {
-              orderBy: { date: "desc" },
-              take: 5,
-              include: { user: { select: { name: true } } }
-            }
-          },
-          orderBy: { createdAt: "desc" },
-        }
-      } as any,
-    }) as any;
+        orderBy: { createdAt: "desc" },
+      }
+    },
+  } as any) as any;
 
   if (!contract) {
     redirect("/contracts");
