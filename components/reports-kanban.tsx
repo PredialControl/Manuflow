@@ -41,18 +41,11 @@ type KanbanColumn = {
 
 const columns: KanbanColumn[] = [
     {
-        id: "approved",
-        title: "Em dia",
-        status: ["APPROVED", "RENEWED"],
-        color: "text-emerald-600 dark:text-emerald-400",
-        bgColor: "bg-emerald-500/10",
-    },
-    {
-        id: "expiring",
-        title: "Próximo ao vencimento",
-        status: ["EXPIRING_SOON"],
-        color: "text-amber-600 dark:text-amber-400",
-        bgColor: "bg-amber-500/10",
+        id: "draft",
+        title: "Rascunhos",
+        status: ["DRAFT"],
+        color: "text-slate-600 dark:text-slate-400",
+        bgColor: "bg-slate-500/10",
     },
     {
         id: "in_progress",
@@ -69,13 +62,6 @@ const columns: KanbanColumn[] = [
         bgColor: "bg-orange-500/10",
     },
     {
-        id: "approved_execution",
-        title: "Aprovado para execução",
-        status: ["APPROVED_FOR_EXECUTION"],
-        color: "text-cyan-600 dark:text-cyan-400",
-        bgColor: "bg-cyan-500/10",
-    },
-    {
         id: "budget_pending",
         title: "Aguardando orçamento",
         status: ["BUDGET_PENDING"],
@@ -88,6 +74,27 @@ const columns: KanbanColumn[] = [
         status: ["BUDGETING"],
         color: "text-indigo-600 dark:text-indigo-400",
         bgColor: "bg-indigo-500/10",
+    },
+    {
+        id: "approved_execution",
+        title: "Aprovado para execução",
+        status: ["APPROVED_FOR_EXECUTION"],
+        color: "text-cyan-600 dark:text-cyan-400",
+        bgColor: "bg-cyan-500/10",
+    },
+    {
+        id: "approved",
+        title: "Em dia",
+        status: ["APPROVED", "RENEWED"],
+        color: "text-emerald-600 dark:text-emerald-400",
+        bgColor: "bg-emerald-500/10",
+    },
+    {
+        id: "expiring",
+        title: "Próximo ao vencimento",
+        status: ["EXPIRING_SOON"],
+        color: "text-amber-600 dark:text-amber-400",
+        bgColor: "bg-amber-500/10",
     },
     {
         id: "expired",
@@ -208,9 +215,14 @@ function DroppableColumn({
     );
 }
 
-export function ReportsKanban({ initialReports }: { initialReports: Report[] }) {
-    const [reports, setReports] = useState(initialReports);
+export function ReportsKanban({ initialReports = [] }: { initialReports: Report[] }) {
+    const [reports, setReports] = useState(initialReports || []);
     const [activeId, setActiveId] = useState<string | null>(null);
+
+    // Sync state when props change
+    React.useEffect(() => {
+        setReports(initialReports || []);
+    }, [initialReports]);
 
     const sensors = useSensors(
         useSensor(PointerSensor, {

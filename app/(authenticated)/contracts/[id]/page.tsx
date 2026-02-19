@@ -49,9 +49,10 @@ export default async function ContractDetailPage({
         include: {
           asset: true,
           user: { select: { name: true } },
+          contract: { select: { name: true } },
         },
         orderBy: { createdAt: "desc" },
-        take: 10,
+
       },
       users: {
         include: {
