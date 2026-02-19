@@ -9,6 +9,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Plus, Building2, FileText, ClipboardCheck, History, Settings, Package, MapPin, Users, User, UserPlus, Pencil, Trash2 } from "lucide-react";
 import { formatDate } from "@/lib/utils";
 import { ReportsKanban } from "@/components/reports-kanban";
+import { MeasurementManager } from "@/components/measurement-manager";
+
 import { ContractUserActions } from "@/components/contract-user-actions";
 import { ScheduleManager } from "@/components/schedule-manager";
 import { DeleteAssetButton } from "@/components/delete-asset-button";
@@ -65,10 +67,20 @@ export default async function ContractDetailPage({
               category: true,
             } as any
           }
+        },
+        measurementDevices: {
+          where: { active: true },
+          include: {
+            entries: {
+              orderBy: { date: "desc" },
+              take: 5,
+              include: { user: { select: { name: true } } }
+            }
+          },
+          orderBy: { createdAt: "desc" },
         }
-      }
-    } as any,
-  }) as any;
+      } as any,
+    }) as any;
 
   if (!contract) {
     redirect("/contracts");
@@ -131,6 +143,10 @@ export default async function ContractDetailPage({
           <TabsTrigger value="reports" asChild className="rounded-lg font-bold data-[state=active]:bg-background">
             <Link href={`/contracts/${contract.id}?tab=reports`}>Laudos</Link>
           </TabsTrigger>
+          <TabsTrigger value="measurements" asChild className="rounded-lg font-bold data-[state=active]:bg-background">
+            <Link href={`/contracts/${contract.id}?tab=measurements`}>Medições</Link>
+          </TabsTrigger>
+
           {isAdmin && (
             <TabsTrigger value="team" asChild className="rounded-lg font-bold data-[state=active]:bg-background">
               <Link href={`/contracts/${contract.id}?tab=team`}>Equipe</Link>
@@ -405,6 +421,15 @@ export default async function ContractDetailPage({
           </div>
           <ReportsKanban initialReports={contract.reports as any} />
         </TabsContent>
+
+        <TabsContent value="measurements" className="space-y-4 pt-4">
+          <MeasurementManager
+            contractId={contract.id}
+            devices={contract.measurementDevices as any}
+            isAdmin={isAdmin}
+          />
+        </TabsContent>
+
 
       </Tabs>
     </div>

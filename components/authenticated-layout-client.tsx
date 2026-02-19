@@ -17,8 +17,10 @@ import {
     FileText,
     ClipboardCheck,
     Package,
-    History
+    History,
+    Gauge
 } from "lucide-react";
+
 
 export function AuthenticatedLayoutClient({
     children,
@@ -39,6 +41,7 @@ export function AuthenticatedLayoutClient({
     const mainNavItems = [
         { href: "/dashboard", label: "Geral", icon: LayoutDashboard },
         { href: "/contracts", label: "Contratos", icon: Building2 },
+        { href: "/measurements", label: "Medições", icon: Gauge },
     ];
 
     if (session.user.role === "ADMIN" || session.user.role === "OWNER") {
@@ -50,6 +53,7 @@ export function AuthenticatedLayoutClient({
         { href: `/contracts/${contractId}?tab=assets`, label: "Ativos", icon: Package },
         { href: `/contracts/${contractId}?tab=inspections`, label: "Rondas", icon: ClipboardCheck },
         { href: `/contracts/${contractId}?tab=reports`, label: "Laudos", icon: FileText },
+        { href: `/contracts/${contractId}?tab=measurements`, label: "Medições", icon: Gauge },
     ];
 
     if (session.user.role === "ADMIN" || session.user.role === "OWNER") {

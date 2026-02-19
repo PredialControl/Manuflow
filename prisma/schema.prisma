@@ -23,6 +23,13 @@ enum Frequency {
   ANNUAL
 }
 
+enum MeasurementType {
+  WATER
+  ENERGY
+  GAS
+}
+
+
 enum InspectionStatus {
   PENDING
   IN_PROGRESS
@@ -93,6 +100,7 @@ model User {
   reports       Report[]
   auditLogs     AuditLog[]
   assignedRondas ScheduledInspection[]
+  measurementEntries MeasurementEntry[]
 }
 
 model Contract {
@@ -115,6 +123,7 @@ model Contract {
   emailQueue      EmailQueue[]
   schedules       InspectionSchedule[]
   scheduledInspections ScheduledInspection[]
+  measurementDevices   MeasurementDevice[]
 }
 
 model UserContract {
@@ -384,3 +393,33 @@ model ScheduledInspectionStep {
   inspection    ScheduledInspection @relation(fields: [inspectionId], references: [id], onDelete: Cascade)
   asset         Asset?              @relation(fields: [assetId], references: [id], onDelete: SetNull)
 }
+
+model MeasurementDevice {
+  id              String         @id @default(cuid())
+  contractId      String
+  name            String
+  type            MeasurementType
+  unit            String         @default("m³") // m³, kWh, etc.
+  serialNumber    String?
+  active          Boolean        @default(true)
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  
+  contract        Contract       @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  entries         MeasurementEntry[]
+}
+
+model MeasurementEntry {
+  id              String            @id @default(cuid())
+  deviceId        String
+  userId          String
+  value           Float
+  photo           String?
+  date            DateTime          @default(now())
+  notes           String?
+  createdAt       DateTime          @default(now())
+  
+  device          MeasurementDevice @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  user            User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
