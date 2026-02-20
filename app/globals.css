@@ -98,3 +98,12 @@
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
+
+@keyframes scan-line {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(100px); }
+}
+
+.animate-scan {
+  animation: scan-line 2s ease-in-out infinite;
+}
