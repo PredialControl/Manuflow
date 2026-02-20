@@ -12,7 +12,8 @@ import {
     Zap,
     Building2,
     RefreshCcw,
-    Loader2
+    Loader2,
+    Gauge
 } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
@@ -36,6 +37,7 @@ const categoryMap: Record<string, { label: string, icon: any, color: string }> =
 
 export function TechnicianDashboard() {
     const [rounds, setRounds] = useState<any[]>([]);
+    const [measurements, setMeasurements] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
 
     async function loadRounds() {
@@ -51,9 +53,23 @@ export function TechnicianDashboard() {
         }
     }
 
+    async function loadMeasurements() {
+        try {
+            const res = await fetch("/api/technician/measurements");
+            const data = await res.json();
+            setMeasurements(data);
+        } catch (error) {
+            console.error("Error loading measurements:", error);
+        }
+    }
+
     useEffect(() => {
         loadRounds();
-        const interval = setInterval(loadRounds, 60000); // Sincroniza a cada minuto
+        loadMeasurements();
+        const interval = setInterval(() => {
+            loadRounds();
+            loadMeasurements();
+        }, 60000); // Sincroniza a cada minuto
         return () => clearInterval(interval);
     }, []);
 
@@ -101,6 +117,53 @@ export function TechnicianDashboard() {
                     </CardContent>
                 </Card>
             </div>
+
+            {/* Seção de Medições */}
+            {measurements.length > 0 && (
+                <div className="space-y-3">
+                    <div className="flex items-center gap-2">
+                        <Gauge className="h-4 w-4 text-primary" />
+                        <h2 className="text-sm font-black uppercase tracking-widest text-muted-foreground/60">Minhas Leituras</h2>
+                    </div>
+                    <div className="space-y-2">
+                        {measurements.slice(0, 5).map((entry: any) => (
+                            <Card key={entry.id} className="bg-card border-border/40 shadow-none rounded-xl hover:border-primary/30 transition-colors">
+                                <CardContent className="p-3">
+                                    <div className="flex items-center justify-between gap-3">
+                                        <div className="flex-1 min-w-0">
+                                            <div className="flex items-center gap-2 mb-1">
+                                                <span className="text-[8px] font-black uppercase tracking-widest text-muted-foreground/60 flex items-center gap-1">
+                                                    <Building2 className="h-2 w-2" /> {entry.device.contract.name}
+                                                </span>
+                                                <span className="h-1 w-1 rounded-full bg-border" />
+                                                <span className={cn(
+                                                    "text-[8px] font-black uppercase tracking-widest flex items-center gap-1",
+                                                    entry.device.type === "WATER" && "text-blue-500",
+                                                    entry.device.type === "ENERGY" && "text-yellow-500",
+                                                    entry.device.type === "GAS" && "text-orange-500"
+                                                )}>
+                                                    {entry.device.type === "WATER" && <Droplets className="h-2 w-2" />}
+                                                    {entry.device.type === "ENERGY" && <Zap className="h-2 w-2" />}
+                                                    {entry.device.type === "GAS" && <Flame className="h-2 w-2" />}
+                                                    {entry.device.type === "WATER" ? "Água" : entry.device.type === "ENERGY" ? "Energia" : "Gás"}
+                                                </span>
+                                            </div>
+                                            <p className="text-xs font-bold text-foreground truncate">{entry.device.name}</p>
+                                            <p className="text-[10px] text-muted-foreground">
+                                                {new Date(entry.createdAt).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                                            </p>
+                                        </div>
+                                        <div className="flex-shrink-0 text-right">
+                                            <p className="text-lg font-black text-primary">{entry.value}</p>
+                                            <p className="text-[8px] font-bold text-muted-foreground uppercase tracking-widest">{entry.device.unit}</p>
+                                        </div>
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        ))}
+                    </div>
+                </div>
+            )}
 
             <div className="space-y-4">
                 {rounds.length === 0 ? (
