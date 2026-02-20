@@ -245,14 +245,29 @@ export function MeasurementManager({ contractId, devices: initialDevices, isAdmi
     };
 
     const handleAddEntry = async () => {
-        if (!selectedDevice || !newEntry.value) return toast({ title: "Erro", description: "Valor eh obrigatorio", variant: "destructive" });
+        if (!selectedDevice || !newEntry.value) {
+            return toast({ title: "Erro", description: "Valor eh obrigatorio", variant: "destructive" });
+        }
+
+        const currentValue = parseFloat(newEntry.value);
+        const lastEntry = selectedDevice.entries?.[0];
+
+        // Validar: novo valor deve ser >= anterior (medidor não volta)
+        if (lastEntry && currentValue < lastEntry.value) {
+            return toast({
+                title: "Valor Invalido",
+                description: `O valor deve ser maior ou igual a ultima leitura (${lastEntry.value} ${selectedDevice.unit})`,
+                variant: "destructive",
+            });
+        }
+
         setLoading(true);
         try {
             const res = await fetch(`/api/measurements/devices/${selectedDevice.id}/entries`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
-                    value: parseFloat(newEntry.value),
+                    value: currentValue,
                     notes: newEntry.notes,
                 })
             });
@@ -266,11 +281,18 @@ export function MeasurementManager({ contractId, devices: initialDevices, isAdmi
                     : d
             ));
 
+            const consumption = lastEntry ? currentValue - lastEntry.value : 0;
+            const consumptionMsg = consumption > 0 ? ` Consumo: ${consumption.toFixed(2)} ${selectedDevice.unit}` : "";
+
             setIsAddEntryOpen(false);
             setCapturedPhoto(null);
             setOcrResult("");
             setNewEntry({ value: "", notes: "", photo: "" });
-            toast({ title: "Sucesso", description: "Leitura registrada com sucesso!", variant: "success" });
+            toast({
+                title: "Sucesso!",
+                description: `Leitura: ${currentValue} ${selectedDevice.unit}.${consumptionMsg}`,
+                variant: "success",
+            });
         } catch (error) {
             toast({ title: "Erro", description: "Erro ao registrar leitura", variant: "destructive" });
         } finally {
@@ -429,24 +451,42 @@ export function MeasurementManager({ contractId, devices: initialDevices, isAdmi
                                                     <thead>
                                                         <tr className="bg-muted/30 border-b border-border/30">
                                                             <th className="text-left px-3 py-2 font-black text-[10px] uppercase tracking-widest text-muted-foreground/50">Data</th>
-                                                            <th className="text-right px-3 py-2 font-black text-[10px] uppercase tracking-widest text-muted-foreground/50">Valor</th>
+                                                            <th className="text-right px-3 py-2 font-black text-[10px] uppercase tracking-widest text-muted-foreground/50">Leitura</th>
+                                                            <th className="text-right px-3 py-2 font-black text-[10px] uppercase tracking-widest text-muted-foreground/50">Consumo</th>
                                                         </tr>
                                                     </thead>
                                                     <tbody>
-                                                        {device.entries.map((entry, idx) => (
-                                                            <tr key={entry.id} className={cn("border-b border-border/20 last:border-0", idx % 2 === 0 ? "bg-background" : "bg-muted/10")}>
-                                                                <td className="px-3 py-2">
-                                                                    <div className="flex items-center gap-1.5">
-                                                                        <Calendar className="h-3 w-3 opacity-40" />
-                                                                        <span className="font-bold text-muted-foreground/80">{formatDate(entry.date)}</span>
-                                                                    </div>
-                                                                    <span className="text-[10px] text-muted-foreground/50 ml-4.5">{entry.user.name}</span>
-                                                                </td>
-                                                                <td className="px-3 py-2 text-right">
-                                                                    <span className="font-black text-foreground">{entry.value} {device.unit}</span>
-                                                                </td>
-                                                            </tr>
-                                                        ))}
+                                                        {device.entries.map((entry, idx) => {
+                                                            const prevEntry = device.entries[idx + 1];
+                                                            const consumption = prevEntry ? entry.value - prevEntry.value : null;
+
+                                                            return (
+                                                                <tr key={entry.id} className={cn("border-b border-border/20 last:border-0", idx % 2 === 0 ? "bg-background" : "bg-muted/10")}>
+                                                                    <td className="px-3 py-2">
+                                                                        <div className="flex items-center gap-1.5">
+                                                                            <Calendar className="h-3 w-3 opacity-40" />
+                                                                            <span className="font-bold text-muted-foreground/80">{formatDate(entry.date)}</span>
+                                                                        </div>
+                                                                        <span className="text-[10px] text-muted-foreground/50 ml-4.5">{entry.user.name}</span>
+                                                                    </td>
+                                                                    <td className="px-3 py-2 text-right">
+                                                                        <span className="font-black text-foreground">{entry.value} {device.unit}</span>
+                                                                    </td>
+                                                                    <td className="px-3 py-2 text-right">
+                                                                        {consumption !== null ? (
+                                                                            <span className={cn(
+                                                                                "font-black",
+                                                                                consumption > 0 ? "text-amber-600" : "text-muted-foreground"
+                                                                            )}>
+                                                                                {consumption > 0 ? "+" : ""}{consumption.toFixed(2)} {device.unit}
+                                                                            </span>
+                                                                        ) : (
+                                                                            <span className="text-muted-foreground/40 text-[10px]">Primeira</span>
+                                                                        )}
+                                                                    </td>
+                                                                </tr>
+                                                            );
+                                                        })}
                                                     </tbody>
                                                 </table>
                                             </div>
@@ -477,8 +517,23 @@ export function MeasurementManager({ contractId, devices: initialDevices, isAdmi
                     <DialogHeader>
                         <DialogTitle className="text-2xl font-black tracking-tighter">Registrar Leitura</DialogTitle>
                         <DialogDescription className="font-medium text-muted-foreground">
-                            Tire uma foto do visor do <span className="text-primary font-bold">{selectedDevice?.name}</span> para leitura automatica.
+                            {selectedDevice?.name} - {selectedDevice?.type === "WATER" ? "Água" : selectedDevice?.type === "ENERGY" ? "Energia" : "Gás"}
                         </DialogDescription>
+                        {selectedDevice && selectedDevice.entries && selectedDevice.entries.length > 0 && (
+                            <div className="mt-3 p-3 bg-muted/30 rounded-xl border border-border/40">
+                                <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/50 mb-1">Última Leitura</p>
+                                <div className="flex items-baseline gap-2">
+                                    <span className="text-2xl font-black text-primary">{selectedDevice.entries[0].value}</span>
+                                    <span className="text-xs font-bold text-muted-foreground">{selectedDevice.unit}</span>
+                                    <span className="text-[10px] text-muted-foreground ml-auto">
+                                        {formatDate(selectedDevice.entries[0].date)}
+                                    </span>
+                                </div>
+                                <p className="text-[10px] text-muted-foreground/60 mt-1">
+                                    O novo valor deve ser MAIOR que este
+                                </p>
+                            </div>
+                        )}
                     </DialogHeader>
                     <div className="grid gap-5 py-4">
                         {/* Area da Camera / Foto */}
@@ -612,16 +667,36 @@ export function MeasurementManager({ contractId, devices: initialDevices, isAdmi
                         <canvas ref={canvasRef} className="hidden" />
 
                         <div className="space-y-2">
-                            <Label htmlFor="value" className="text-xs font-black uppercase tracking-widest opacity-60">Valor Atual ({selectedDevice?.unit})</Label>
-                            <Input
-                                id="value"
-                                type="number"
-                                step="0.01"
-                                placeholder="Digite ou use a leitura automatica"
-                                className="rounded-2xl border-border/50 text-2xl font-black h-14"
-                                value={newEntry.value}
-                                onChange={e => setNewEntry({ ...newEntry, value: e.target.value })}
-                            />
+                            <Label htmlFor="value" className="text-xs font-black uppercase tracking-widest opacity-60">
+                                Valor Atual do Visor ({selectedDevice?.unit})
+                            </Label>
+                            <div className="relative">
+                                <Input
+                                    id="value"
+                                    type="number"
+                                    step="0.01"
+                                    placeholder={selectedDevice?.entries?.[0] ? `> ${selectedDevice.entries[0].value}` : "Digite o valor do visor"}
+                                    className="rounded-2xl border-border/50 text-2xl font-black h-14"
+                                    value={newEntry.value}
+                                    onChange={e => setNewEntry({ ...newEntry, value: e.target.value })}
+                                />
+                            </div>
+                            {selectedDevice?.entries?.[0] && newEntry.value && parseFloat(newEntry.value) >= selectedDevice.entries[0].value && (
+                                <div className="flex items-center gap-2 p-2 bg-green-500/10 rounded-lg border border-green-500/20">
+                                    <Check className="h-4 w-4 text-green-600" />
+                                    <p className="text-xs font-bold text-green-600">
+                                        Consumo: {(parseFloat(newEntry.value) - selectedDevice.entries[0].value).toFixed(2)} {selectedDevice.unit}
+                                    </p>
+                                </div>
+                            )}
+                            {selectedDevice?.entries?.[0] && newEntry.value && parseFloat(newEntry.value) < selectedDevice.entries[0].value && (
+                                <div className="flex items-center gap-2 p-2 bg-red-500/10 rounded-lg border border-red-500/20">
+                                    <X className="h-4 w-4 text-red-600" />
+                                    <p className="text-xs font-bold text-red-600">
+                                        Valor menor que a última leitura!
+                                    </p>
+                                </div>
+                            )}
                         </div>
 
                         <div className="space-y-2">
