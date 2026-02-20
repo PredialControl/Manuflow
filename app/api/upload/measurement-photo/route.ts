@@ -1,9 +1,7 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import sharp from "sharp";
-import path from "path";
-import fs from "fs/promises";
+import { put } from "@vercel/blob";
 
 export async function POST(req: Request) {
     const session = await getServerSession(authOptions);
@@ -19,30 +17,19 @@ export async function POST(req: Request) {
             return new NextResponse("No file provided", { status: 400 });
         }
 
-        // Create date-based folder: uploads/measurements/2026-02-19/
+        // Create date-based path: measurements/2026-02-19/medicao_timestamp.webp
         const now = new Date();
-        const dateFolder = now.toISOString().split("T")[0]; // YYYY-MM-DD
-        const uploadsDir = path.join(process.cwd(), "public", "uploads", "measurements", dateFolder);
-        await fs.mkdir(uploadsDir, { recursive: true });
-
-        // Generate unique filename
+        const dateFolder = now.toISOString().split("T")[0];
         const timestamp = now.getTime();
-        const filename = `medicao_${timestamp}.webp`;
-        const filePath = path.join(uploadsDir, filename);
+        const pathname = `measurements/${dateFolder}/medicao_${timestamp}.webp`;
 
-        // Convert to WebP using sharp
-        const arrayBuffer = await file.arrayBuffer();
-        const buffer = Buffer.from(arrayBuffer);
+        // Upload to Vercel Blob
+        const blob = await put(pathname, file, {
+            access: "public",
+            contentType: "image/webp",
+        });
 
-        await sharp(buffer)
-            .resize(1280, 960, { fit: "inside", withoutEnlargement: true })
-            .webp({ quality: 80 })
-            .toFile(filePath);
-
-        // Return the public URL
-        const publicUrl = `/uploads/measurements/${dateFolder}/${filename}`;
-
-        return NextResponse.json({ url: publicUrl });
+        return NextResponse.json({ url: blob.url });
     } catch (error) {
         console.error("[UPLOAD_MEASUREMENT_PHOTO]", error);
         return new NextResponse("Internal Error", { status: 500 });
