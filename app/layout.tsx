@@ -21,6 +21,21 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="pt-BR" suppressHydrationWarning>
+      <head>
+        {/* Eruda console mobile - adicione ?debug=1 na URL para ativar */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              if (window.location.search.includes('debug=1')) {
+                var script = document.createElement('script');
+                script.src = "https://cdn.jsdelivr.net/npm/eruda";
+                document.body.appendChild(script);
+                script.onload = function () { eruda.init(); }
+              }
+            `,
+          }}
+        />
+      </head>
       <body className={cn(inter.className, "min-h-screen bg-background transition-colors duration-300")}>
         <ThemeProvider
           attribute="class"
