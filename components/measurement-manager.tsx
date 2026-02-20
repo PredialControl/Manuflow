@@ -76,6 +76,7 @@ export function MeasurementManager({ contractId, devices: initialDevices, isAdmi
 
     // Camera states
     const [cameraActive, setCameraActive] = useState(false);
+    const [cameraError, setCameraError] = useState<string>("");
 
     const videoRef = useRef<HTMLVideoElement>(null);
     const streamRef = useRef<MediaStream | null>(null);
@@ -109,48 +110,74 @@ export function MeasurementManager({ contractId, devices: initialDevices, isAdmi
 
     // Start camera
     const startCamera = useCallback(async () => {
+        setCameraError("");
+        setCameraActive(false);
+
         try {
-            console.log("[CAMERA] Requesting camera...");
+            console.log("[CAMERA] 1/4 - Checking API support...");
+
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                throw new Error("Camera API not supported");
+            }
+
+            console.log("[CAMERA] 2/4 - Requesting camera permission...");
 
             const stream = await navigator.mediaDevices.getUserMedia({
                 video: {
                     facingMode: "environment",
-                    width: { ideal: 1280 },
-                    height: { ideal: 720 }
+                    width: { ideal: 1920 },
+                    height: { ideal: 1080 }
                 },
                 audio: false,
             });
 
-            console.log("[CAMERA] Got stream");
+            console.log("[CAMERA] 3/4 - Got stream, tracks:", stream.getVideoTracks().length);
             streamRef.current = stream;
 
-            if (videoRef.current) {
-                const video = videoRef.current;
-                video.srcObject = stream;
-
-                // Wait for video to be ready
-                video.onloadedmetadata = () => {
-                    console.log("[CAMERA] Metadata loaded, playing...");
-                    video.play().then(() => {
-                        console.log("[CAMERA] Playing successfully");
-                        setCameraActive(true);
-                    }).catch((e) => {
-                        console.error("[CAMERA] Play error:", e);
-                        toast({
-                            title: "Erro",
-                            description: "Erro ao iniciar video",
-                            variant: "destructive",
-                        });
-                    });
-                };
+            if (!videoRef.current) {
+                console.error("[CAMERA] Video ref not ready!");
+                throw new Error("Video element not ready");
             }
+
+            const video = videoRef.current;
+            console.log("[CAMERA] 4/4 - Setting up video element...");
+
+            // Set stream immediately
+            video.srcObject = stream;
+
+            // Set camera active BEFORE play (so video element is visible)
+            setCameraActive(true);
+
+            // Play after a small delay to ensure DOM is ready
+            setTimeout(() => {
+                video.play()
+                    .then(() => {
+                        console.log("[CAMERA] ✅ Success! Video playing");
+                    })
+                    .catch((playErr) => {
+                        console.error("[CAMERA] ❌ Play failed:", playErr);
+                        setCameraError("Falha ao iniciar video: " + playErr.message);
+                    });
+            }, 100);
+
         } catch (err: any) {
-            console.error("[CAMERA] Error:", err);
+            console.error("[CAMERA] ❌ Failed:", err);
+
+            let errorMsg = "Erro desconhecido";
+            if (err.name === "NotAllowedError") {
+                errorMsg = "Permissão da câmera negada. Verifique as configurações.";
+            } else if (err.name === "NotFoundError") {
+                errorMsg = "Nenhuma câmera encontrada no dispositivo.";
+            } else if (err.name === "NotReadableError") {
+                errorMsg = "Câmera em uso por outro aplicativo.";
+            } else if (err.message) {
+                errorMsg = err.message;
+            }
+
+            setCameraError(errorMsg);
             toast({
-                title: "Erro",
-                description: err.name === "NotAllowedError"
-                    ? "Permissao da camera negada"
-                    : "Erro ao abrir camera",
+                title: "Erro ao abrir câmera",
+                description: errorMsg,
                 variant: "destructive",
             });
         }
@@ -493,18 +520,21 @@ export function MeasurementManager({ contractId, devices: initialDevices, isAdmi
                             </Label>
 
                             <div className="relative w-full aspect-[4/3] rounded-2xl overflow-hidden border-2 border-border/30 bg-black">
-                                {/* Video Stream */}
+                                {/* Video Stream - ALWAYS RENDERED */}
+                                <video
+                                    ref={videoRef}
+                                    autoPlay
+                                    playsInline
+                                    muted
+                                    className={cn(
+                                        "w-full h-full object-cover",
+                                        !cameraActive && "hidden"
+                                    )}
+                                />
+
+                                {/* Guia de foco - retangulo nos numeros */}
                                 {cameraActive && (
                                     <>
-                                        <video
-                                            ref={videoRef}
-                                            autoPlay
-                                            playsInline
-                                            muted
-                                            className="w-full h-full object-cover"
-                                            style={{ display: 'block', width: '100%', height: '100%' }}
-                                        />
-                                        {/* Guia de foco - retangulo nos numeros */}
                                         <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                                             <div className="w-[70%] h-[30%] border-2 border-primary/80 rounded-xl relative">
                                                 <div className="absolute -top-6 left-1/2 -translate-x-1/2 bg-primary/90 text-white text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full whitespace-nowrap flex items-center gap-1">
@@ -526,21 +556,38 @@ export function MeasurementManager({ contractId, devices: initialDevices, isAdmi
                                     </>
                                 )}
 
-
                                 {/* Placeholder */}
                                 {!cameraActive && (
                                     <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-gradient-to-br from-muted/30 to-muted/10">
-                                        <div className="h-20 w-20 rounded-full bg-primary/10 flex items-center justify-center">
-                                            <ScanLine className="h-10 w-10 text-primary/40" />
-                                        </div>
-                                        <div className="text-center">
-                                            <p className="text-sm font-black text-foreground/80 mb-1">
-                                                Leitura Automatica
-                                            </p>
-                                            <p className="text-[10px] text-muted-foreground/60">
-                                                A camera ira ler os numeros do visor
-                                            </p>
-                                        </div>
+                                        {cameraError ? (
+                                            <>
+                                                <div className="h-20 w-20 rounded-full bg-destructive/10 flex items-center justify-center">
+                                                    <X className="h-10 w-10 text-destructive" />
+                                                </div>
+                                                <div className="text-center px-4">
+                                                    <p className="text-sm font-black text-destructive mb-1">
+                                                        Erro na Câmera
+                                                    </p>
+                                                    <p className="text-[10px] text-muted-foreground/80">
+                                                        {cameraError}
+                                                    </p>
+                                                </div>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <div className="h-20 w-20 rounded-full bg-primary/10 flex items-center justify-center">
+                                                    <ScanLine className="h-10 w-10 text-primary/40" />
+                                                </div>
+                                                <div className="text-center">
+                                                    <p className="text-sm font-black text-foreground/80 mb-1">
+                                                        Leitura Automatica
+                                                    </p>
+                                                    <p className="text-[10px] text-muted-foreground/60">
+                                                        A camera ira ler os numeros do visor
+                                                    </p>
+                                                </div>
+                                            </>
+                                        )}
                                     </div>
                                 )}
                             </div>
