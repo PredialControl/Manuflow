@@ -114,34 +114,64 @@ export function MeasurementManager({ contractId, devices: initialDevices, isAdmi
     // Start camera
     const startCamera = useCallback(async () => {
         try {
-            const stream = await navigator.mediaDevices.getUserMedia({
+            console.log("[CAMERA] Requesting camera access...");
+
+            // Try simpler constraints first
+            const constraints = {
                 video: {
-                    facingMode: { ideal: "environment" },
-                    width: { ideal: 1280 },
-                    height: { ideal: 720 },
+                    facingMode: "environment",
+                    width: { ideal: 1280, max: 1920 },
+                    height: { ideal: 720, max: 1080 },
                 },
-            });
+                audio: false,
+            };
+
+            const stream = await navigator.mediaDevices.getUserMedia(constraints);
+            console.log("[CAMERA] Stream obtained:", stream.getVideoTracks()[0].getSettings());
+
             streamRef.current = stream;
+
             if (videoRef.current) {
-                videoRef.current.srcObject = stream;
-                videoRef.current.setAttribute("playsinline", "true");
-                videoRef.current.onloadedmetadata = () => {
-                    videoRef.current?.play().catch((err) => {
-                        console.error("Video play error:", err);
-                        toast({
-                            title: "Erro",
-                            description: "Erro ao iniciar video da camera.",
-                            variant: "destructive",
-                        });
-                    });
-                };
+                console.log("[CAMERA] Setting up video element...");
+                const video = videoRef.current;
+                video.srcObject = stream;
+                video.setAttribute("playsinline", "");
+                video.setAttribute("autoplay", "");
+                video.setAttribute("muted", "");
+                video.muted = true;
+                video.playsInline = true;
+
+                // Force play
+                try {
+                    await video.play();
+                    console.log("[CAMERA] Video playing successfully");
+                    setCameraActive(true);
+                } catch (playErr) {
+                    console.error("[CAMERA] Play failed:", playErr);
+                    // Try again after a short delay
+                    setTimeout(async () => {
+                        try {
+                            await video.play();
+                            console.log("[CAMERA] Video playing after retry");
+                            setCameraActive(true);
+                        } catch (retryErr) {
+                            console.error("[CAMERA] Retry play failed:", retryErr);
+                            toast({
+                                title: "Erro",
+                                description: "Camera abriu mas video nao inicia. Tente novamente.",
+                                variant: "destructive",
+                            });
+                        }
+                    }, 100);
+                }
             }
-            setCameraActive(true);
-        } catch (err) {
-            console.error("Camera error:", err);
+        } catch (err: any) {
+            console.error("[CAMERA] Error:", err);
             toast({
-                title: "Erro",
-                description: "Nao foi possivel acessar a camera. Verifique as permissoes.",
+                title: "Erro ao abrir camera",
+                description: err.name === "NotAllowedError"
+                    ? "Permissao negada. Autorize o acesso a camera."
+                    : `Erro: ${err.message || "Desconhecido"}`,
                 variant: "destructive",
             });
         }
@@ -492,7 +522,15 @@ export function MeasurementManager({ contractId, devices: initialDevices, isAdmi
                                 Foto do Medidor
                             </Label>
 
-                            <div className="relative w-full aspect-[4/3] bg-black rounded-2xl overflow-hidden border-2 border-border/30">
+                            <div className="relative w-full aspect-[4/3] rounded-2xl overflow-hidden border-2 border-border/30 bg-black">
+                                {/* Loading camera */}
+                                {cameraActive && !videoRef.current?.srcObject && (
+                                    <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-black z-10">
+                                        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                                        <p className="text-[10px] font-black uppercase tracking-widest text-white">Iniciando camera...</p>
+                                    </div>
+                                )}
+
                                 {/* Video Stream */}
                                 {cameraActive && (
                                     <>
@@ -501,7 +539,8 @@ export function MeasurementManager({ contractId, devices: initialDevices, isAdmi
                                             autoPlay
                                             playsInline
                                             muted
-                                            className="absolute inset-0 h-full w-full object-cover"
+                                            className="absolute inset-0 h-full w-full object-cover z-0"
+                                            style={{ backgroundColor: "#000" }}
                                         />
                                         {/* Guia de foco - retangulo nos numeros */}
                                         <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
