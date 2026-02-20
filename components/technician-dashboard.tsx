@@ -37,7 +37,7 @@ const categoryMap: Record<string, { label: string, icon: any, color: string }> =
 
 export function TechnicianDashboard() {
     const [rounds, setRounds] = useState<any[]>([]);
-    const [measurements, setMeasurements] = useState<any[]>([]);
+    const [devices, setDevices] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
 
     async function loadRounds() {
@@ -53,22 +53,22 @@ export function TechnicianDashboard() {
         }
     }
 
-    async function loadMeasurements() {
+    async function loadDevices() {
         try {
-            const res = await fetch("/api/technician/measurements");
+            const res = await fetch("/api/technician/devices");
             const data = await res.json();
-            setMeasurements(data);
+            setDevices(data);
         } catch (error) {
-            console.error("Error loading measurements:", error);
+            console.error("Error loading devices:", error);
         }
     }
 
     useEffect(() => {
         loadRounds();
-        loadMeasurements();
+        loadDevices();
         const interval = setInterval(() => {
             loadRounds();
-            loadMeasurements();
+            loadDevices();
         }, 60000); // Sincroniza a cada minuto
         return () => clearInterval(interval);
     }, []);
@@ -85,6 +85,22 @@ export function TechnicianDashboard() {
     const pendingCount = rounds.filter(r => !r.isDoneToday).length;
     const doneCount = rounds.filter(r => r.isDoneToday).length;
     const today = new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' });
+
+    // Agrupar medidores por contrato
+    const devicesByContract = devices.reduce((acc: any, device: any) => {
+        const contractId = device.contract.id;
+        if (!acc[contractId]) {
+            acc[contractId] = {
+                contractId,
+                contractName: device.contract.name,
+                devices: [],
+            };
+        }
+        acc[contractId].devices.push(device);
+        return acc;
+    }, {});
+
+    const contracts = Object.values(devicesByContract);
 
     return (
         <div className="space-y-6 animate-in pb-20">
@@ -118,48 +134,59 @@ export function TechnicianDashboard() {
                 </Card>
             </div>
 
-            {/* Seção de Medições */}
-            {measurements.length > 0 && (
+            {/* Seção de Leituras de Medidores */}
+            {contracts.length > 0 && (
                 <div className="space-y-3">
                     <div className="flex items-center gap-2">
                         <Gauge className="h-4 w-4 text-primary" />
-                        <h2 className="text-sm font-black uppercase tracking-widest text-muted-foreground/60">Minhas Leituras</h2>
+                        <h2 className="text-sm font-black uppercase tracking-widest text-muted-foreground/60">Leituras de Medidores</h2>
                     </div>
-                    <div className="space-y-2">
-                        {measurements.slice(0, 5).map((entry: any) => (
-                            <Card key={entry.id} className="bg-card border-border/40 shadow-none rounded-xl hover:border-primary/30 transition-colors">
-                                <CardContent className="p-3">
-                                    <div className="flex items-center justify-between gap-3">
-                                        <div className="flex-1 min-w-0">
-                                            <div className="flex items-center gap-2 mb-1">
-                                                <span className="text-[8px] font-black uppercase tracking-widest text-muted-foreground/60 flex items-center gap-1">
-                                                    <Building2 className="h-2 w-2" /> {entry.device.contract.name}
-                                                </span>
-                                                <span className="h-1 w-1 rounded-full bg-border" />
-                                                <span className={cn(
-                                                    "text-[8px] font-black uppercase tracking-widest flex items-center gap-1",
-                                                    entry.device.type === "WATER" && "text-blue-500",
-                                                    entry.device.type === "ENERGY" && "text-yellow-500",
-                                                    entry.device.type === "GAS" && "text-orange-500"
-                                                )}>
-                                                    {entry.device.type === "WATER" && <Droplets className="h-2 w-2" />}
-                                                    {entry.device.type === "ENERGY" && <Zap className="h-2 w-2" />}
-                                                    {entry.device.type === "GAS" && <Flame className="h-2 w-2" />}
-                                                    {entry.device.type === "WATER" ? "Água" : entry.device.type === "ENERGY" ? "Energia" : "Gás"}
-                                                </span>
+                    <div className="space-y-3">
+                        {contracts.map((contract: any) => (
+                            <Link
+                                key={contract.contractId}
+                                href={`/contracts/${contract.contractId}?tab=measurements`}
+                                className="block"
+                            >
+                                <Card className="bg-card border-border/40 shadow-none rounded-2xl hover:border-primary/30 hover:bg-primary/[0.02] transition-all group">
+                                    <CardContent className="p-4">
+                                        <div className="flex items-center justify-between gap-3">
+                                            <div className="flex-1 min-w-0">
+                                                <div className="flex items-center gap-2 mb-2">
+                                                    <Building2 className="h-3 w-3 text-primary" />
+                                                    <h3 className="text-base font-black tracking-tight uppercase italic truncate">{contract.contractName}</h3>
+                                                </div>
+                                                <div className="flex flex-wrap gap-2">
+                                                    {contract.devices.map((device: any) => (
+                                                        <div key={device.id} className={cn(
+                                                            "flex items-center gap-1.5 px-2 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest",
+                                                            device.type === "WATER" && "bg-blue-500/10 text-blue-600",
+                                                            device.type === "ENERGY" && "bg-yellow-500/10 text-yellow-600",
+                                                            device.type === "GAS" && "bg-orange-500/10 text-orange-600"
+                                                        )}>
+                                                            {device.type === "WATER" && <Droplets className="h-3 w-3" />}
+                                                            {device.type === "ENERGY" && <Zap className="h-3 w-3" />}
+                                                            {device.type === "GAS" && <Flame className="h-3 w-3" />}
+                                                            {device.type === "WATER" ? "Água" : device.type === "ENERGY" ? "Energia" : "Gás"}
+                                                            {device.entries[0] && (
+                                                                <span className="ml-1">• {device.entries[0].value} {device.unit}</span>
+                                                            )}
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                                <p className="text-[8px] text-muted-foreground uppercase tracking-widest mt-2">
+                                                    {contract.devices.length} {contract.devices.length === 1 ? "medidor" : "medidores"}
+                                                </p>
                                             </div>
-                                            <p className="text-xs font-bold text-foreground truncate">{entry.device.name}</p>
-                                            <p className="text-[10px] text-muted-foreground">
-                                                {new Date(entry.createdAt).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
-                                            </p>
+                                            <div className="flex-shrink-0">
+                                                <div className="h-12 w-12 rounded-xl bg-primary/5 group-hover:bg-primary group-hover:text-white transition-all flex items-center justify-center text-primary">
+                                                    <Gauge className="h-5 w-5" />
+                                                </div>
+                                            </div>
                                         </div>
-                                        <div className="flex-shrink-0 text-right">
-                                            <p className="text-lg font-black text-primary">{entry.value}</p>
-                                            <p className="text-[8px] font-bold text-muted-foreground uppercase tracking-widest">{entry.device.unit}</p>
-                                        </div>
-                                    </div>
-                                </CardContent>
-                            </Card>
+                                    </CardContent>
+                                </Card>
+                            </Link>
                         ))}
                     </div>
                 </div>
