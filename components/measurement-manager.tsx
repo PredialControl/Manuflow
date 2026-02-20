@@ -18,7 +18,6 @@ import {
     TrendingUp,
     Focus,
     X,
-    Eye,
     ScanLine,
 } from "lucide-react";
 import { cn, formatDate } from "@/lib/utils";
@@ -74,15 +73,12 @@ export function MeasurementManager({ contractId, devices: initialDevices, isAdmi
     const [isAddDeviceOpen, setIsAddDeviceOpen] = useState(false);
     const [isAddEntryOpen, setIsAddEntryOpen] = useState(false);
     const [selectedDevice, setSelectedDevice] = useState<Device | null>(null);
-    const [viewPhotoUrl, setViewPhotoUrl] = useState<string | null>(null);
 
     // Camera states
     const [cameraActive, setCameraActive] = useState(false);
     const [capturedPhoto, setCapturedPhoto] = useState<string | null>(null);
-    const [capturedBlob, setCapturedBlob] = useState<Blob | null>(null);
     const [ocrLoading, setOcrLoading] = useState(false);
     const [ocrResult, setOcrResult] = useState<string>("");
-    const [uploadingPhoto, setUploadingPhoto] = useState(false);
 
     const videoRef = useRef<HTMLVideoElement>(null);
     const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -166,15 +162,6 @@ export function MeasurementManager({ contractId, devices: initialDevices, isAdmi
         const dataUrl = canvas.toDataURL("image/jpeg", 0.9);
         setCapturedPhoto(dataUrl);
 
-        // Get as blob for upload
-        canvas.toBlob(
-            (blob) => {
-                if (blob) setCapturedBlob(blob);
-            },
-            "image/jpeg",
-            0.9
-        );
-
         stopCamera();
         runOCR(dataUrl);
     }, [stopCamera]);
@@ -218,38 +205,11 @@ export function MeasurementManager({ contractId, devices: initialDevices, isAdmi
         }
     };
 
-    // Upload photo as WebP
-    const uploadPhoto = async (): Promise<string | null> => {
-        if (!capturedBlob) return null;
-        setUploadingPhoto(true);
-        try {
-            const formData = new FormData();
-            formData.append("photo", capturedBlob, "measurement.jpg");
-            const res = await fetch("/api/upload/measurement-photo", {
-                method: "POST",
-                body: formData,
-            });
-            if (!res.ok) throw new Error();
-            const { url } = await res.json();
-            return url;
-        } catch {
-            toast({
-                title: "Erro",
-                description: "Erro ao enviar foto.",
-                variant: "destructive",
-            });
-            return null;
-        } finally {
-            setUploadingPhoto(false);
-        }
-    };
-
     // Clean up camera on dialog close
     useEffect(() => {
         if (!isAddEntryOpen) {
             stopCamera();
             setCapturedPhoto(null);
-            setCapturedBlob(null);
             setOcrResult("");
             setNewEntry({ value: "", notes: "", photo: "" });
         }
@@ -281,19 +241,12 @@ export function MeasurementManager({ contractId, devices: initialDevices, isAdmi
         if (!selectedDevice || !newEntry.value) return toast({ title: "Erro", description: "Valor eh obrigatorio", variant: "destructive" });
         setLoading(true);
         try {
-            // Upload photo first if captured
-            let photoUrl: string | null = null;
-            if (capturedBlob) {
-                photoUrl = await uploadPhoto();
-            }
-
             const res = await fetch(`/api/measurements/devices/${selectedDevice.id}/entries`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     value: parseFloat(newEntry.value),
                     notes: newEntry.notes,
-                    photo: photoUrl
                 })
             });
             if (!res.ok) throw new Error();
@@ -308,7 +261,6 @@ export function MeasurementManager({ contractId, devices: initialDevices, isAdmi
 
             setIsAddEntryOpen(false);
             setCapturedPhoto(null);
-            setCapturedBlob(null);
             setOcrResult("");
             setNewEntry({ value: "", notes: "", photo: "" });
             toast({ title: "Sucesso", description: "Leitura registrada com sucesso!", variant: "success" });
@@ -471,7 +423,6 @@ export function MeasurementManager({ contractId, devices: initialDevices, isAdmi
                                                         <tr className="bg-muted/30 border-b border-border/30">
                                                             <th className="text-left px-3 py-2 font-black text-[10px] uppercase tracking-widest text-muted-foreground/50">Data</th>
                                                             <th className="text-right px-3 py-2 font-black text-[10px] uppercase tracking-widest text-muted-foreground/50">Valor</th>
-                                                            <th className="text-center px-3 py-2 font-black text-[10px] uppercase tracking-widest text-muted-foreground/50">Foto</th>
                                                         </tr>
                                                     </thead>
                                                     <tbody>
@@ -486,18 +437,6 @@ export function MeasurementManager({ contractId, devices: initialDevices, isAdmi
                                                                 </td>
                                                                 <td className="px-3 py-2 text-right">
                                                                     <span className="font-black text-foreground">{entry.value} {device.unit}</span>
-                                                                </td>
-                                                                <td className="px-3 py-2 text-center">
-                                                                    {entry.photo ? (
-                                                                        <button
-                                                                            onClick={() => setViewPhotoUrl(entry.photo!)}
-                                                                            className="inline-flex items-center justify-center h-7 w-7 rounded-lg bg-primary/10 hover:bg-primary/20 text-primary transition-colors"
-                                                                        >
-                                                                            <Eye className="h-3.5 w-3.5" />
-                                                                        </button>
-                                                                    ) : (
-                                                                        <span className="text-muted-foreground/30">-</span>
-                                                                    )}
                                                                 </td>
                                                             </tr>
                                                         ))}
@@ -636,7 +575,6 @@ export function MeasurementManager({ contractId, devices: initialDevices, isAdmi
                                             className="rounded-xl h-12 px-4 text-[10px] font-black uppercase tracking-widest"
                                             onClick={() => {
                                                 setCapturedPhoto(null);
-                                                setCapturedBlob(null);
                                                 setOcrResult("");
                                                 setNewEntry(prev => ({ ...prev, value: "" }));
                                                 startCamera();
@@ -693,23 +631,12 @@ export function MeasurementManager({ contractId, devices: initialDevices, isAdmi
                         <Button
                             className="w-full btn-premium py-6"
                             onClick={handleAddEntry}
-                            disabled={loading || uploadingPhoto || !newEntry.value}
+                            disabled={loading || !newEntry.value}
                         >
-                            {loading || uploadingPhoto ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Check className="h-4 w-4 mr-2" />}
-                            {uploadingPhoto ? "Enviando foto..." : "Salvar Medicao"}
+                            {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Check className="h-4 w-4 mr-2" />}
+                            Salvar Medicao
                         </Button>
                     </DialogFooter>
-                </DialogContent>
-            </Dialog>
-
-            {/* Modal de visualizacao da foto */}
-            <Dialog open={!!viewPhotoUrl} onOpenChange={() => setViewPhotoUrl(null)}>
-                <DialogContent className="sm:max-w-[600px] rounded-[2rem] p-2">
-                    <div className="relative w-full aspect-[4/3] rounded-2xl overflow-hidden bg-black">
-                        {viewPhotoUrl && (
-                            <img src={viewPhotoUrl} alt="Foto da medicao" className="h-full w-full object-contain" />
-                        )}
-                    </div>
                 </DialogContent>
             </Dialog>
 
