@@ -116,18 +116,29 @@ export function MeasurementManager({ contractId, devices: initialDevices, isAdmi
         try {
             const stream = await navigator.mediaDevices.getUserMedia({
                 video: {
-                    facingMode: "environment",
-                    width: { ideal: 1920 },
-                    height: { ideal: 1080 },
+                    facingMode: { ideal: "environment" },
+                    width: { ideal: 1280 },
+                    height: { ideal: 720 },
                 },
             });
             streamRef.current = stream;
             if (videoRef.current) {
                 videoRef.current.srcObject = stream;
-                await videoRef.current.play();
+                videoRef.current.setAttribute("playsinline", "true");
+                videoRef.current.onloadedmetadata = () => {
+                    videoRef.current?.play().catch((err) => {
+                        console.error("Video play error:", err);
+                        toast({
+                            title: "Erro",
+                            description: "Erro ao iniciar video da camera.",
+                            variant: "destructive",
+                        });
+                    });
+                };
             }
             setCameraActive(true);
         } catch (err) {
+            console.error("Camera error:", err);
             toast({
                 title: "Erro",
                 description: "Nao foi possivel acessar a camera. Verifique as permissoes.",

@@ -13,7 +13,9 @@ import {
     Building2,
     RefreshCcw,
     Loader2,
-    Gauge
+    Gauge,
+    PartyPopper,
+    Target
 } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
@@ -94,13 +96,28 @@ export function TechnicianDashboard() {
                 contractId,
                 contractName: device.contract.name,
                 devices: [],
+                hasReadingsToday: false,
             };
         }
         acc[contractId].devices.push(device);
+
+        // Verificar se tem leitura hoje
+        const hasReading = device.entries[0] &&
+            new Date(device.entries[0].createdAt).toDateString() === new Date().toDateString();
+        if (hasReading) {
+            acc[contractId].hasReadingsToday = true;
+        }
+
         return acc;
     }, {});
 
     const contracts = Object.values(devicesByContract);
+    const contractsWithPendingReadings = contracts.filter((c: any) => !c.hasReadingsToday).length;
+
+    // Total de tarefas = rounds pendentes + contratos com leituras pendentes
+    const totalTasks = rounds.length + contracts.length;
+    const completedTasks = doneCount + contracts.filter((c: any) => c.hasReadingsToday).length;
+    const allTasksComplete = totalTasks > 0 && completedTasks === totalTasks;
 
     return (
         <div className="space-y-6 animate-in pb-20">
@@ -119,17 +136,49 @@ export function TechnicianDashboard() {
                 </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-                <Card className="bg-primary/5 border-primary/10 shadow-none rounded-2xl">
-                    <CardContent className="p-4">
-                        <p className="text-[8px] font-black uppercase tracking-widest text-primary/60">Pendentes</p>
-                        <p className="text-2xl font-black text-primary">{pendingCount}</p>
+            {/* Mensagem de Parabéns */}
+            {allTasksComplete && (
+                <Card className="bg-gradient-to-r from-emerald-500/10 to-green-500/10 border-emerald-500/30 shadow-lg rounded-2xl overflow-hidden">
+                    <CardContent className="p-6 text-center">
+                        <PartyPopper className="h-12 w-12 text-emerald-500 mx-auto mb-3" />
+                        <h2 className="text-xl font-black uppercase tracking-tight text-emerald-600 mb-1">Parabéns!</h2>
+                        <p className="text-sm font-bold text-emerald-600/80">Você completou todas as tarefas de hoje</p>
                     </CardContent>
                 </Card>
-                <Card className="bg-emerald-500/5 border-emerald-500/10 shadow-none rounded-2xl">
+            )}
+
+            {/* Progresso Geral */}
+            {totalTasks > 0 && (
+                <Card className="bg-card border-border/40 shadow-none rounded-2xl">
                     <CardContent className="p-4">
-                        <p className="text-[8px] font-black uppercase tracking-widest text-emerald-500/60">Concluídas</p>
-                        <p className="text-2xl font-black text-emerald-500">{doneCount}</p>
+                        <div className="flex items-center justify-between mb-2">
+                            <div className="flex items-center gap-2">
+                                <Target className="h-4 w-4 text-primary" />
+                                <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60">Progresso de Hoje</p>
+                            </div>
+                            <p className="text-sm font-black text-primary">{completedTasks}/{totalTasks}</p>
+                        </div>
+                        <div className="h-2 bg-muted rounded-full overflow-hidden">
+                            <div
+                                className="h-full bg-gradient-to-r from-primary to-emerald-500 transition-all duration-500"
+                                style={{ width: `${(completedTasks / totalTasks) * 100}%` }}
+                            />
+                        </div>
+                    </CardContent>
+                </Card>
+            )}
+
+            <div className="grid grid-cols-2 gap-4">
+                <Card className="bg-amber-500/5 border-amber-500/10 shadow-none rounded-2xl">
+                    <CardContent className="p-4">
+                        <p className="text-[8px] font-black uppercase tracking-widest text-amber-600/60">Inspeções Pendentes</p>
+                        <p className="text-2xl font-black text-amber-600">{pendingCount}</p>
+                    </CardContent>
+                </Card>
+                <Card className="bg-blue-500/5 border-blue-500/10 shadow-none rounded-2xl">
+                    <CardContent className="p-4">
+                        <p className="text-[8px] font-black uppercase tracking-widest text-blue-600/60">Leituras Pendentes</p>
+                        <p className="text-2xl font-black text-blue-600">{contractsWithPendingReadings}</p>
                     </CardContent>
                 </Card>
             </div>
@@ -146,9 +195,14 @@ export function TechnicianDashboard() {
                             <Link
                                 key={contract.contractId}
                                 href={`/contracts/${contract.contractId}?tab=measurements`}
-                                className="block"
+                                className={cn("block", contract.hasReadingsToday && "opacity-60")}
                             >
-                                <Card className="bg-card border-border/40 shadow-none rounded-2xl hover:border-primary/30 hover:bg-primary/[0.02] transition-all group">
+                                <Card className={cn(
+                                    "shadow-none rounded-2xl transition-all group",
+                                    contract.hasReadingsToday
+                                        ? "bg-emerald-500/5 border-emerald-500/20"
+                                        : "bg-card border-border/40 hover:border-primary/30 hover:bg-primary/[0.02]"
+                                )}>
                                     <CardContent className="p-4">
                                         <div className="flex items-center justify-between gap-3">
                                             <div className="flex-1 min-w-0">
@@ -179,9 +233,15 @@ export function TechnicianDashboard() {
                                                 </p>
                                             </div>
                                             <div className="flex-shrink-0">
-                                                <div className="h-12 w-12 rounded-xl bg-primary/5 group-hover:bg-primary group-hover:text-white transition-all flex items-center justify-center text-primary">
-                                                    <Gauge className="h-5 w-5" />
-                                                </div>
+                                                {contract.hasReadingsToday ? (
+                                                    <div className="h-12 w-12 rounded-xl bg-emerald-500/10 flex items-center justify-center text-emerald-500">
+                                                        <CheckCircle2 className="h-6 w-6" />
+                                                    </div>
+                                                ) : (
+                                                    <div className="h-12 w-12 rounded-xl bg-primary/5 group-hover:bg-primary group-hover:text-white transition-all flex items-center justify-center text-primary">
+                                                        <Gauge className="h-5 w-5" />
+                                                    </div>
+                                                )}
                                             </div>
                                         </div>
                                     </CardContent>
