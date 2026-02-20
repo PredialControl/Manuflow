@@ -76,13 +76,14 @@ export function MeasurementManager({ contractId, devices: initialDevices, isAdmi
 
     // Camera states
     const [cameraActive, setCameraActive] = useState(false);
-    const [capturedPhoto, setCapturedPhoto] = useState<string | null>(null);
     const [ocrLoading, setOcrLoading] = useState(false);
     const [ocrResult, setOcrResult] = useState<string>("");
+    const [lastOcrAttempt, setLastOcrAttempt] = useState<number>(0);
 
     const videoRef = useRef<HTMLVideoElement>(null);
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const streamRef = useRef<MediaStream | null>(null);
+    const ocrIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
     // Form states for new device
     const [newDevice, setNewDevice] = useState({
@@ -126,8 +127,31 @@ export function MeasurementManager({ contractId, devices: initialDevices, isAdmi
 
             if (videoRef.current) {
                 videoRef.current.srcObject = stream;
-                videoRef.current.play();
+                await videoRef.current.play();
                 console.log("[CAMERA] Playing");
+
+                // Start continuous OCR after a short delay
+                setTimeout(() => {
+                    console.log("[OCR] Starting continuous reading...");
+                    ocrIntervalRef.current = setInterval(async () => {
+                        if (!videoRef.current || !canvasRef.current || ocrLoading) return;
+
+                        const video = videoRef.current;
+                        const canvas = canvasRef.current;
+
+                        if (video.readyState !== video.HAVE_ENOUGH_DATA) return;
+
+                        canvas.width = video.videoWidth;
+                        canvas.height = video.videoHeight;
+
+                        const ctx = canvas.getContext("2d");
+                        if (!ctx) return;
+                        ctx.drawImage(video, 0, 0);
+
+                        const dataUrl = canvas.toDataURL("image/jpeg", 0.8);
+                        await runOCR(dataUrl);
+                    }, 2000); // OCR a cada 2 segundos
+                }, 1000);
             }
 
             setCameraActive(true);
@@ -149,64 +173,47 @@ export function MeasurementManager({ contractId, devices: initialDevices, isAdmi
             streamRef.current.getTracks().forEach((track) => track.stop());
             streamRef.current = null;
         }
+        if (ocrIntervalRef.current) {
+            clearInterval(ocrIntervalRef.current);
+            ocrIntervalRef.current = null;
+        }
         setCameraActive(false);
     }, []);
 
-    // Capture photo from video stream
-    const capturePhoto = useCallback(() => {
-        if (!videoRef.current || !canvasRef.current) return;
-
-        const video = videoRef.current;
-        const canvas = canvasRef.current;
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
-
-        const ctx = canvas.getContext("2d");
-        if (!ctx) return;
-        ctx.drawImage(video, 0, 0);
-
-        // Get as data URL for preview
-        const dataUrl = canvas.toDataURL("image/jpeg", 0.9);
-        setCapturedPhoto(dataUrl);
-
-        stopCamera();
-        runOCR(dataUrl);
-    }, [stopCamera]);
-
     // Run OCR on captured image
     const runOCR = async (imageData: string) => {
+        // Evitar rodar OCR se já está rodando ou se tentou recentemente (< 1s)
+        const now = Date.now();
+        if (ocrLoading || (now - lastOcrAttempt < 1000)) return;
+
+        setLastOcrAttempt(now);
         setOcrLoading(true);
-        setOcrResult("");
+
         try {
+            console.log("[OCR] Analyzing frame...");
             const { createWorker } = await import("tesseract.js");
-            const worker = await createWorker("por");
+            const worker = await createWorker("eng", 1, {
+                logger: () => {}, // Silenciar logs
+            });
+
             const { data } = await worker.recognize(imageData);
             await worker.terminate();
 
             // Extract only numbers from OCR result
-            const numbers = data.text.replace(/[^0-9.,]/g, "").replace(",", ".");
-            if (numbers) {
-                setOcrResult(numbers);
-                setNewEntry((prev) => ({ ...prev, value: numbers }));
-                toast({
-                    title: "Leitura detectada",
-                    description: `Valor encontrado: ${numbers}`,
-                    variant: "success",
-                });
+            const numbers = data.text.replace(/[^0-9]/g, ""); // Só números, sem ponto/vírgula
+
+            if (numbers && numbers.length >= 3) {
+                // Adicionar ponto decimal se necessário (ex: 12345 -> 12345.00)
+                const formattedValue = parseFloat(numbers).toString();
+                console.log("[OCR] Found:", formattedValue);
+                setOcrResult(formattedValue);
+                setNewEntry((prev) => ({ ...prev, value: formattedValue }));
             } else {
-                toast({
-                    title: "OCR",
-                    description: "Nao foi possivel detectar numeros. Digite manualmente.",
-                    variant: "destructive",
-                });
+                console.log("[OCR] No valid numbers found");
+                setOcrResult("");
             }
         } catch (err) {
-            console.error("OCR error:", err);
-            toast({
-                title: "OCR falhou",
-                description: "Erro ao processar imagem. Digite o valor manualmente.",
-                variant: "destructive",
-            });
+            console.error("[OCR] Error:", err);
         } finally {
             setOcrLoading(false);
         }
@@ -216,7 +223,6 @@ export function MeasurementManager({ contractId, devices: initialDevices, isAdmi
     useEffect(() => {
         if (!isAddEntryOpen) {
             stopCamera();
-            setCapturedPhoto(null);
             setOcrResult("");
             setNewEntry({ value: "", notes: "", photo: "" });
         }
@@ -285,7 +291,6 @@ export function MeasurementManager({ contractId, devices: initialDevices, isAdmi
             const consumptionMsg = consumption > 0 ? ` Consumo: ${consumption.toFixed(2)} ${selectedDevice.unit}` : "";
 
             setIsAddEntryOpen(false);
-            setCapturedPhoto(null);
             setOcrResult("");
             setNewEntry({ value: "", notes: "", photo: "" });
             toast({
@@ -576,25 +581,28 @@ export function MeasurementManager({ contractId, devices: initialDevices, isAdmi
                                     </>
                                 )}
 
-                                {/* Captured Photo Preview */}
-                                {capturedPhoto && !cameraActive && (
-                                    <img src={capturedPhoto} alt="Foto do medidor" className="absolute inset-0 h-full w-full object-cover" />
-                                )}
 
                                 {/* Placeholder */}
-                                {!cameraActive && !capturedPhoto && (
-                                    <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-muted/30">
-                                        <Camera className="h-12 w-12 text-muted-foreground/30" />
-                                        <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/50">
-                                            Abrir camera para fotografar
-                                        </p>
+                                {!cameraActive && (
+                                    <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-gradient-to-br from-muted/30 to-muted/10">
+                                        <div className="h-20 w-20 rounded-full bg-primary/10 flex items-center justify-center">
+                                            <ScanLine className="h-10 w-10 text-primary/40" />
+                                        </div>
+                                        <div className="text-center">
+                                            <p className="text-sm font-black text-foreground/80 mb-1">
+                                                Leitura Automatica
+                                            </p>
+                                            <p className="text-[10px] text-muted-foreground/60">
+                                                A camera ira ler os numeros do visor
+                                            </p>
+                                        </div>
                                     </div>
                                 )}
                             </div>
 
                             {/* Camera controls */}
                             <div className="flex gap-2">
-                                {!cameraActive && !capturedPhoto && (
+                                {!cameraActive && (
                                     <Button
                                         type="button"
                                         variant="outline"
@@ -602,19 +610,17 @@ export function MeasurementManager({ contractId, devices: initialDevices, isAdmi
                                         onClick={startCamera}
                                     >
                                         <Camera className="h-4 w-4 mr-2" />
-                                        Abrir Camera
+                                        Iniciar Leitura Automatica
                                     </Button>
                                 )}
                                 {cameraActive && (
                                     <>
-                                        <Button
-                                            type="button"
-                                            className="flex-1 btn-premium h-12 font-black text-[10px] uppercase tracking-widest"
-                                            onClick={capturePhoto}
-                                        >
-                                            <ScanLine className="h-4 w-4 mr-2" />
-                                            Capturar
-                                        </Button>
+                                        <div className="flex-1 flex items-center gap-2 bg-blue-500/10 text-blue-600 rounded-xl px-4 h-12">
+                                            <ScanLine className={cn("h-4 w-4", ocrLoading && "animate-pulse")} />
+                                            <span className="text-[10px] font-black uppercase tracking-widest">
+                                                {ocrLoading ? "Lendo..." : "Aponte para os numeros"}
+                                            </span>
+                                        </div>
                                         <Button
                                             type="button"
                                             variant="outline"
@@ -625,40 +631,13 @@ export function MeasurementManager({ contractId, devices: initialDevices, isAdmi
                                         </Button>
                                     </>
                                 )}
-                                {capturedPhoto && !cameraActive && (
-                                    <>
-                                        <div className="flex-1 flex items-center gap-2 bg-green-500/10 text-green-600 rounded-xl px-4 h-12">
-                                            <Check className="h-4 w-4" />
-                                            <span className="text-[10px] font-black uppercase tracking-widest">Foto capturada</span>
-                                        </div>
-                                        <Button
-                                            type="button"
-                                            variant="outline"
-                                            className="rounded-xl h-12 px-4 text-[10px] font-black uppercase tracking-widest"
-                                            onClick={() => {
-                                                setCapturedPhoto(null);
-                                                setOcrResult("");
-                                                setNewEntry(prev => ({ ...prev, value: "" }));
-                                                startCamera();
-                                            }}
-                                        >
-                                            Refazer
-                                        </Button>
-                                    </>
-                                )}
                             </div>
 
-                            {/* OCR Status */}
-                            {ocrLoading && (
-                                <div className="flex items-center gap-2 bg-blue-500/10 text-blue-600 rounded-xl px-4 py-3">
-                                    <Loader2 className="h-4 w-4 animate-spin" />
-                                    <span className="text-[10px] font-black uppercase tracking-widest">Lendo numeros da foto...</span>
-                                </div>
-                            )}
-                            {ocrResult && !ocrLoading && (
-                                <div className="flex items-center gap-2 bg-green-500/10 text-green-600 rounded-xl px-4 py-3">
-                                    <ScanLine className="h-4 w-4" />
-                                    <span className="text-[10px] font-black uppercase tracking-widest">Valor detectado: {ocrResult}</span>
+                            {/* OCR Feedback */}
+                            {cameraActive && ocrResult && (
+                                <div className="flex items-center gap-2 bg-green-500/10 text-green-600 rounded-xl px-4 py-3 animate-in">
+                                    <Check className="h-4 w-4" />
+                                    <span className="text-sm font-black">Detectado: {ocrResult}</span>
                                 </div>
                             )}
                         </div>
