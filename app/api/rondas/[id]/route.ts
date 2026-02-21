@@ -6,11 +6,12 @@ import { prisma } from "@/lib/prisma";
 // PATCH /api/rondas/[id] — Atualizar status da ronda (iniciar / concluir)
 export async function PATCH(
     request: Request,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     const session = await getServerSession(authOptions);
     if (!session) return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
 
+    const { id } = await params;
     const body = await request.json();
     const { status, notes } = body;
 
@@ -19,7 +20,7 @@ export async function PATCH(
     if (status === "COMPLETED") data.completedAt = new Date();
 
     const inspection = await prisma.scheduledInspection.update({
-        where: { id: params.id },
+        where: { id },
         data,
         include: {
             schedule: { select: { name: true, shift: true, time: true } },

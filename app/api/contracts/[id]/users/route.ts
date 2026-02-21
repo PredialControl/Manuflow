@@ -6,9 +6,10 @@ import bcrypt from "bcryptjs";
 
 export async function POST(
     request: Request,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
-    console.log('--- ENTERING POST HANDLER ---', { params });
+    const { id: contractId } = await params;
+    console.log('--- ENTERING POST HANDLER ---', { contractId });
     const session = await getServerSession(authOptions);
 
     if (!session) {
@@ -74,7 +75,7 @@ export async function POST(
             await tx.userContract.create({
                 data: {
                     userId: newUser.id,
-                    contractId: params.id,
+                    contractId,
                 },
             });
 

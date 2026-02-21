@@ -5,7 +5,7 @@ import { prisma } from "@/lib/prisma";
 
 export async function DELETE(
     request: Request,
-    { params }: { params: { assetId: string } }
+    { params }: { params: Promise<{ assetId: string }> }
 ) {
     const session = await getServerSession(authOptions);
 
@@ -14,8 +14,9 @@ export async function DELETE(
     }
 
     try {
+        const { assetId } = await params;
         await prisma.asset.update({
-            where: { id: params.assetId },
+            where: { id: assetId },
             data: {
                 deletedAt: new Date(),
                 active: false
@@ -31,7 +32,7 @@ export async function DELETE(
 
 export async function PATCH(
     request: Request,
-    { params }: { params: { assetId: string } }
+    { params }: { params: Promise<{ assetId: string }> }
 ) {
     const session = await getServerSession(authOptions);
 
@@ -40,9 +41,10 @@ export async function PATCH(
     }
 
     try {
+        const { assetId } = await params;
         const body = await request.json();
         const asset = await prisma.asset.update({
-            where: { id: params.assetId },
+            where: { id: assetId },
             data: body,
         });
 

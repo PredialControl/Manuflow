@@ -5,17 +5,18 @@ import { prisma } from "@/lib/prisma";
 
 export async function PATCH(
     request: Request,
-    { params }: { params: { stepId: string } }
+    { params }: { params: Promise<{ stepId: string }> }
 ) {
     const session = await getServerSession(authOptions);
     if (!session) return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
 
     try {
+        const { stepId } = await params;
         const body = await request.json();
         const { status, notes, photoUrl } = body;
 
         const step = await prisma.scheduledInspectionStep.update({
-            where: { id: params.stepId },
+            where: { id: stepId },
             data: {
                 status,
                 notes,

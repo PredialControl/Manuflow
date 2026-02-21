@@ -5,7 +5,7 @@ import { prisma } from "@/lib/prisma";
 
 export async function GET(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const session = await getServerSession(authOptions);
 
@@ -13,9 +13,10 @@ export async function GET(
     return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
   }
 
+  const { id } = await params;
   const assets = await prisma.asset.findMany({
     where: {
-      contractId: params.id,
+      contractId: id,
       active: true,
       deletedAt: null,
     },
@@ -27,7 +28,7 @@ export async function GET(
 
 export async function POST(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const session = await getServerSession(authOptions);
 
@@ -35,6 +36,7 @@ export async function POST(
     return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
   }
 
+  const { id: contractId } = await params;
   const body = await request.json();
   const { name, type, location, frequency, checklist, image, brand, model, power, category } = body;
 
@@ -47,7 +49,7 @@ export async function POST(
 
   const asset = await prisma.asset.create({
     data: {
-      contractId: params.id,
+      contractId,
       name,
       type,
       location,

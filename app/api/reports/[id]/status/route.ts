@@ -5,7 +5,7 @@ import { prisma } from "@/lib/prisma";
 
 export async function PATCH(
     req: NextRequest,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
         const session = await getServerSession(authOptions);
@@ -14,6 +14,7 @@ export async function PATCH(
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
+        const { id: reportId } = await params;
         const { status } = await req.json();
 
         if (!status) {
@@ -25,7 +26,7 @@ export async function PATCH(
 
         // Verify user has access to this report
         const report = await prisma.report.findUnique({
-            where: { id: params.id },
+            where: { id: reportId },
             include: {
                 contract: {
                     include: {
@@ -50,7 +51,7 @@ export async function PATCH(
 
         // Update report status
         const updatedReport = await prisma.report.update({
-            where: { id: params.id },
+            where: { id: reportId },
             data: { status },
         });
 
@@ -60,7 +61,7 @@ export async function PATCH(
                 userId: session.user.id,
                 action: "UPDATE_REPORT_STATUS",
                 entity: "Report",
-                entityId: params.id,
+                entityId: reportId,
                 changes: {
                     from: report.status,
                     to: status,

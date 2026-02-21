@@ -5,7 +5,7 @@ import { prisma } from "@/lib/prisma";
 
 export async function GET(
     request: Request,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     const session = await getServerSession(authOptions);
 
@@ -13,9 +13,10 @@ export async function GET(
         return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
 
+    const { id } = await params;
     const contract = await prisma.contract.findFirst({
         where: {
-            id: params.id,
+            id,
             active: true,
             deletedAt: null,
             users: session.user.role === "ADMIN"
@@ -33,7 +34,7 @@ export async function GET(
 
 export async function PATCH(
     request: Request,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     const session = await getServerSession(authOptions);
 
@@ -42,11 +43,12 @@ export async function PATCH(
     }
 
     try {
+        const { id } = await params;
         const body = await request.json();
         const { name, company, responsible, email, phone, logo } = body;
 
         const contract = await prisma.contract.update({
-            where: { id: params.id },
+            where: { id },
             data: {
                 name,
                 company,
@@ -68,7 +70,7 @@ export async function PATCH(
 
 export async function DELETE(
     request: Request,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     const session = await getServerSession(authOptions);
 
@@ -77,8 +79,9 @@ export async function DELETE(
     }
 
     try {
+        const { id } = await params;
         await prisma.contract.update({
-            where: { id: params.id },
+            where: { id },
             data: {
                 active: false,
                 deletedAt: new Date(),

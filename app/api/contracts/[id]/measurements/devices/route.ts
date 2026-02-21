@@ -5,7 +5,7 @@ import { prisma } from "@/lib/prisma";
 
 export async function POST(
     req: Request,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     const session = await getServerSession(authOptions);
 
@@ -14,11 +14,12 @@ export async function POST(
     }
 
     try {
+        const { id: contractId } = await params;
         const { name, type, unit, serialNumber } = await req.json();
 
         const device = await prisma.measurementDevice.create({
             data: {
-                contractId: params.id,
+                contractId,
                 name,
                 type,
                 unit,

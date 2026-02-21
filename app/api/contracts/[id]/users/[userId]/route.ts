@@ -5,9 +5,10 @@ import { prisma } from "@/lib/prisma";
 
 export async function DELETE(
     request: Request,
-    { params }: { params: { id: string; userId: string } }
+    { params }: { params: Promise<{ id: string; userId: string }> }
 ) {
-    console.log('--- ENTERING DELETE HANDLER ---', { params });
+    const { id, userId } = await params;
+    console.log('--- ENTERING DELETE HANDLER ---', { id, userId });
     const session = await getServerSession(authOptions);
 
     // 1. Check if ANYONE is logged in
@@ -57,8 +58,8 @@ export async function DELETE(
         await prisma.userContract.delete({
             where: {
                 userId_contractId: {
-                    userId: params.userId,
-                    contractId: params.id,
+                    userId,
+                    contractId: id,
                 },
             },
         });
@@ -75,8 +76,9 @@ export async function DELETE(
 
 export async function PATCH(
     request: Request,
-    { params }: { params: { id: string; userId: string } }
+    { params }: { params: Promise<{ id: string; userId: string }> }
 ) {
+    const { id, userId } = await params;
     const session = await getServerSession(authOptions);
 
     if (!session) {
@@ -115,7 +117,7 @@ export async function PATCH(
         const { name, email, role, category } = body;
 
         const user = await prisma.user.update({
-            where: { id: params.userId },
+            where: { id: userId },
             data: {
                 name,
                 email,
