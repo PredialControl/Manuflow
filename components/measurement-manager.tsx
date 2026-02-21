@@ -78,6 +78,7 @@ export function MeasurementManager({ contractId, devices: initialDevices, isAdmi
     // Photo capture and OCR states
     const [capturedImage, setCapturedImage] = useState<string>("");
     const [isProcessingOCR, setIsProcessingOCR] = useState(false);
+    const [ocrDetectedText, setOcrDetectedText] = useState<string>("");
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     // Form states for new device
@@ -120,7 +121,7 @@ export function MeasurementManager({ contractId, devices: initialDevices, isAdmi
         setIsProcessingOCR(true);
 
         try {
-            // Initialize Tesseract worker
+            // Initialize Tesseract worker with optimized config for digits
             const worker = await createWorker("eng", 1, {
                 logger: (m) => {
                     if (m.status === "recognizing text") {
@@ -129,16 +130,29 @@ export function MeasurementManager({ contractId, devices: initialDevices, isAdmi
                 },
             });
 
+            // Configure for better digit recognition
+            await worker.setParameters({
+                tessedit_char_whitelist: '0123456789.,', // Only digits and decimal separators
+            });
+
             // Perform OCR
             const { data } = await worker.recognize(file);
             await worker.terminate();
 
             console.log("[OCR] Raw text:", data.text);
+            console.log("[OCR] Confidence:", data.confidence);
 
-            // Extract numbers from OCR text
-            // Look for patterns like: 12345.67 or 12345,67 or just 12345
+            // Store detected text for user reference
+            setOcrDetectedText(data.text.trim());
+
+            // Clean and extract numbers
+            // Remove spaces and special characters, keep only digits and decimal separators
+            const cleanedText = data.text.replace(/[^0-9.,]/g, '');
+            console.log("[OCR] Cleaned text:", cleanedText);
+
+            // Extract the longest continuous number sequence
             const numberPattern = /\d+[.,]?\d*/g;
-            const matches = data.text.match(numberPattern);
+            const matches = cleanedText.match(numberPattern);
 
             if (matches && matches.length > 0) {
                 // Find the longest number (likely the meter reading)
@@ -146,19 +160,21 @@ export function MeasurementManager({ contractId, devices: initialDevices, isAdmi
                 const normalizedNumber = longestNumber.replace(',', '.');
 
                 console.log("[OCR] ✅ Detected number:", normalizedNumber);
+                console.log("[OCR] All matches:", matches);
 
                 setNewEntry(prev => ({ ...prev, value: normalizedNumber }));
 
                 toast({
                     title: "Número detectado!",
-                    description: `Leitura: ${normalizedNumber}`,
+                    description: `Leitura: ${normalizedNumber} (Confiança: ${Math.round(data.confidence)}%)`,
                     variant: "success",
                 });
             } else {
-                console.log("[OCR] ⚠️ No numbers found");
+                console.log("[OCR] ⚠️ No numbers found in cleaned text");
+                console.log("[OCR] Original text was:", data.text);
                 toast({
                     title: "Nenhum número detectado",
-                    description: "Digite o valor manualmente",
+                    description: "Verifique a foto e ajuste manualmente",
                     variant: "default",
                 });
             }
@@ -179,6 +195,7 @@ export function MeasurementManager({ contractId, devices: initialDevices, isAdmi
     useEffect(() => {
         if (!isAddEntryOpen) {
             setCapturedImage("");
+            setOcrDetectedText("");
             setNewEntry({ value: "", notes: "", photo: "" });
             if (fileInputRef.current) {
                 fileInputRef.current.value = "";
@@ -587,6 +604,7 @@ export function MeasurementManager({ contractId, devices: initialDevices, isAdmi
                                             className="flex-1 rounded-xl h-12 px-4 font-black text-[10px] uppercase tracking-widest"
                                             onClick={() => {
                                                 setCapturedImage("");
+                                                setOcrDetectedText("");
                                                 setNewEntry(prev => ({ ...prev, value: "" }));
                                                 if (fileInputRef.current) fileInputRef.current.value = "";
                                             }}
@@ -598,6 +616,21 @@ export function MeasurementManager({ contractId, devices: initialDevices, isAdmi
                                     </>
                                 )}
                             </div>
+
+                            {/* OCR detected text (for debugging) */}
+                            {ocrDetectedText && !isProcessingOCR && (
+                                <div className="p-3 bg-muted/30 rounded-xl border border-border/40">
+                                    <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/50 mb-1">
+                                        Texto Detectado pelo OCR:
+                                    </p>
+                                    <p className="text-xs font-mono text-muted-foreground break-all">
+                                        "{ocrDetectedText}"
+                                    </p>
+                                    <p className="text-[9px] text-muted-foreground/60 mt-1 italic">
+                                        Se o número estiver errado, ajuste manualmente abaixo
+                                    </p>
+                                </div>
+                            )}
                         </div>
 
 
