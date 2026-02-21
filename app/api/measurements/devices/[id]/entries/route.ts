@@ -5,7 +5,7 @@ import { prisma } from "@/lib/prisma";
 
 export async function POST(
     req: Request,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     const session = await getServerSession(authOptions);
 
@@ -14,6 +14,8 @@ export async function POST(
     }
 
     try {
+        // Await params in Next.js 15+ / App Router
+        const { id: deviceId } = await params;
         const { value, notes } = await req.json();
 
         // Validar valor
@@ -25,7 +27,7 @@ export async function POST(
         }
 
         console.log("[ENTRIES_POST] Creating entry:", {
-            deviceId: params.id,
+            deviceId,
             userId: session.user.id,
             value: numericValue,
             notes,
@@ -33,7 +35,7 @@ export async function POST(
 
         const entry = await prisma.measurementEntry.create({
             data: {
-                deviceId: params.id,
+                deviceId,
                 userId: session.user.id,
                 value: numericValue,
                 notes: notes || null,
