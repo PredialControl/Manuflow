@@ -44,7 +44,6 @@ export function AuthenticatedLayoutClient({
         : [
             { href: "/dashboard", label: "Geral", icon: LayoutDashboard },
             { href: "/contracts", label: "Contratos", icon: Building2 },
-            { href: "/measurements", label: "Medições", icon: Gauge },
         ];
 
     if (session.user.role === "ADMIN" || session.user.role === "OWNER") {
