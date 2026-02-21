@@ -80,6 +80,8 @@ export function MeasurementManager({ contractId, devices: initialDevices, isAdmi
     const [isProcessingOCR, setIsProcessingOCR] = useState(false);
     const [ocrDetectedText, setOcrDetectedText] = useState<string>("");
     const [detectedNumbers, setDetectedNumbers] = useState<string[]>([]);
+    const [showZoneConfirmation, setShowZoneConfirmation] = useState(false);
+    const [pendingFile, setPendingFile] = useState<File | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     // Form states for new device
@@ -109,19 +111,67 @@ export function MeasurementManager({ contractId, devices: initialDevices, isAdmi
         GAS: "bg-orange-500/10",
     };
 
-    // Handle photo capture and OCR
+    // Crop image to reading zone (center 70% width x 30% height)
+    const cropImageToReadingZone = useCallback(async (file: File): Promise<Blob> => {
+        return new Promise((resolve, reject) => {
+            const img = new Image();
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                if (!ctx) {
+                    reject(new Error('Failed to get canvas context'));
+                    return;
+                }
+
+                // Calculate reading zone dimensions
+                const zoneWidth = img.width * 0.7;
+                const zoneHeight = img.height * 0.3;
+                const zoneX = (img.width - zoneWidth) / 2;
+                const zoneY = (img.height - zoneHeight) / 2;
+
+                console.log("[OCR] 📐 Image:", img.width, "x", img.height);
+                console.log("[OCR] ✂️ Crop zone:", Math.round(zoneWidth), "x", Math.round(zoneHeight));
+
+                canvas.width = zoneWidth;
+                canvas.height = zoneHeight;
+
+                ctx.drawImage(img, zoneX, zoneY, zoneWidth, zoneHeight, 0, 0, zoneWidth, zoneHeight);
+
+                canvas.toBlob((blob) => {
+                    if (blob) resolve(blob);
+                    else reject(new Error('Failed to create blob'));
+                }, 'image/jpeg', 0.95);
+            };
+            img.onerror = () => reject(new Error('Failed to load image'));
+            img.src = URL.createObjectURL(file);
+        });
+    }, []);
+
+    // Handle photo capture - just show preview with zone
     const handlePhotoCapture = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file) return;
 
-        console.log("[OCR] 📸 Photo captured, starting OCR...");
+        console.log("[OCR] 📸 Photo captured");
 
-        // Create preview URL
+        // Create preview URL and show zone confirmation
         const imageUrl = URL.createObjectURL(file);
         setCapturedImage(imageUrl);
+        setPendingFile(file);
+        setShowZoneConfirmation(true);
+    }, []);
+
+    // Process OCR after user confirms zone
+    const processOCR = useCallback(async () => {
+        if (!pendingFile) return;
+
+        console.log("[OCR] 🔍 User confirmed zone, processing...");
+        setShowZoneConfirmation(false);
         setIsProcessingOCR(true);
 
         try {
+            // Crop to reading zone
+            const croppedBlob = await cropImageToReadingZone(pendingFile);
             // Initialize Tesseract worker with optimized config for digits
             const worker = await createWorker("eng", 1, {
                 logger: (m) => {
@@ -136,12 +186,11 @@ export function MeasurementManager({ contractId, devices: initialDevices, isAdmi
                 tessedit_char_whitelist: '0123456789.,', // Only digits and decimal separators
             });
 
-            // Perform OCR on full image
-            console.log("[OCR] 🔍 Processing full image...");
-            const { data } = await worker.recognize(file);
+            // Perform OCR on cropped zone only
+            const { data } = await worker.recognize(croppedBlob);
             await worker.terminate();
 
-            console.log("[OCR] 📄 Raw text detected:", data.text);
+            console.log("[OCR] 📄 Text from zone:", data.text);
             console.log("[OCR] 📊 Confidence:", Math.round(data.confidence), "%");
 
             // Store detected text for user reference
@@ -172,40 +221,43 @@ export function MeasurementManager({ contractId, devices: initialDevices, isAdmi
 
                 setDetectedNumbers(normalizedNumbers);
 
-                // Auto-select the longest number
-                if (normalizedNumbers.length > 0) {
+                // Auto-fill if only one number detected
+                if (normalizedNumbers.length === 1) {
                     setNewEntry(prev => ({ ...prev, value: normalizedNumbers[0] }));
+                    toast({
+                        title: "Leitura detectada!",
+                        description: `Valor: ${normalizedNumbers[0]} - Confira antes de salvar`,
+                        variant: "success",
+                    });
+                } else if (normalizedNumbers.length > 1) {
+                    // Multiple numbers - let user choose
+                    setNewEntry(prev => ({ ...prev, value: normalizedNumbers[0] }));
+                    toast({
+                        title: `${normalizedNumbers.length} números na zona`,
+                        description: "Clique no número correto ou ajuste manualmente",
+                        variant: "default",
+                    });
+                } else {
+                    toast({
+                        title: "Nenhum número na zona",
+                        description: "Tire nova foto ou digite manualmente",
+                        variant: "default",
+                    });
                 }
-
-                toast({
-                    title: `${normalizedNumbers.length} número(s) detectado(s)!`,
-                    description: normalizedNumbers.length > 1
-                        ? "Clique no número correto da leitura"
-                        : `Leitura: ${normalizedNumbers[0]}`,
-                    variant: "success",
-                });
-            } else {
-                console.log("[OCR] ⚠️ No numbers found in cleaned text");
-                console.log("[OCR] Original text was:", data.text);
-                setDetectedNumbers([]);
-                toast({
-                    title: "Nenhum número detectado",
-                    description: "Verifique a foto e digite manualmente",
-                    variant: "default",
-                });
             }
 
         } catch (err) {
             console.error("[OCR] ❌ Error:", err);
             toast({
                 title: "Erro no OCR",
-                description: "Digite o valor manualmente",
+                description: "Tire nova foto ou digite manualmente",
                 variant: "destructive",
             });
         } finally {
             setIsProcessingOCR(false);
+            setPendingFile(null);
         }
-    }, [toast]);
+    }, [pendingFile, cropImageToReadingZone, toast]);
 
     // Clean up on dialog close
     useEffect(() => {
@@ -213,6 +265,8 @@ export function MeasurementManager({ contractId, devices: initialDevices, isAdmi
             setCapturedImage("");
             setOcrDetectedText("");
             setDetectedNumbers([]);
+            setShowZoneConfirmation(false);
+            setPendingFile(null);
             setNewEntry({ value: "", notes: "", photo: "" });
             if (fileInputRef.current) {
                 fileInputRef.current.value = "";
@@ -548,6 +602,22 @@ export function MeasurementManager({ contractId, devices: initialDevices, isAdmi
                                             alt="Captured meter"
                                             className="max-w-full max-h-full object-contain"
                                         />
+                                        {/* Zone confirmation overlay */}
+                                        {showZoneConfirmation && (
+                                            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                                                <div className="w-[70%] h-[30%] border-4 border-primary rounded-xl relative shadow-2xl animate-pulse">
+                                                    <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-primary text-white text-xs font-black uppercase tracking-widest px-4 py-2 rounded-full whitespace-nowrap flex items-center gap-2 shadow-lg">
+                                                        <ScanLine className="h-4 w-4" />
+                                                        Esta área será lida
+                                                    </div>
+                                                    {/* Corners */}
+                                                    <div className="absolute -top-1 -left-1 w-6 h-6 border-t-4 border-l-4 border-primary rounded-tl-xl" />
+                                                    <div className="absolute -top-1 -right-1 w-6 h-6 border-t-4 border-r-4 border-primary rounded-tr-xl" />
+                                                    <div className="absolute -bottom-1 -left-1 w-6 h-6 border-b-4 border-l-4 border-primary rounded-bl-xl" />
+                                                    <div className="absolute -bottom-1 -right-1 w-6 h-6 border-b-4 border-r-4 border-primary rounded-br-xl" />
+                                                </div>
+                                            </div>
+                                        )}
                                         {/* Processing overlay */}
                                         {isProcessingOCR && (
                                             <div className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center gap-3">
@@ -566,14 +636,17 @@ export function MeasurementManager({ contractId, devices: initialDevices, isAdmi
                                 ) : (
                                     <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-gradient-to-br from-muted/30 to-muted/10">
                                         <div className="h-20 w-20 rounded-full bg-primary/10 flex items-center justify-center">
-                                            <ImageIcon className="h-10 w-10 text-primary/40" />
+                                            <ScanLine className="h-10 w-10 text-primary/40" />
                                         </div>
                                         <div className="text-center px-4">
                                             <p className="text-sm font-black text-foreground/80 mb-1">
-                                                OCR Automático
+                                                OCR com Zona de Leitura
                                             </p>
-                                            <p className="text-[10px] text-muted-foreground/60 max-w-[220px]">
-                                                Tire foto do medidor. O OCR vai detectar todos os números e você escolhe qual é o correto.
+                                            <p className="text-[10px] text-muted-foreground/60 max-w-[240px] leading-relaxed">
+                                                1. Tire foto do medidor<br/>
+                                                2. Veja a zona marcada<br/>
+                                                3. Se pegou os números, clique "Processar OCR"<br/>
+                                                4. Se não, tire outra foto
                                             </p>
                                         </div>
                                     </div>
@@ -602,27 +675,65 @@ export function MeasurementManager({ contractId, devices: initialDevices, isAdmi
                                         <Camera className="h-4 w-4 mr-2" />
                                         Tirar Foto
                                     </Button>
-                                ) : (
+                                ) : showZoneConfirmation ? (
                                     <>
                                         <Button
                                             type="button"
+                                            variant="default"
+                                            className="flex-1 rounded-xl h-14 font-black text-xs uppercase tracking-widest bg-primary hover:bg-primary/90"
+                                            onClick={processOCR}
+                                        >
+                                            <Check className="h-5 w-5 mr-2" />
+                                            Processar OCR
+                                        </Button>
+                                        <Button
+                                            type="button"
                                             variant="outline"
-                                            className="flex-1 rounded-xl h-12 px-4 font-black text-[10px] uppercase tracking-widest"
+                                            className="rounded-xl h-14 px-4 font-black text-[10px] uppercase tracking-widest"
                                             onClick={() => {
                                                 setCapturedImage("");
-                                                setOcrDetectedText("");
-                                                setDetectedNumbers([]);
-                                                setNewEntry(prev => ({ ...prev, value: "" }));
+                                                setShowZoneConfirmation(false);
+                                                setPendingFile(null);
                                                 if (fileInputRef.current) fileInputRef.current.value = "";
                                             }}
-                                            disabled={isProcessingOCR}
                                         >
                                             <X className="h-4 w-4 mr-2" />
-                                            Nova Foto
+                                            Tirar Outra
                                         </Button>
                                     </>
+                                ) : (
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        className="flex-1 rounded-xl h-12 px-4 font-black text-[10px] uppercase tracking-widest"
+                                        onClick={() => {
+                                            setCapturedImage("");
+                                            setOcrDetectedText("");
+                                            setDetectedNumbers([]);
+                                            setNewEntry(prev => ({ ...prev, value: "" }));
+                                            if (fileInputRef.current) fileInputRef.current.value = "";
+                                        }}
+                                        disabled={isProcessingOCR}
+                                    >
+                                        <X className="h-4 w-4 mr-2" />
+                                        Nova Foto
+                                    </Button>
                                 )}
                             </div>
+
+                            {/* Zone confirmation message */}
+                            {showZoneConfirmation && (
+                                <div className="p-4 bg-primary/10 rounded-xl border-2 border-primary/30">
+                                    <p className="text-sm font-black text-primary mb-2 flex items-center gap-2">
+                                        <ScanLine className="h-4 w-4" />
+                                        A zona marcada está nos números?
+                                    </p>
+                                    <p className="text-xs text-muted-foreground">
+                                        ✅ <strong>SIM:</strong> Clique "Processar OCR"<br/>
+                                        ❌ <strong>NÃO:</strong> Clique "Tirar Outra" e centralize melhor
+                                    </p>
+                                </div>
+                            )}
 
                             {/* Detected numbers selection */}
                             {detectedNumbers.length > 0 && !isProcessingOCR && (
