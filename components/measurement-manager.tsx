@@ -16,12 +16,13 @@ import {
     Loader2,
     Calendar,
     TrendingUp,
-    Focus,
     X,
     ScanLine,
+    Image as ImageIcon,
 } from "lucide-react";
 import { cn, formatDate } from "@/lib/utils";
 import { useToast } from "@/components/ui/use-toast";
+import { createWorker } from "tesseract.js";
 
 import {
     Dialog,
@@ -74,12 +75,10 @@ export function MeasurementManager({ contractId, devices: initialDevices, isAdmi
     const [isAddEntryOpen, setIsAddEntryOpen] = useState(false);
     const [selectedDevice, setSelectedDevice] = useState<Device | null>(null);
 
-    // Camera states
-    const [cameraActive, setCameraActive] = useState(false);
-    const [cameraError, setCameraError] = useState<string>("");
-
-    const videoRef = useRef<HTMLVideoElement>(null);
-    const streamRef = useRef<MediaStream | null>(null);
+    // Photo capture and OCR states
+    const [capturedImage, setCapturedImage] = useState<string>("");
+    const [isProcessingOCR, setIsProcessingOCR] = useState(false);
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
     // Form states for new device
     const [newDevice, setNewDevice] = useState({
@@ -108,97 +107,84 @@ export function MeasurementManager({ contractId, devices: initialDevices, isAdmi
         GAS: "bg-orange-500/10",
     };
 
-    // Start camera
-    const startCamera = useCallback(async () => {
-        setCameraError("");
-        setCameraActive(false);
+    // Handle photo capture and OCR
+    const handlePhotoCapture = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        console.log("[OCR] 📸 Photo captured, starting OCR...");
+
+        // Create preview URL
+        const imageUrl = URL.createObjectURL(file);
+        setCapturedImage(imageUrl);
+        setIsProcessingOCR(true);
 
         try {
-            console.log("[CAMERA] 1/4 - Checking API support...");
-
-            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-                throw new Error("Camera API not supported");
-            }
-
-            console.log("[CAMERA] 2/4 - Requesting camera permission...");
-
-            const stream = await navigator.mediaDevices.getUserMedia({
-                video: {
-                    facingMode: "environment",
-                    width: { ideal: 1920 },
-                    height: { ideal: 1080 }
+            // Initialize Tesseract worker
+            const worker = await createWorker("eng", 1, {
+                logger: (m) => {
+                    if (m.status === "recognizing text") {
+                        console.log(`[OCR] Progress: ${Math.round(m.progress * 100)}%`);
+                    }
                 },
-                audio: false,
             });
 
-            console.log("[CAMERA] 3/4 - Got stream, tracks:", stream.getVideoTracks().length);
-            streamRef.current = stream;
+            // Perform OCR
+            const { data } = await worker.recognize(file);
+            await worker.terminate();
 
-            if (!videoRef.current) {
-                console.error("[CAMERA] Video ref not ready!");
-                throw new Error("Video element not ready");
+            console.log("[OCR] Raw text:", data.text);
+
+            // Extract numbers from OCR text
+            // Look for patterns like: 12345.67 or 12345,67 or just 12345
+            const numberPattern = /\d+[.,]?\d*/g;
+            const matches = data.text.match(numberPattern);
+
+            if (matches && matches.length > 0) {
+                // Find the longest number (likely the meter reading)
+                const longestNumber = matches.reduce((a, b) => a.length > b.length ? a : b);
+                const normalizedNumber = longestNumber.replace(',', '.');
+
+                console.log("[OCR] ✅ Detected number:", normalizedNumber);
+
+                setNewEntry(prev => ({ ...prev, value: normalizedNumber }));
+
+                toast({
+                    title: "Número detectado!",
+                    description: `Leitura: ${normalizedNumber}`,
+                    variant: "success",
+                });
+            } else {
+                console.log("[OCR] ⚠️ No numbers found");
+                toast({
+                    title: "Nenhum número detectado",
+                    description: "Digite o valor manualmente",
+                    variant: "default",
+                });
             }
 
-            const video = videoRef.current;
-            console.log("[CAMERA] 4/4 - Setting up video element...");
-
-            // Set stream immediately
-            video.srcObject = stream;
-
-            // Set camera active BEFORE play (so video element is visible)
-            setCameraActive(true);
-
-            // Play after a small delay to ensure DOM is ready
-            setTimeout(() => {
-                video.play()
-                    .then(() => {
-                        console.log("[CAMERA] ✅ Success! Video playing");
-                    })
-                    .catch((playErr) => {
-                        console.error("[CAMERA] ❌ Play failed:", playErr);
-                        setCameraError("Falha ao iniciar video: " + playErr.message);
-                    });
-            }, 100);
-
-        } catch (err: any) {
-            console.error("[CAMERA] ❌ Failed:", err);
-
-            let errorMsg = "Erro desconhecido";
-            if (err.name === "NotAllowedError") {
-                errorMsg = "Permissão da câmera negada. Verifique as configurações.";
-            } else if (err.name === "NotFoundError") {
-                errorMsg = "Nenhuma câmera encontrada no dispositivo.";
-            } else if (err.name === "NotReadableError") {
-                errorMsg = "Câmera em uso por outro aplicativo.";
-            } else if (err.message) {
-                errorMsg = err.message;
-            }
-
-            setCameraError(errorMsg);
+        } catch (err) {
+            console.error("[OCR] ❌ Error:", err);
             toast({
-                title: "Erro ao abrir câmera",
-                description: errorMsg,
+                title: "Erro no OCR",
+                description: "Digite o valor manualmente",
                 variant: "destructive",
             });
+        } finally {
+            setIsProcessingOCR(false);
         }
     }, [toast]);
 
-    // Stop camera
-    const stopCamera = useCallback(() => {
-        if (streamRef.current) {
-            streamRef.current.getTracks().forEach((track) => track.stop());
-            streamRef.current = null;
-        }
-        setCameraActive(false);
-    }, []);
-
-    // Clean up camera on dialog close
+    // Clean up on dialog close
     useEffect(() => {
         if (!isAddEntryOpen) {
-            stopCamera();
+            setCapturedImage("");
             setNewEntry({ value: "", notes: "", photo: "" });
+            if (fileInputRef.current) {
+                fileInputRef.current.value = "";
+            }
         }
-    }, [isAddEntryOpen, stopCamera]);
+    }, [isAddEntryOpen]);
 
     const handleAddDevice = async () => {
         if (!newDevice.name) return toast({ title: "Erro", description: "Nome eh obrigatorio", variant: "destructive" });
@@ -512,109 +498,104 @@ export function MeasurementManager({ contractId, devices: initialDevices, isAdmi
                         )}
                     </DialogHeader>
                     <div className="grid gap-5 py-4">
-                        {/* Area da Camera / Foto */}
+                        {/* Area da Foto com OCR */}
                         <div className="space-y-3">
                             <Label className="text-xs font-black uppercase tracking-widest opacity-60 flex items-center gap-2">
                                 <Camera className="h-3.5 w-3.5" />
-                                Foto do Medidor
+                                Foto do Medidor (OCR Automático)
                             </Label>
 
                             <div className="relative w-full aspect-[4/3] rounded-2xl overflow-hidden border-2 border-border/30 bg-black">
-                                {/* Video Stream - ALWAYS RENDERED */}
-                                <video
-                                    ref={videoRef}
-                                    autoPlay
-                                    playsInline
-                                    muted
-                                    className={cn(
-                                        "w-full h-full object-cover",
-                                        !cameraActive && "hidden"
-                                    )}
-                                />
-
-                                {/* Guia de foco - retangulo nos numeros */}
-                                {cameraActive && (
+                                {/* Photo Preview */}
+                                {capturedImage ? (
                                     <>
-                                        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                                            <div className="w-[70%] h-[30%] border-2 border-primary/80 rounded-xl relative">
-                                                <div className="absolute -top-6 left-1/2 -translate-x-1/2 bg-primary/90 text-white text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full whitespace-nowrap flex items-center gap-1">
-                                                    <Focus className="h-3 w-3" />
-                                                    Foque nos numeros
-                                                </div>
-                                                <div className="absolute top-0 left-0 w-4 h-4 border-t-2 border-l-2 border-primary rounded-tl-md" />
-                                                <div className="absolute top-0 right-0 w-4 h-4 border-t-2 border-r-2 border-primary rounded-tr-md" />
-                                                <div className="absolute bottom-0 left-0 w-4 h-4 border-b-2 border-l-2 border-primary rounded-bl-md" />
-                                                <div className="absolute bottom-0 right-0 w-4 h-4 border-b-2 border-r-2 border-primary rounded-br-md" />
-                                            </div>
-                                        </div>
-                                        {/* Scan line animation */}
-                                        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                                            <div className="w-[70%] h-[30%] overflow-hidden">
-                                                <div className="w-full h-0.5 bg-primary/60 animate-scan" />
-                                            </div>
-                                        </div>
-                                    </>
-                                )}
-
-                                {/* Placeholder */}
-                                {!cameraActive && (
-                                    <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-gradient-to-br from-muted/30 to-muted/10">
-                                        {cameraError ? (
-                                            <>
-                                                <div className="h-20 w-20 rounded-full bg-destructive/10 flex items-center justify-center">
-                                                    <X className="h-10 w-10 text-destructive" />
-                                                </div>
-                                                <div className="text-center px-4">
-                                                    <p className="text-sm font-black text-destructive mb-1">
-                                                        Erro na Câmera
-                                                    </p>
-                                                    <p className="text-[10px] text-muted-foreground/80">
-                                                        {cameraError}
-                                                    </p>
-                                                </div>
-                                            </>
-                                        ) : (
-                                            <>
-                                                <div className="h-20 w-20 rounded-full bg-primary/10 flex items-center justify-center">
-                                                    <ScanLine className="h-10 w-10 text-primary/40" />
-                                                </div>
+                                        <img
+                                            src={capturedImage}
+                                            alt="Captured meter"
+                                            className="w-full h-full object-cover"
+                                        />
+                                        {/* Processing overlay */}
+                                        {isProcessingOCR && (
+                                            <div className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center gap-3">
+                                                <Loader2 className="h-12 w-12 text-primary animate-spin" />
                                                 <div className="text-center">
-                                                    <p className="text-sm font-black text-foreground/80 mb-1">
-                                                        Leitura Automatica
+                                                    <p className="text-sm font-black text-white mb-1">
+                                                        Lendo números...
                                                     </p>
-                                                    <p className="text-[10px] text-muted-foreground/60">
-                                                        A camera ira ler os numeros do visor
+                                                    <p className="text-[10px] text-white/60">
+                                                        Processando OCR
                                                     </p>
                                                 </div>
-                                            </>
+                                            </div>
                                         )}
+                                        {/* Focus guide overlay */}
+                                        {!isProcessingOCR && (
+                                            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                                                <div className="w-[70%] h-[30%] border-2 border-primary/60 rounded-xl relative">
+                                                    <div className="absolute -top-6 left-1/2 -translate-x-1/2 bg-primary/90 text-white text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full whitespace-nowrap flex items-center gap-1">
+                                                        <ScanLine className="h-3 w-3" />
+                                                        Área de leitura
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </>
+                                ) : (
+                                    <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-gradient-to-br from-muted/30 to-muted/10">
+                                        <div className="h-20 w-20 rounded-full bg-primary/10 flex items-center justify-center">
+                                            <ImageIcon className="h-10 w-10 text-primary/40" />
+                                        </div>
+                                        <div className="text-center">
+                                            <p className="text-sm font-black text-foreground/80 mb-1">
+                                                OCR Automático
+                                            </p>
+                                            <p className="text-[10px] text-muted-foreground/60 max-w-[200px]">
+                                                Tire uma foto e os números serão detectados automaticamente
+                                            </p>
+                                        </div>
                                     </div>
                                 )}
                             </div>
 
-                            {/* Camera controls */}
+                            {/* Photo capture controls */}
                             <div className="flex gap-2">
-                                {!cameraActive && (
+                                <input
+                                    ref={fileInputRef}
+                                    type="file"
+                                    accept="image/*"
+                                    capture="environment"
+                                    className="hidden"
+                                    onChange={handlePhotoCapture}
+                                    disabled={isProcessingOCR}
+                                />
+                                {!capturedImage ? (
                                     <Button
                                         type="button"
                                         variant="outline"
                                         className="flex-1 rounded-xl h-12 font-black text-[10px] uppercase tracking-widest border-primary/30 text-primary hover:bg-primary hover:text-white"
-                                        onClick={startCamera}
+                                        onClick={() => fileInputRef.current?.click()}
+                                        disabled={isProcessingOCR}
                                     >
                                         <Camera className="h-4 w-4 mr-2" />
-                                        Abrir Camera
+                                        Tirar Foto
                                     </Button>
-                                )}
-                                {cameraActive && (
-                                    <Button
-                                        type="button"
-                                        variant="outline"
-                                        className="flex-1 rounded-xl h-12 px-4 font-black text-[10px] uppercase tracking-widest"
-                                        onClick={stopCamera}
-                                    >
-                                        <X className="h-4 w-4 mr-2" />
-                                        Fechar
-                                    </Button>
+                                ) : (
+                                    <>
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            className="flex-1 rounded-xl h-12 px-4 font-black text-[10px] uppercase tracking-widest"
+                                            onClick={() => {
+                                                setCapturedImage("");
+                                                setNewEntry(prev => ({ ...prev, value: "" }));
+                                                if (fileInputRef.current) fileInputRef.current.value = "";
+                                            }}
+                                            disabled={isProcessingOCR}
+                                        >
+                                            <X className="h-4 w-4 mr-2" />
+                                            Nova Foto
+                                        </Button>
+                                    </>
                                 )}
                             </div>
                         </div>
