@@ -10,6 +10,7 @@ import { Plus, Building2, FileText, ClipboardCheck, History, Settings, Package, 
 import { formatDate } from "@/lib/utils";
 import { ReportsKanban } from "@/components/reports-kanban";
 import { MeasurementManager } from "@/components/measurement-manager";
+import { SupervisorMeasurementsDashboard } from "@/components/supervisor-measurements-dashboard";
 
 import { ContractUserActions } from "@/components/contract-user-actions";
 import { ScheduleManager } from "@/components/schedule-manager";
@@ -74,8 +75,8 @@ export default async function ContractDetailPage({
         where: { active: true },
         include: {
           entries: {
-            orderBy: { date: "desc" },
-            take: 5,
+            orderBy: { createdAt: "desc" },
+            take: 15,
             include: { user: { select: { name: true } } }
           }
         },
@@ -424,12 +425,29 @@ export default async function ContractDetailPage({
           <ReportsKanban initialReports={contract.reports as any} />
         </TabsContent>
 
-        <TabsContent value="measurements" className="space-y-4 pt-4">
-          <MeasurementManager
-            contractId={contract.id}
-            devices={contract.measurementDevices as any}
-            isAdmin={isAdmin}
+        <TabsContent value="measurements" className="space-y-8 pt-4">
+          {/* Dashboard com gráficos */}
+          <SupervisorMeasurementsDashboard
+            devices={contract.measurementDevices.map((d: any) => ({
+              ...d,
+              contract: {
+                id: contract.id,
+                name: contract.name,
+                company: contract.company,
+              }
+            }))}
           />
+
+          {/* Gerenciador de entrada de medições (apenas ADMIN) */}
+          {isAdmin && (
+            <div className="pt-8 border-t border-border/40">
+              <MeasurementManager
+                contractId={contract.id}
+                devices={contract.measurementDevices as any}
+                isAdmin={isAdmin}
+              />
+            </div>
+          )}
         </TabsContent>
 
 
