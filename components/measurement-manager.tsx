@@ -109,6 +109,54 @@ export function MeasurementManager({ contractId, devices: initialDevices, isAdmi
         GAS: "bg-orange-500/10",
     };
 
+    // Crop image to reading zone (center 70% width x 30% height)
+    const cropImageToReadingZone = useCallback(async (file: File): Promise<Blob> => {
+        return new Promise((resolve, reject) => {
+            const img = new Image();
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                if (!ctx) {
+                    reject(new Error('Failed to get canvas context'));
+                    return;
+                }
+
+                // Calculate reading zone dimensions (same as visual guide)
+                const zoneWidth = img.width * 0.7;  // 70% of image width
+                const zoneHeight = img.height * 0.3; // 30% of image height
+                const zoneX = (img.width - zoneWidth) / 2;  // Center horizontally
+                const zoneY = (img.height - zoneHeight) / 2; // Center vertically
+
+                console.log("[OCR] 📐 Original image:", img.width, "x", img.height);
+                console.log("[OCR] 🎯 Reading zone:", Math.round(zoneWidth), "x", Math.round(zoneHeight));
+                console.log("[OCR] 📍 Position:", Math.round(zoneX), ",", Math.round(zoneY));
+
+                // Set canvas size to cropped area
+                canvas.width = zoneWidth;
+                canvas.height = zoneHeight;
+
+                // Draw only the reading zone
+                ctx.drawImage(
+                    img,
+                    zoneX, zoneY, zoneWidth, zoneHeight, // Source (crop zone)
+                    0, 0, zoneWidth, zoneHeight          // Destination (full canvas)
+                );
+
+                // Convert to blob
+                canvas.toBlob((blob) => {
+                    if (blob) {
+                        console.log("[OCR] ✂️ Cropped to reading zone successfully");
+                        resolve(blob);
+                    } else {
+                        reject(new Error('Failed to create blob'));
+                    }
+                }, 'image/jpeg', 0.95);
+            };
+            img.onerror = () => reject(new Error('Failed to load image'));
+            img.src = URL.createObjectURL(file);
+        });
+    }, []);
+
     // Handle photo capture and OCR
     const handlePhotoCapture = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -116,12 +164,15 @@ export function MeasurementManager({ contractId, devices: initialDevices, isAdmi
 
         console.log("[OCR] 📸 Photo captured, starting OCR...");
 
-        // Create preview URL
+        // Create preview URL (full image)
         const imageUrl = URL.createObjectURL(file);
         setCapturedImage(imageUrl);
         setIsProcessingOCR(true);
 
         try {
+            // Crop image to reading zone only
+            const croppedBlob = await cropImageToReadingZone(file);
+
             // Initialize Tesseract worker with optimized config for digits
             const worker = await createWorker("eng", 1, {
                 logger: (m) => {
@@ -136,12 +187,13 @@ export function MeasurementManager({ contractId, devices: initialDevices, isAdmi
                 tessedit_char_whitelist: '0123456789.,', // Only digits and decimal separators
             });
 
-            // Perform OCR
-            const { data } = await worker.recognize(file);
+            // Perform OCR on CROPPED image only
+            console.log("[OCR] 🔍 Processing reading zone only...");
+            const { data } = await worker.recognize(croppedBlob);
             await worker.terminate();
 
-            console.log("[OCR] Raw text:", data.text);
-            console.log("[OCR] Confidence:", data.confidence);
+            console.log("[OCR] 📄 Raw text from reading zone:", data.text);
+            console.log("[OCR] 📊 Confidence:", Math.round(data.confidence), "%");
 
             // Store detected text for user reference
             setOcrDetectedText(data.text.trim());
@@ -149,7 +201,7 @@ export function MeasurementManager({ contractId, devices: initialDevices, isAdmi
             // Clean and extract numbers
             // Remove spaces and special characters, keep only digits and decimal separators
             const cleanedText = data.text.replace(/[^0-9.,]/g, '');
-            console.log("[OCR] Cleaned text:", cleanedText);
+            console.log("[OCR] 🧹 Cleaned text:", cleanedText);
 
             // Extract all numbers from the image
             const numberPattern = /\d+[.,]?\d*/g;
@@ -177,7 +229,7 @@ export function MeasurementManager({ contractId, devices: initialDevices, isAdmi
                 }
 
                 toast({
-                    title: `${normalizedNumbers.length} número(s) detectado(s)!`,
+                    title: `${normalizedNumbers.length} número(s) na zona de leitura!`,
                     description: normalizedNumbers.length > 1
                         ? "Selecione o número correto abaixo"
                         : `Leitura: ${normalizedNumbers[0]}`,
@@ -561,14 +613,22 @@ export function MeasurementManager({ contractId, devices: initialDevices, isAdmi
                                                 </div>
                                             </div>
                                         )}
-                                        {/* Focus guide overlay */}
+                                        {/* Reading zone overlay - shows OCR processing area */}
                                         {!isProcessingOCR && (
                                             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                                                <div className="w-[70%] h-[30%] border-2 border-primary/60 rounded-xl relative">
-                                                    <div className="absolute -top-6 left-1/2 -translate-x-1/2 bg-primary/90 text-white text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full whitespace-nowrap flex items-center gap-1">
+                                                <div className="w-[70%] h-[30%] border-2 border-primary/80 rounded-xl relative shadow-lg">
+                                                    <div className="absolute -top-6 left-1/2 -translate-x-1/2 bg-primary text-white text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full whitespace-nowrap flex items-center gap-1 shadow-md">
                                                         <ScanLine className="h-3 w-3" />
-                                                        Área de leitura
+                                                        Zona de Leitura OCR
                                                     </div>
+                                                    <div className="absolute -bottom-6 left-1/2 -translate-x-1/2 bg-primary/80 text-white text-[8px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap">
+                                                        Números fora desta área são ignorados
+                                                    </div>
+                                                    {/* Corner markers */}
+                                                    <div className="absolute top-0 left-0 w-4 h-4 border-t-4 border-l-4 border-primary rounded-tl-lg" />
+                                                    <div className="absolute top-0 right-0 w-4 h-4 border-t-4 border-r-4 border-primary rounded-tr-lg" />
+                                                    <div className="absolute bottom-0 left-0 w-4 h-4 border-b-4 border-l-4 border-primary rounded-bl-lg" />
+                                                    <div className="absolute bottom-0 right-0 w-4 h-4 border-b-4 border-r-4 border-primary rounded-br-lg" />
                                                 </div>
                                             </div>
                                         )}
@@ -578,12 +638,12 @@ export function MeasurementManager({ contractId, devices: initialDevices, isAdmi
                                         <div className="h-20 w-20 rounded-full bg-primary/10 flex items-center justify-center">
                                             <ImageIcon className="h-10 w-10 text-primary/40" />
                                         </div>
-                                        <div className="text-center">
+                                        <div className="text-center px-4">
                                             <p className="text-sm font-black text-foreground/80 mb-1">
-                                                OCR Automático
+                                                OCR com Zona de Leitura
                                             </p>
-                                            <p className="text-[10px] text-muted-foreground/60 max-w-[200px]">
-                                                Tire uma foto e os números serão detectados automaticamente
+                                            <p className="text-[10px] text-muted-foreground/60 max-w-[220px]">
+                                                Centralize os números do medidor na foto. Apenas a área central será lida.
                                             </p>
                                         </div>
                                     </div>
@@ -673,7 +733,7 @@ export function MeasurementManager({ contractId, devices: initialDevices, isAdmi
                                         ))}
                                     </div>
                                     <p className="text-[9px] text-muted-foreground/60 mt-3 italic">
-                                        💡 Dica: O número da leitura geralmente é o maior. Se nenhum estiver correto, digite manualmente abaixo.
+                                        💡 Dica: Estes números foram lidos APENAS da zona central da foto. O número da leitura geralmente é o maior. Se nenhum estiver correto, tire nova foto centralizada ou digite manualmente.
                                     </p>
                                 </div>
                             )}
