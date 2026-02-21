@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import { cn, formatDate } from "@/lib/utils";
 import { useToast } from "@/components/ui/use-toast";
+import { createWorker } from "tesseract.js";
 
 import {
     Dialog,
@@ -110,6 +111,108 @@ export function MeasurementManager({ contractId, devices: initialDevices, isAdmi
         GAS: "bg-orange-500/10",
     };
 
+    // Preprocess image for better OCR accuracy
+    const preprocessImage = useCallback(async (blob: Blob): Promise<Blob> => {
+        return new Promise((resolve, reject) => {
+            const img = new Image();
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                if (!ctx) {
+                    reject(new Error('Failed to get canvas context'));
+                    return;
+                }
+
+                canvas.width = img.width;
+                canvas.height = img.height;
+
+                // Draw original image
+                ctx.drawImage(img, 0, 0);
+
+                // Get image data
+                const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                const data = imageData.data;
+
+                console.log("[OCR] 🎨 Preprocessing image...");
+
+                // 1. Convert to grayscale and increase contrast
+                for (let i = 0; i < data.length; i += 4) {
+                    // Grayscale conversion
+                    const gray = data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114;
+
+                    // Increase contrast (factor 1.5)
+                    const contrasted = ((gray - 128) * 1.5) + 128;
+
+                    data[i] = contrasted;     // R
+                    data[i + 1] = contrasted; // G
+                    data[i + 2] = contrasted; // B
+                }
+
+                // 2. Binarization (Otsu's method approximation)
+                // Calculate threshold
+                let histogram = new Array(256).fill(0);
+                for (let i = 0; i < data.length; i += 4) {
+                    histogram[Math.floor(data[i])]++;
+                }
+
+                let total = canvas.width * canvas.height;
+                let sum = 0;
+                for (let i = 0; i < 256; i++) {
+                    sum += i * histogram[i];
+                }
+
+                let sumB = 0;
+                let wB = 0;
+                let wF = 0;
+                let varMax = 0;
+                let threshold = 0;
+
+                for (let t = 0; t < 256; t++) {
+                    wB += histogram[t];
+                    if (wB === 0) continue;
+
+                    wF = total - wB;
+                    if (wF === 0) break;
+
+                    sumB += t * histogram[t];
+
+                    let mB = sumB / wB;
+                    let mF = (sum - sumB) / wF;
+
+                    let varBetween = wB * wF * (mB - mF) * (mB - mF);
+
+                    if (varBetween > varMax) {
+                        varMax = varBetween;
+                        threshold = t;
+                    }
+                }
+
+                console.log("[OCR] 🎯 Threshold:", threshold);
+
+                // Apply threshold (binarization)
+                for (let i = 0; i < data.length; i += 4) {
+                    const value = data[i] > threshold ? 255 : 0;
+                    data[i] = value;     // R
+                    data[i + 1] = value; // G
+                    data[i + 2] = value; // B
+                }
+
+                // Put processed image back
+                ctx.putImageData(imageData, 0, 0);
+
+                console.log("[OCR] ✅ Image preprocessed (grayscale + contrast + binarization)");
+
+                // Convert to blob
+                canvas.toBlob((processedBlob) => {
+                    if (processedBlob) resolve(processedBlob);
+                    else reject(new Error('Failed to create blob'));
+                }, 'image/jpeg', 0.95);
+            };
+            img.onerror = () => reject(new Error('Failed to load image'));
+            img.src = URL.createObjectURL(blob);
+        });
+    }, []);
+
     // Crop image to reading zone (center 70% width x 30% height)
     const cropImageToReadingZone = useCallback(async (file: File): Promise<Blob> => {
         return new Promise((resolve, reject) => {
@@ -164,33 +267,37 @@ export function MeasurementManager({ contractId, devices: initialDevices, isAdmi
     const processOCR = useCallback(async () => {
         if (!pendingFile) return;
 
-        console.log("[OCR] 🔍 User confirmed zone, processing...");
+        console.log("[OCR] 🔍 User confirmed zone, processing with enhanced Tesseract...");
         setShowZoneConfirmation(false);
         setIsProcessingOCR(true);
 
         try {
-            // Crop to reading zone
+            // Step 1: Crop to reading zone
             const croppedBlob = await cropImageToReadingZone(pendingFile);
 
-            // Send cropped image to Google Vision API
-            const formData = new FormData();
-            formData.append('image', croppedBlob, 'meter.jpg');
+            // Step 2: Preprocess image (grayscale + contrast + binarization)
+            const processedBlob = await preprocessImage(croppedBlob);
 
-            console.log("[OCR] 📤 Sending to Google Vision API...");
-
-            const response = await fetch('/api/ocr/vision', {
-                method: 'POST',
-                body: formData,
+            // Step 3: Initialize Tesseract worker
+            const worker = await createWorker("eng", 1, {
+                logger: (m) => {
+                    if (m.status === "recognizing text") {
+                        console.log(`[OCR] Progress: ${Math.round(m.progress * 100)}%`);
+                    }
+                },
             });
 
-            if (!response.ok) {
-                const error = await response.json();
-                throw new Error(error.error || 'OCR API error');
-            }
+            // Configure for digits only
+            await worker.setParameters({
+                tessedit_char_whitelist: '0123456789.,',
+            });
 
-            const data = await response.json();
+            // Step 4: Perform OCR on preprocessed image
+            console.log("[OCR] 🔍 Running OCR on preprocessed image...");
+            const { data } = await worker.recognize(processedBlob);
+            await worker.terminate();
 
-            console.log("[OCR] 📄 Text from Google Vision:", data.text);
+            console.log("[OCR] 📄 Text detected:", data.text);
             console.log("[OCR] 📊 Confidence:", Math.round(data.confidence), "%");
 
             // Store detected text for user reference
@@ -257,7 +364,7 @@ export function MeasurementManager({ contractId, devices: initialDevices, isAdmi
             setIsProcessingOCR(false);
             setPendingFile(null);
         }
-    }, [pendingFile, cropImageToReadingZone, toast]);
+    }, [pendingFile, cropImageToReadingZone, preprocessImage, toast]);
 
     // Clean up on dialog close
     useEffect(() => {
