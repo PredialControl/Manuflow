@@ -38,23 +38,29 @@ export function AuthenticatedLayoutClient({
     const contractId = contractMatch ? contractMatch[1] : null;
     const isContractRoute = !!contractId && contractId !== "new";
 
-    const mainNavItems = [
-        { href: "/dashboard", label: "Geral", icon: LayoutDashboard },
-        { href: "/contracts", label: "Contratos", icon: Building2 },
-        { href: "/measurements", label: "Medições", icon: Gauge },
-    ];
+    // Técnico vê apenas Dashboard
+    const mainNavItems = session.user.role === "TECHNICIAN"
+        ? [{ href: "/dashboard", label: "Minhas Tarefas", icon: LayoutDashboard }]
+        : [
+            { href: "/dashboard", label: "Geral", icon: LayoutDashboard },
+            { href: "/contracts", label: "Contratos", icon: Building2 },
+            { href: "/measurements", label: "Medições", icon: Gauge },
+        ];
 
     if (session.user.role === "ADMIN" || session.user.role === "OWNER") {
         mainNavItems.push({ href: "/users", label: "Usuários", icon: Users });
     }
 
-    const contractNavItems = [
-        { href: `/contracts/${contractId}`, label: "Visão Geral", icon: LayoutDashboard },
-        { href: `/contracts/${contractId}?tab=assets`, label: "Ativos", icon: Package },
-        { href: `/contracts/${contractId}?tab=inspections`, label: "Rondas", icon: ClipboardCheck },
-        { href: `/contracts/${contractId}?tab=reports`, label: "Laudos", icon: FileText },
-        { href: `/contracts/${contractId}?tab=measurements`, label: "Medições", icon: Gauge },
-    ];
+    // Técnico vê apenas Medições dentro de contratos
+    const contractNavItems = session.user.role === "TECHNICIAN"
+        ? [{ href: `/contracts/${contractId}?tab=measurements`, label: "Medições", icon: Gauge }]
+        : [
+            { href: `/contracts/${contractId}`, label: "Visão Geral", icon: LayoutDashboard },
+            { href: `/contracts/${contractId}?tab=assets`, label: "Ativos", icon: Package },
+            { href: `/contracts/${contractId}?tab=inspections`, label: "Rondas", icon: ClipboardCheck },
+            { href: `/contracts/${contractId}?tab=reports`, label: "Laudos", icon: FileText },
+            { href: `/contracts/${contractId}?tab=measurements`, label: "Medições", icon: Gauge },
+        ];
 
     if (session.user.role === "ADMIN" || session.user.role === "OWNER") {
         contractNavItems.push({ href: `/contracts/${contractId}?tab=team`, label: "Equipe", icon: Users });

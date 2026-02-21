@@ -6,12 +6,33 @@ export default withAuth(
     const token = req.nextauth.token;
     const pathname = req.nextUrl.pathname;
 
+    // Admin-only routes
     if (pathname.startsWith("/admin") && token?.role !== "ADMIN") {
       return NextResponse.redirect(new URL("/dashboard", req.url));
     }
 
     if (pathname.startsWith("/users") && token?.role !== "ADMIN") {
       return NextResponse.redirect(new URL("/dashboard", req.url));
+    }
+
+    // Technician restrictions - can only access dashboard, inspections, and measurements
+    if (token?.role === "TECHNICIAN") {
+      const allowedPaths = ["/dashboard", "/inspections", "/contracts"];
+      const isAllowed = allowedPaths.some(path => pathname.startsWith(path));
+
+      // Block access to reports, templates, settings, etc.
+      if (!isAllowed) {
+        return NextResponse.redirect(new URL("/dashboard", req.url));
+      }
+
+      // Allow contracts only if accessing measurements tab
+      if (pathname.startsWith("/contracts/") && !pathname.includes("measurements")) {
+        const contractIdMatch = pathname.match(/^\/contracts\/([^\/]+)$/);
+        if (contractIdMatch) {
+          // Redirect to measurements tab
+          return NextResponse.redirect(new URL(`/contracts/${contractIdMatch[1]}?tab=measurements`, req.url));
+        }
+      }
     }
 
     return NextResponse.next();
