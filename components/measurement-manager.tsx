@@ -101,6 +101,40 @@ export function MeasurementManager({ contractId, devices: initialDevices, isAdmi
         GAS: "bg-orange-500/10",
     };
 
+    // Convert formatted value to number (123,45 -> 123.45)
+    const valueToNumber = (formattedValue: string): number => {
+        if (!formattedValue) return 0;
+        // Replace comma with dot for parsing
+        return parseFloat(formattedValue.replace(',', '.'));
+    };
+
+    // Format water meter value with comma in last 2 digits (ex: 12345 -> 123,45)
+    const handleValueChange = (inputValue: string) => {
+        // Remove tudo exceto dígitos
+        const digitsOnly = inputValue.replace(/\D/g, '');
+
+        if (digitsOnly === '') {
+            setNewEntry({ ...newEntry, value: '' });
+            return;
+        }
+
+        // Para água, formata com vírgula nos 2 últimos dígitos
+        if (selectedDevice?.type === 'WATER') {
+            if (digitsOnly.length <= 2) {
+                // Se tem 2 ou menos dígitos, adiciona 0, antes
+                setNewEntry({ ...newEntry, value: `0,${digitsOnly.padStart(2, '0')}` });
+            } else {
+                // Adiciona vírgula nos 2 últimos dígitos
+                const intPart = digitsOnly.slice(0, -2);
+                const decPart = digitsOnly.slice(-2);
+                setNewEntry({ ...newEntry, value: `${intPart},${decPart}` });
+            }
+        } else {
+            // Para energia e gás, aceita decimal normal
+            setNewEntry({ ...newEntry, value: inputValue });
+        }
+    };
+
     // Clean up on dialog close
     useEffect(() => {
         if (!isAddEntryOpen) {
@@ -137,7 +171,7 @@ export function MeasurementManager({ contractId, devices: initialDevices, isAdmi
             return toast({ title: "Erro", description: "Valor eh obrigatorio", variant: "destructive" });
         }
 
-        const currentValue = parseFloat(newEntry.value);
+        const currentValue = valueToNumber(newEntry.value);
         const lastEntry = selectedDevice.entries?.[0];
 
         // Validar: novo valor deve ser >= anterior (medidor não volta)
@@ -157,7 +191,7 @@ export function MeasurementManager({ contractId, devices: initialDevices, isAdmi
     const handleAddEntry = async () => {
         if (!selectedDevice || !newEntry.value) return;
 
-        const currentValue = parseFloat(newEntry.value);
+        const currentValue = valueToNumber(newEntry.value);
         const lastEntry = selectedDevice.entries?.[0];
 
         setLoading(true);
@@ -438,27 +472,32 @@ export function MeasurementManager({ contractId, devices: initialDevices, isAdmi
                         <div className="space-y-2">
                             <Label htmlFor="value" className="text-xs font-black uppercase tracking-widest opacity-60">
                                 Valor Atual do Visor ({selectedDevice?.unit})
+                                {selectedDevice?.type === 'WATER' && (
+                                    <span className="text-[10px] text-muted-foreground/60 ml-2 normal-case font-medium">
+                                        (vírgula automática nos 2 últimos dígitos)
+                                    </span>
+                                )}
                             </Label>
                             <div className="relative">
                                 <Input
                                     id="value"
-                                    type="number"
-                                    step="0.01"
-                                    placeholder={selectedDevice?.entries?.[0] ? `> ${selectedDevice.entries[0].value}` : "Digite o valor do visor"}
+                                    type="text"
+                                    inputMode="numeric"
+                                    placeholder={selectedDevice?.entries?.[0] ? `> ${selectedDevice.entries[0].value}` : selectedDevice?.type === 'WATER' ? "Ex: 123,45" : "Digite o valor"}
                                     className="rounded-2xl border-border/50 text-2xl font-black h-14"
                                     value={newEntry.value}
-                                    onChange={e => setNewEntry({ ...newEntry, value: e.target.value })}
+                                    onChange={e => handleValueChange(e.target.value)}
                                 />
                             </div>
-                            {selectedDevice?.entries?.[0] && newEntry.value && parseFloat(newEntry.value) >= selectedDevice.entries[0].value && (
+                            {selectedDevice?.entries?.[0] && newEntry.value && valueToNumber(newEntry.value) >= selectedDevice.entries[0].value && (
                                 <div className="flex items-center gap-2 p-2 bg-green-500/10 rounded-lg border border-green-500/20">
                                     <Check className="h-4 w-4 text-green-600" />
                                     <p className="text-xs font-bold text-green-600">
-                                        Consumo: {(parseFloat(newEntry.value) - selectedDevice.entries[0].value).toFixed(2)} {selectedDevice.unit}
+                                        Consumo: {(valueToNumber(newEntry.value) - selectedDevice.entries[0].value).toFixed(2)} {selectedDevice.unit}
                                     </p>
                                 </div>
                             )}
-                            {selectedDevice?.entries?.[0] && newEntry.value && parseFloat(newEntry.value) < selectedDevice.entries[0].value && (
+                            {selectedDevice?.entries?.[0] && newEntry.value && valueToNumber(newEntry.value) < selectedDevice.entries[0].value && (
                                 <div className="flex items-center gap-2 p-2 bg-red-500/10 rounded-lg border border-red-500/20">
                                     <X className="h-4 w-4 text-red-600" />
                                     <p className="text-xs font-bold text-red-600">
@@ -529,7 +568,7 @@ export function MeasurementManager({ contractId, devices: initialDevices, isAdmi
                                 <div className="flex items-baseline gap-2">
                                     <TrendingUp className="h-5 w-5 text-amber-600" />
                                     <span className="text-2xl font-black text-amber-600">
-                                        +{(parseFloat(newEntry.value) - selectedDevice.entries[0].value).toFixed(2)}
+                                        +{(valueToNumber(newEntry.value) - selectedDevice.entries[0].value).toFixed(2)}
                                     </span>
                                     <span className="text-sm font-bold text-muted-foreground">{selectedDevice.unit}</span>
                                 </div>
