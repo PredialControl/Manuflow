@@ -79,6 +79,7 @@ export function MeasurementManager({ contractId, devices: initialDevices, isAdmi
     const [capturedImage, setCapturedImage] = useState<string>("");
     const [isProcessingOCR, setIsProcessingOCR] = useState(false);
     const [ocrDetectedText, setOcrDetectedText] = useState<string>("");
+    const [detectedNumbers, setDetectedNumbers] = useState<string[]>([]);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     // Form states for new device
@@ -150,31 +151,45 @@ export function MeasurementManager({ contractId, devices: initialDevices, isAdmi
             const cleanedText = data.text.replace(/[^0-9.,]/g, '');
             console.log("[OCR] Cleaned text:", cleanedText);
 
-            // Extract the longest continuous number sequence
+            // Extract all numbers from the image
             const numberPattern = /\d+[.,]?\d*/g;
             const matches = cleanedText.match(numberPattern);
 
             if (matches && matches.length > 0) {
-                // Find the longest number (likely the meter reading)
-                const longestNumber = matches.reduce((a, b) => a.length > b.length ? a : b);
-                const normalizedNumber = longestNumber.replace(',', '.');
+                // Normalize and filter numbers
+                const normalizedNumbers = matches
+                    .map(n => n.replace(',', '.'))
+                    .filter(n => n.length >= 3) // Filter out very small numbers (< 3 digits)
+                    .filter((v, i, a) => a.indexOf(v) === i); // Remove duplicates
 
-                console.log("[OCR] ✅ Detected number:", normalizedNumber);
-                console.log("[OCR] All matches:", matches);
+                // Sort by length (longest first = likely the meter reading)
+                normalizedNumbers.sort((a, b) => b.length - a.length);
 
-                setNewEntry(prev => ({ ...prev, value: normalizedNumber }));
+                console.log("[OCR] ✅ Detected numbers:", normalizedNumbers);
+                console.log("[OCR] All raw matches:", matches);
+                console.log("[OCR] Confidence:", Math.round(data.confidence), "%");
+
+                setDetectedNumbers(normalizedNumbers);
+
+                // Auto-select the longest number
+                if (normalizedNumbers.length > 0) {
+                    setNewEntry(prev => ({ ...prev, value: normalizedNumbers[0] }));
+                }
 
                 toast({
-                    title: "Número detectado!",
-                    description: `Leitura: ${normalizedNumber} (Confiança: ${Math.round(data.confidence)}%)`,
+                    title: `${normalizedNumbers.length} número(s) detectado(s)!`,
+                    description: normalizedNumbers.length > 1
+                        ? "Selecione o número correto abaixo"
+                        : `Leitura: ${normalizedNumbers[0]}`,
                     variant: "success",
                 });
             } else {
                 console.log("[OCR] ⚠️ No numbers found in cleaned text");
                 console.log("[OCR] Original text was:", data.text);
+                setDetectedNumbers([]);
                 toast({
                     title: "Nenhum número detectado",
-                    description: "Verifique a foto e ajuste manualmente",
+                    description: "Verifique a foto e digite manualmente",
                     variant: "default",
                 });
             }
@@ -196,6 +211,7 @@ export function MeasurementManager({ contractId, devices: initialDevices, isAdmi
         if (!isAddEntryOpen) {
             setCapturedImage("");
             setOcrDetectedText("");
+            setDetectedNumbers([]);
             setNewEntry({ value: "", notes: "", photo: "" });
             if (fileInputRef.current) {
                 fileInputRef.current.value = "";
@@ -605,6 +621,7 @@ export function MeasurementManager({ contractId, devices: initialDevices, isAdmi
                                             onClick={() => {
                                                 setCapturedImage("");
                                                 setOcrDetectedText("");
+                                                setDetectedNumbers([]);
                                                 setNewEntry(prev => ({ ...prev, value: "" }));
                                                 if (fileInputRef.current) fileInputRef.current.value = "";
                                             }}
@@ -617,8 +634,52 @@ export function MeasurementManager({ contractId, devices: initialDevices, isAdmi
                                 )}
                             </div>
 
+                            {/* Detected numbers selection */}
+                            {detectedNumbers.length > 0 && !isProcessingOCR && (
+                                <div className="p-4 bg-primary/5 rounded-xl border-2 border-primary/20">
+                                    <p className="text-[10px] font-black uppercase tracking-widest text-primary mb-3 flex items-center gap-2">
+                                        <ScanLine className="h-3.5 w-3.5" />
+                                        {detectedNumbers.length === 1
+                                            ? "Número Detectado:"
+                                            : `${detectedNumbers.length} Números Detectados - Escolha o correto:`
+                                        }
+                                    </p>
+                                    <div className="flex flex-wrap gap-2">
+                                        {detectedNumbers.map((num, idx) => (
+                                            <Button
+                                                key={idx}
+                                                type="button"
+                                                variant={newEntry.value === num ? "default" : "outline"}
+                                                size="sm"
+                                                className={cn(
+                                                    "rounded-xl font-black text-lg px-4 h-12 transition-all",
+                                                    newEntry.value === num
+                                                        ? "bg-primary text-white shadow-lg scale-105"
+                                                        : "border-primary/30 hover:border-primary hover:bg-primary/10"
+                                                )}
+                                                onClick={() => {
+                                                    setNewEntry(prev => ({ ...prev, value: num }));
+                                                    toast({
+                                                        title: "Número selecionado",
+                                                        description: `Leitura: ${num}`,
+                                                    });
+                                                }}
+                                            >
+                                                {num}
+                                                {idx === 0 && detectedNumbers.length > 1 && (
+                                                    <span className="ml-2 text-[8px] opacity-70">(maior)</span>
+                                                )}
+                                            </Button>
+                                        ))}
+                                    </div>
+                                    <p className="text-[9px] text-muted-foreground/60 mt-3 italic">
+                                        💡 Dica: O número da leitura geralmente é o maior. Se nenhum estiver correto, digite manualmente abaixo.
+                                    </p>
+                                </div>
+                            )}
+
                             {/* OCR detected text (for debugging) */}
-                            {ocrDetectedText && !isProcessingOCR && (
+                            {ocrDetectedText && !isProcessingOCR && detectedNumbers.length === 0 && (
                                 <div className="p-3 bg-muted/30 rounded-xl border border-border/40">
                                     <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/50 mb-1">
                                         Texto Detectado pelo OCR:
@@ -627,7 +688,7 @@ export function MeasurementManager({ contractId, devices: initialDevices, isAdmi
                                         "{ocrDetectedText}"
                                     </p>
                                     <p className="text-[9px] text-muted-foreground/60 mt-1 italic">
-                                        Se o número estiver errado, ajuste manualmente abaixo
+                                        Nenhum número válido encontrado. Digite manualmente abaixo.
                                     </p>
                                 </div>
                             )}
