@@ -109,54 +109,6 @@ export function MeasurementManager({ contractId, devices: initialDevices, isAdmi
         GAS: "bg-orange-500/10",
     };
 
-    // Crop image to reading zone (center 70% width x 30% height)
-    const cropImageToReadingZone = useCallback(async (file: File): Promise<Blob> => {
-        return new Promise((resolve, reject) => {
-            const img = new Image();
-            img.onload = () => {
-                const canvas = document.createElement('canvas');
-                const ctx = canvas.getContext('2d');
-                if (!ctx) {
-                    reject(new Error('Failed to get canvas context'));
-                    return;
-                }
-
-                // Calculate reading zone dimensions (same as visual guide)
-                const zoneWidth = img.width * 0.7;  // 70% of image width
-                const zoneHeight = img.height * 0.3; // 30% of image height
-                const zoneX = (img.width - zoneWidth) / 2;  // Center horizontally
-                const zoneY = (img.height - zoneHeight) / 2; // Center vertically
-
-                console.log("[OCR] 📐 Original image:", img.width, "x", img.height);
-                console.log("[OCR] 🎯 Reading zone:", Math.round(zoneWidth), "x", Math.round(zoneHeight));
-                console.log("[OCR] 📍 Position:", Math.round(zoneX), ",", Math.round(zoneY));
-
-                // Set canvas size to cropped area
-                canvas.width = zoneWidth;
-                canvas.height = zoneHeight;
-
-                // Draw only the reading zone
-                ctx.drawImage(
-                    img,
-                    zoneX, zoneY, zoneWidth, zoneHeight, // Source (crop zone)
-                    0, 0, zoneWidth, zoneHeight          // Destination (full canvas)
-                );
-
-                // Convert to blob
-                canvas.toBlob((blob) => {
-                    if (blob) {
-                        console.log("[OCR] ✂️ Cropped to reading zone successfully");
-                        resolve(blob);
-                    } else {
-                        reject(new Error('Failed to create blob'));
-                    }
-                }, 'image/jpeg', 0.95);
-            };
-            img.onerror = () => reject(new Error('Failed to load image'));
-            img.src = URL.createObjectURL(file);
-        });
-    }, []);
-
     // Handle photo capture and OCR
     const handlePhotoCapture = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -164,15 +116,12 @@ export function MeasurementManager({ contractId, devices: initialDevices, isAdmi
 
         console.log("[OCR] 📸 Photo captured, starting OCR...");
 
-        // Create preview URL (full image)
+        // Create preview URL
         const imageUrl = URL.createObjectURL(file);
         setCapturedImage(imageUrl);
         setIsProcessingOCR(true);
 
         try {
-            // Crop image to reading zone only
-            const croppedBlob = await cropImageToReadingZone(file);
-
             // Initialize Tesseract worker with optimized config for digits
             const worker = await createWorker("eng", 1, {
                 logger: (m) => {
@@ -187,12 +136,12 @@ export function MeasurementManager({ contractId, devices: initialDevices, isAdmi
                 tessedit_char_whitelist: '0123456789.,', // Only digits and decimal separators
             });
 
-            // Perform OCR on CROPPED image only
-            console.log("[OCR] 🔍 Processing reading zone only...");
-            const { data } = await worker.recognize(croppedBlob);
+            // Perform OCR on full image
+            console.log("[OCR] 🔍 Processing full image...");
+            const { data } = await worker.recognize(file);
             await worker.terminate();
 
-            console.log("[OCR] 📄 Raw text from reading zone:", data.text);
+            console.log("[OCR] 📄 Raw text detected:", data.text);
             console.log("[OCR] 📊 Confidence:", Math.round(data.confidence), "%");
 
             // Store detected text for user reference
@@ -229,9 +178,9 @@ export function MeasurementManager({ contractId, devices: initialDevices, isAdmi
                 }
 
                 toast({
-                    title: `${normalizedNumbers.length} número(s) na zona de leitura!`,
+                    title: `${normalizedNumbers.length} número(s) detectado(s)!`,
                     description: normalizedNumbers.length > 1
-                        ? "Selecione o número correto abaixo"
+                        ? "Clique no número correto da leitura"
                         : `Leitura: ${normalizedNumbers[0]}`,
                     variant: "success",
                 });
@@ -587,18 +536,17 @@ export function MeasurementManager({ contractId, devices: initialDevices, isAdmi
                         <div className="space-y-3 max-w-full">
                             <Label className="text-xs font-black uppercase tracking-widest opacity-60 flex items-center gap-2">
                                 <Camera className="h-3.5 w-3.5" />
-                                Foto do Medidor (OCR Automático)
+                                Foto do Medidor
                             </Label>
 
-                            <div className="relative w-full aspect-[4/3] max-h-[300px] rounded-2xl overflow-hidden border-2 border-border/30 bg-black">
+                            <div className="relative w-full h-[250px] rounded-2xl overflow-hidden border-2 border-border/30 bg-black flex items-center justify-center">
                                 {/* Photo Preview */}
                                 {capturedImage ? (
                                     <>
                                         <img
                                             src={capturedImage}
                                             alt="Captured meter"
-                                            className="w-full h-full object-cover max-w-full"
-                                            style={{ maxHeight: '300px' }}
+                                            className="max-w-full max-h-full object-contain"
                                         />
                                         {/* Processing overlay */}
                                         {isProcessingOCR && (
@@ -614,25 +562,6 @@ export function MeasurementManager({ contractId, devices: initialDevices, isAdmi
                                                 </div>
                                             </div>
                                         )}
-                                        {/* Reading zone overlay - shows OCR processing area */}
-                                        {!isProcessingOCR && (
-                                            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                                                <div className="w-[70%] h-[30%] border-2 border-primary/80 rounded-xl relative shadow-lg">
-                                                    <div className="absolute -top-6 left-1/2 -translate-x-1/2 bg-primary text-white text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full whitespace-nowrap flex items-center gap-1 shadow-md">
-                                                        <ScanLine className="h-3 w-3" />
-                                                        Zona de Leitura OCR
-                                                    </div>
-                                                    <div className="absolute -bottom-6 left-1/2 -translate-x-1/2 bg-primary/80 text-white text-[8px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap">
-                                                        Números fora desta área são ignorados
-                                                    </div>
-                                                    {/* Corner markers */}
-                                                    <div className="absolute top-0 left-0 w-4 h-4 border-t-4 border-l-4 border-primary rounded-tl-lg" />
-                                                    <div className="absolute top-0 right-0 w-4 h-4 border-t-4 border-r-4 border-primary rounded-tr-lg" />
-                                                    <div className="absolute bottom-0 left-0 w-4 h-4 border-b-4 border-l-4 border-primary rounded-bl-lg" />
-                                                    <div className="absolute bottom-0 right-0 w-4 h-4 border-b-4 border-r-4 border-primary rounded-br-lg" />
-                                                </div>
-                                            </div>
-                                        )}
                                     </>
                                 ) : (
                                     <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-gradient-to-br from-muted/30 to-muted/10">
@@ -641,10 +570,10 @@ export function MeasurementManager({ contractId, devices: initialDevices, isAdmi
                                         </div>
                                         <div className="text-center px-4">
                                             <p className="text-sm font-black text-foreground/80 mb-1">
-                                                OCR com Zona de Leitura
+                                                OCR Automático
                                             </p>
                                             <p className="text-[10px] text-muted-foreground/60 max-w-[220px]">
-                                                Centralize os números do medidor na foto. Apenas a área central será lida.
+                                                Tire foto do medidor. O OCR vai detectar todos os números e você escolhe qual é o correto.
                                             </p>
                                         </div>
                                     </div>
@@ -734,7 +663,7 @@ export function MeasurementManager({ contractId, devices: initialDevices, isAdmi
                                         ))}
                                     </div>
                                     <p className="text-[9px] text-muted-foreground/60 mt-3 italic">
-                                        💡 Dica: Estes números foram lidos APENAS da zona central da foto. O número da leitura geralmente é o maior. Se nenhum estiver correto, tire nova foto centralizada ou digite manualmente.
+                                        💡 Clique no número correto da leitura do medidor. Se nenhum estiver correto, digite manualmente abaixo.
                                     </p>
                                 </div>
                             )}
