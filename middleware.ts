@@ -26,11 +26,17 @@ export default withAuth(
       }
 
       // Allow contracts only if accessing measurements tab
-      if (pathname.startsWith("/contracts/") && !pathname.includes("measurements")) {
+      if (pathname.startsWith("/contracts/")) {
         const contractIdMatch = pathname.match(/^\/contracts\/([^\/]+)$/);
         if (contractIdMatch) {
-          // Redirect to measurements tab
-          return NextResponse.redirect(new URL(`/contracts/${contractIdMatch[1]}?tab=measurements`, req.url));
+          // Check if tab=measurements is in the query string
+          const searchParams = new URL(req.url).searchParams;
+          const tab = searchParams.get("tab");
+
+          // If not on measurements tab, redirect to it
+          if (tab !== "measurements") {
+            return NextResponse.redirect(new URL(`/contracts/${contractIdMatch[1]}?tab=measurements`, req.url));
+          }
         }
       }
     }
