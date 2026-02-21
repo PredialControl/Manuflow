@@ -7,16 +7,23 @@ export async function POST(
     req: Request,
     { params }: { params: Promise<{ id: string }> }
 ) {
+    console.log("[ENTRIES_POST] Handler called");
+
     const session = await getServerSession(authOptions);
+    console.log("[ENTRIES_POST] Session:", session ? "authenticated" : "not authenticated");
 
     if (!session) {
         return new NextResponse("Unauthorized", { status: 401 });
     }
 
     try {
+        console.log("[ENTRIES_POST] Awaiting params...");
         // Await params in Next.js 15+ / App Router
         const { id: deviceId } = await params;
+        console.log("[ENTRIES_POST] Device ID:", deviceId);
+
         const { value, notes } = await req.json();
+        console.log("[ENTRIES_POST] Request body:", { value, notes });
 
         // Validar valor
         const numericValue = typeof value === 'number' ? value : parseFloat(value);
