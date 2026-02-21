@@ -560,7 +560,7 @@ export function MeasurementManager({ contractId, devices: initialDevices, isAdmi
 
             {/* Modal de Captura de Medicao - Camera ao Vivo */}
             <Dialog open={isAddEntryOpen} onOpenChange={setIsAddEntryOpen}>
-                <DialogContent className="sm:max-w-[500px] rounded-[2rem] max-h-[90vh] overflow-y-auto">
+                <DialogContent className="sm:max-w-[500px] w-[95vw] rounded-[2rem] max-h-[90vh] overflow-y-auto overflow-x-hidden" onClick={(e) => e.stopPropagation()}>
                     <DialogHeader>
                         <DialogTitle className="text-2xl font-black tracking-tighter">Registrar Leitura</DialogTitle>
                         <DialogDescription className="font-medium text-muted-foreground">
@@ -582,22 +582,23 @@ export function MeasurementManager({ contractId, devices: initialDevices, isAdmi
                             </div>
                         )}
                     </DialogHeader>
-                    <div className="grid gap-5 py-4">
+                    <div className="grid gap-5 py-4 max-w-full">
                         {/* Area da Foto com OCR */}
-                        <div className="space-y-3">
+                        <div className="space-y-3 max-w-full">
                             <Label className="text-xs font-black uppercase tracking-widest opacity-60 flex items-center gap-2">
                                 <Camera className="h-3.5 w-3.5" />
                                 Foto do Medidor (OCR Automático)
                             </Label>
 
-                            <div className="relative w-full aspect-[4/3] rounded-2xl overflow-hidden border-2 border-border/30 bg-black">
+                            <div className="relative w-full aspect-[4/3] max-h-[300px] rounded-2xl overflow-hidden border-2 border-border/30 bg-black">
                                 {/* Photo Preview */}
                                 {capturedImage ? (
                                     <>
                                         <img
                                             src={capturedImage}
                                             alt="Captured meter"
-                                            className="w-full h-full object-cover"
+                                            className="w-full h-full object-cover max-w-full"
+                                            style={{ maxHeight: '300px' }}
                                         />
                                         {/* Processing overlay */}
                                         {isProcessingOCR && (
