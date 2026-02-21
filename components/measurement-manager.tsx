@@ -11,18 +11,14 @@ import {
     Flame,
     Plus,
     History,
-    Camera,
     Check,
     Loader2,
     Calendar,
     TrendingUp,
     X,
-    ScanLine,
-    Image as ImageIcon,
 } from "lucide-react";
 import { cn, formatDate } from "@/lib/utils";
 import { useToast } from "@/components/ui/use-toast";
-import { createWorker } from "tesseract.js";
 
 import {
     Dialog,
@@ -75,14 +71,8 @@ export function MeasurementManager({ contractId, devices: initialDevices, isAdmi
     const [isAddEntryOpen, setIsAddEntryOpen] = useState(false);
     const [selectedDevice, setSelectedDevice] = useState<Device | null>(null);
 
-    // Photo capture and OCR states
-    const [capturedImage, setCapturedImage] = useState<string>("");
-    const [isProcessingOCR, setIsProcessingOCR] = useState(false);
-    const [ocrDetectedText, setOcrDetectedText] = useState<string>("");
-    const [detectedNumbers, setDetectedNumbers] = useState<string[]>([]);
-    const [showZoneConfirmation, setShowZoneConfirmation] = useState(false);
-    const [pendingFile, setPendingFile] = useState<File | null>(null);
-    const fileInputRef = useRef<HTMLInputElement>(null);
+    // Confirmation state
+    const [showConfirmation, setShowConfirmation] = useState(false);
 
     // Form states for new device
     const [newDevice, setNewDevice] = useState({
@@ -111,273 +101,11 @@ export function MeasurementManager({ contractId, devices: initialDevices, isAdmi
         GAS: "bg-orange-500/10",
     };
 
-    // Preprocess image for better OCR accuracy
-    const preprocessImage = useCallback(async (blob: Blob): Promise<Blob> => {
-        return new Promise((resolve, reject) => {
-            const img = new Image();
-            img.onload = () => {
-                const canvas = document.createElement('canvas');
-                const ctx = canvas.getContext('2d');
-                if (!ctx) {
-                    reject(new Error('Failed to get canvas context'));
-                    return;
-                }
-
-                canvas.width = img.width;
-                canvas.height = img.height;
-
-                // Draw original image
-                ctx.drawImage(img, 0, 0);
-
-                // Get image data
-                const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-                const data = imageData.data;
-
-                console.log("[OCR] 🎨 Preprocessing image...");
-
-                // 1. Convert to grayscale and increase contrast
-                for (let i = 0; i < data.length; i += 4) {
-                    // Grayscale conversion
-                    const gray = data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114;
-
-                    // Increase contrast (factor 1.5)
-                    const contrasted = ((gray - 128) * 1.5) + 128;
-
-                    data[i] = contrasted;     // R
-                    data[i + 1] = contrasted; // G
-                    data[i + 2] = contrasted; // B
-                }
-
-                // 2. Binarization (Otsu's method approximation)
-                // Calculate threshold
-                let histogram = new Array(256).fill(0);
-                for (let i = 0; i < data.length; i += 4) {
-                    histogram[Math.floor(data[i])]++;
-                }
-
-                let total = canvas.width * canvas.height;
-                let sum = 0;
-                for (let i = 0; i < 256; i++) {
-                    sum += i * histogram[i];
-                }
-
-                let sumB = 0;
-                let wB = 0;
-                let wF = 0;
-                let varMax = 0;
-                let threshold = 0;
-
-                for (let t = 0; t < 256; t++) {
-                    wB += histogram[t];
-                    if (wB === 0) continue;
-
-                    wF = total - wB;
-                    if (wF === 0) break;
-
-                    sumB += t * histogram[t];
-
-                    let mB = sumB / wB;
-                    let mF = (sum - sumB) / wF;
-
-                    let varBetween = wB * wF * (mB - mF) * (mB - mF);
-
-                    if (varBetween > varMax) {
-                        varMax = varBetween;
-                        threshold = t;
-                    }
-                }
-
-                console.log("[OCR] 🎯 Threshold:", threshold);
-
-                // Apply threshold (binarization)
-                for (let i = 0; i < data.length; i += 4) {
-                    const value = data[i] > threshold ? 255 : 0;
-                    data[i] = value;     // R
-                    data[i + 1] = value; // G
-                    data[i + 2] = value; // B
-                }
-
-                // Put processed image back
-                ctx.putImageData(imageData, 0, 0);
-
-                console.log("[OCR] ✅ Image preprocessed (grayscale + contrast + binarization)");
-
-                // Convert to blob
-                canvas.toBlob((processedBlob) => {
-                    if (processedBlob) resolve(processedBlob);
-                    else reject(new Error('Failed to create blob'));
-                }, 'image/jpeg', 0.95);
-            };
-            img.onerror = () => reject(new Error('Failed to load image'));
-            img.src = URL.createObjectURL(blob);
-        });
-    }, []);
-
-    // Crop image to reading zone (center 70% width x 30% height)
-    const cropImageToReadingZone = useCallback(async (file: File): Promise<Blob> => {
-        return new Promise((resolve, reject) => {
-            const img = new Image();
-            img.onload = () => {
-                const canvas = document.createElement('canvas');
-                const ctx = canvas.getContext('2d');
-                if (!ctx) {
-                    reject(new Error('Failed to get canvas context'));
-                    return;
-                }
-
-                // Calculate reading zone dimensions
-                const zoneWidth = img.width * 0.7;
-                const zoneHeight = img.height * 0.3;
-                const zoneX = (img.width - zoneWidth) / 2;
-                const zoneY = (img.height - zoneHeight) / 2;
-
-                console.log("[OCR] 📐 Image:", img.width, "x", img.height);
-                console.log("[OCR] ✂️ Crop zone:", Math.round(zoneWidth), "x", Math.round(zoneHeight));
-
-                canvas.width = zoneWidth;
-                canvas.height = zoneHeight;
-
-                ctx.drawImage(img, zoneX, zoneY, zoneWidth, zoneHeight, 0, 0, zoneWidth, zoneHeight);
-
-                canvas.toBlob((blob) => {
-                    if (blob) resolve(blob);
-                    else reject(new Error('Failed to create blob'));
-                }, 'image/jpeg', 0.95);
-            };
-            img.onerror = () => reject(new Error('Failed to load image'));
-            img.src = URL.createObjectURL(file);
-        });
-    }, []);
-
-    // Handle photo capture - just show preview with zone
-    const handlePhotoCapture = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (!file) return;
-
-        console.log("[OCR] 📸 Photo captured");
-
-        // Create preview URL and show zone confirmation
-        const imageUrl = URL.createObjectURL(file);
-        setCapturedImage(imageUrl);
-        setPendingFile(file);
-        setShowZoneConfirmation(true);
-    }, []);
-
-    // Process OCR after user confirms zone
-    const processOCR = useCallback(async () => {
-        if (!pendingFile) return;
-
-        console.log("[OCR] 🔍 User confirmed zone, processing with enhanced Tesseract...");
-        setShowZoneConfirmation(false);
-        setIsProcessingOCR(true);
-
-        try {
-            // Step 1: Crop to reading zone
-            const croppedBlob = await cropImageToReadingZone(pendingFile);
-
-            // Step 2: Preprocess image (grayscale + contrast + binarization)
-            const processedBlob = await preprocessImage(croppedBlob);
-
-            // Step 3: Initialize Tesseract worker
-            const worker = await createWorker("eng", 1, {
-                logger: (m) => {
-                    if (m.status === "recognizing text") {
-                        console.log(`[OCR] Progress: ${Math.round(m.progress * 100)}%`);
-                    }
-                },
-            });
-
-            // Configure for digits only
-            await worker.setParameters({
-                tessedit_char_whitelist: '0123456789.,',
-            });
-
-            // Step 4: Perform OCR on preprocessed image
-            console.log("[OCR] 🔍 Running OCR on preprocessed image...");
-            const { data } = await worker.recognize(processedBlob);
-            await worker.terminate();
-
-            console.log("[OCR] 📄 Text detected:", data.text);
-            console.log("[OCR] 📊 Confidence:", Math.round(data.confidence), "%");
-
-            // Store detected text for user reference
-            setOcrDetectedText(data.text.trim());
-
-            // Clean and extract numbers
-            // Remove spaces and special characters, keep only digits and decimal separators
-            const cleanedText = data.text.replace(/[^0-9.,]/g, '');
-            console.log("[OCR] 🧹 Cleaned text:", cleanedText);
-
-            // Extract all numbers from the image
-            const numberPattern = /\d+[.,]?\d*/g;
-            const matches = cleanedText.match(numberPattern);
-
-            if (matches && matches.length > 0) {
-                // Normalize and filter numbers
-                const normalizedNumbers = matches
-                    .map((n: string) => n.replace(',', '.'))
-                    .filter((n: string) => n.length >= 3) // Filter out very small numbers (< 3 digits)
-                    .filter((v: string, i: number, a: string[]) => a.indexOf(v) === i); // Remove duplicates
-
-                // Sort by length (longest first = likely the meter reading)
-                normalizedNumbers.sort((a: string, b: string) => b.length - a.length);
-
-                console.log("[OCR] ✅ Detected numbers:", normalizedNumbers);
-                console.log("[OCR] All raw matches:", matches);
-                console.log("[OCR] Confidence:", Math.round(data.confidence), "%");
-
-                setDetectedNumbers(normalizedNumbers);
-
-                // Auto-fill if only one number detected
-                if (normalizedNumbers.length === 1) {
-                    setNewEntry(prev => ({ ...prev, value: normalizedNumbers[0] }));
-                    toast({
-                        title: "Leitura detectada!",
-                        description: `Valor: ${normalizedNumbers[0]} - Confira antes de salvar`,
-                        variant: "success",
-                    });
-                } else if (normalizedNumbers.length > 1) {
-                    // Multiple numbers - let user choose
-                    setNewEntry(prev => ({ ...prev, value: normalizedNumbers[0] }));
-                    toast({
-                        title: `${normalizedNumbers.length} números na zona`,
-                        description: "Clique no número correto ou ajuste manualmente",
-                        variant: "default",
-                    });
-                } else {
-                    toast({
-                        title: "Nenhum número na zona",
-                        description: "Tire nova foto ou digite manualmente",
-                        variant: "default",
-                    });
-                }
-            }
-
-        } catch (err) {
-            console.error("[OCR] ❌ Error:", err);
-            toast({
-                title: "Erro no OCR",
-                description: "Tire nova foto ou digite manualmente",
-                variant: "destructive",
-            });
-        } finally {
-            setIsProcessingOCR(false);
-            setPendingFile(null);
-        }
-    }, [pendingFile, cropImageToReadingZone, preprocessImage, toast]);
-
     // Clean up on dialog close
     useEffect(() => {
         if (!isAddEntryOpen) {
-            setCapturedImage("");
-            setOcrDetectedText("");
-            setDetectedNumbers([]);
-            setShowZoneConfirmation(false);
-            setPendingFile(null);
             setNewEntry({ value: "", notes: "", photo: "" });
-            if (fileInputRef.current) {
-                fileInputRef.current.value = "";
-            }
+            setShowConfirmation(false);
         }
     }, [isAddEntryOpen]);
 
@@ -403,7 +131,8 @@ export function MeasurementManager({ contractId, devices: initialDevices, isAdmi
         }
     };
 
-    const handleAddEntry = async () => {
+    // Show confirmation before saving
+    const handleRequestConfirmation = () => {
         if (!selectedDevice || !newEntry.value) {
             return toast({ title: "Erro", description: "Valor eh obrigatorio", variant: "destructive" });
         }
@@ -420,7 +149,20 @@ export function MeasurementManager({ contractId, devices: initialDevices, isAdmi
             });
         }
 
+        // Show confirmation dialog
+        setShowConfirmation(true);
+    };
+
+    // Actually save after confirmation
+    const handleAddEntry = async () => {
+        if (!selectedDevice || !newEntry.value) return;
+
+        const currentValue = parseFloat(newEntry.value);
+        const lastEntry = selectedDevice.entries?.[0];
+
         setLoading(true);
+        setShowConfirmation(false);
+
         try {
             const res = await fetch(`/api/measurements/devices/${selectedDevice.id}/entries`, {
                 method: "POST",
@@ -658,8 +400,8 @@ export function MeasurementManager({ contractId, devices: initialDevices, isAdmi
                                             setIsAddEntryOpen(true);
                                         }}
                                     >
-                                        Capturar Medicao
-                                        <Camera className="h-3.5 w-3.5 ml-2" />
+                                        Nova Leitura
+                                        <Plus className="h-3.5 w-3.5 ml-2" />
                                     </Button>
                                 </CardContent>
                             </Card>
@@ -693,216 +435,6 @@ export function MeasurementManager({ contractId, devices: initialDevices, isAdmi
                         )}
                     </DialogHeader>
                     <div className="grid gap-5 py-4 max-w-full">
-                        {/* Area da Foto com OCR */}
-                        <div className="space-y-3 max-w-full">
-                            <Label className="text-xs font-black uppercase tracking-widest opacity-60 flex items-center gap-2">
-                                <Camera className="h-3.5 w-3.5" />
-                                Foto do Medidor
-                            </Label>
-
-                            <div className="relative w-full h-[250px] rounded-2xl overflow-hidden border-2 border-border/30 bg-black flex items-center justify-center">
-                                {/* Photo Preview */}
-                                {capturedImage ? (
-                                    <>
-                                        <img
-                                            src={capturedImage}
-                                            alt="Captured meter"
-                                            className="max-w-full max-h-full object-contain"
-                                        />
-                                        {/* Zone confirmation overlay */}
-                                        {showZoneConfirmation && (
-                                            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                                                <div className="w-[70%] h-[30%] border-4 border-primary rounded-xl relative shadow-2xl animate-pulse">
-                                                    <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-primary text-white text-xs font-black uppercase tracking-widest px-4 py-2 rounded-full whitespace-nowrap flex items-center gap-2 shadow-lg">
-                                                        <ScanLine className="h-4 w-4" />
-                                                        Esta área será lida
-                                                    </div>
-                                                    {/* Corners */}
-                                                    <div className="absolute -top-1 -left-1 w-6 h-6 border-t-4 border-l-4 border-primary rounded-tl-xl" />
-                                                    <div className="absolute -top-1 -right-1 w-6 h-6 border-t-4 border-r-4 border-primary rounded-tr-xl" />
-                                                    <div className="absolute -bottom-1 -left-1 w-6 h-6 border-b-4 border-l-4 border-primary rounded-bl-xl" />
-                                                    <div className="absolute -bottom-1 -right-1 w-6 h-6 border-b-4 border-r-4 border-primary rounded-br-xl" />
-                                                </div>
-                                            </div>
-                                        )}
-                                        {/* Processing overlay */}
-                                        {isProcessingOCR && (
-                                            <div className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center gap-3">
-                                                <Loader2 className="h-12 w-12 text-primary animate-spin" />
-                                                <div className="text-center">
-                                                    <p className="text-sm font-black text-white mb-1">
-                                                        Lendo números...
-                                                    </p>
-                                                    <p className="text-[10px] text-white/60">
-                                                        Processando OCR
-                                                    </p>
-                                                </div>
-                                            </div>
-                                        )}
-                                    </>
-                                ) : (
-                                    <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-gradient-to-br from-muted/30 to-muted/10">
-                                        <div className="h-20 w-20 rounded-full bg-primary/10 flex items-center justify-center">
-                                            <ScanLine className="h-10 w-10 text-primary/40" />
-                                        </div>
-                                        <div className="text-center px-4">
-                                            <p className="text-sm font-black text-foreground/80 mb-1">
-                                                OCR com Zona de Leitura
-                                            </p>
-                                            <p className="text-[10px] text-muted-foreground/60 max-w-[240px] leading-relaxed">
-                                                1. Tire foto do medidor<br/>
-                                                2. Veja a zona marcada<br/>
-                                                3. Se pegou os números, clique "Processar OCR"<br/>
-                                                4. Se não, tire outra foto
-                                            </p>
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-
-                            {/* Photo capture controls */}
-                            <div className="flex gap-2">
-                                <input
-                                    ref={fileInputRef}
-                                    type="file"
-                                    accept="image/*"
-                                    capture="environment"
-                                    className="hidden"
-                                    onChange={handlePhotoCapture}
-                                    disabled={isProcessingOCR}
-                                />
-                                {!capturedImage ? (
-                                    <Button
-                                        type="button"
-                                        variant="outline"
-                                        className="flex-1 rounded-xl h-12 font-black text-[10px] uppercase tracking-widest border-primary/30 text-primary hover:bg-primary hover:text-white"
-                                        onClick={() => fileInputRef.current?.click()}
-                                        disabled={isProcessingOCR}
-                                    >
-                                        <Camera className="h-4 w-4 mr-2" />
-                                        Tirar Foto
-                                    </Button>
-                                ) : showZoneConfirmation ? (
-                                    <>
-                                        <Button
-                                            type="button"
-                                            variant="default"
-                                            className="flex-1 rounded-xl h-14 font-black text-xs uppercase tracking-widest bg-primary hover:bg-primary/90"
-                                            onClick={processOCR}
-                                        >
-                                            <Check className="h-5 w-5 mr-2" />
-                                            Processar OCR
-                                        </Button>
-                                        <Button
-                                            type="button"
-                                            variant="outline"
-                                            className="rounded-xl h-14 px-4 font-black text-[10px] uppercase tracking-widest"
-                                            onClick={() => {
-                                                setCapturedImage("");
-                                                setShowZoneConfirmation(false);
-                                                setPendingFile(null);
-                                                if (fileInputRef.current) fileInputRef.current.value = "";
-                                            }}
-                                        >
-                                            <X className="h-4 w-4 mr-2" />
-                                            Tirar Outra
-                                        </Button>
-                                    </>
-                                ) : (
-                                    <Button
-                                        type="button"
-                                        variant="outline"
-                                        className="flex-1 rounded-xl h-12 px-4 font-black text-[10px] uppercase tracking-widest"
-                                        onClick={() => {
-                                            setCapturedImage("");
-                                            setOcrDetectedText("");
-                                            setDetectedNumbers([]);
-                                            setNewEntry(prev => ({ ...prev, value: "" }));
-                                            if (fileInputRef.current) fileInputRef.current.value = "";
-                                        }}
-                                        disabled={isProcessingOCR}
-                                    >
-                                        <X className="h-4 w-4 mr-2" />
-                                        Nova Foto
-                                    </Button>
-                                )}
-                            </div>
-
-                            {/* Zone confirmation message */}
-                            {showZoneConfirmation && (
-                                <div className="p-4 bg-primary/10 rounded-xl border-2 border-primary/30">
-                                    <p className="text-sm font-black text-primary mb-2 flex items-center gap-2">
-                                        <ScanLine className="h-4 w-4" />
-                                        A zona marcada está nos números?
-                                    </p>
-                                    <p className="text-xs text-muted-foreground">
-                                        ✅ <strong>SIM:</strong> Clique "Processar OCR"<br/>
-                                        ❌ <strong>NÃO:</strong> Clique "Tirar Outra" e centralize melhor
-                                    </p>
-                                </div>
-                            )}
-
-                            {/* Detected numbers selection */}
-                            {detectedNumbers.length > 0 && !isProcessingOCR && (
-                                <div className="p-4 bg-primary/5 rounded-xl border-2 border-primary/20">
-                                    <p className="text-[10px] font-black uppercase tracking-widest text-primary mb-3 flex items-center gap-2">
-                                        <ScanLine className="h-3.5 w-3.5" />
-                                        {detectedNumbers.length === 1
-                                            ? "Número Detectado:"
-                                            : `${detectedNumbers.length} Números Detectados - Escolha o correto:`
-                                        }
-                                    </p>
-                                    <div className="flex flex-wrap gap-2">
-                                        {detectedNumbers.map((num, idx) => (
-                                            <Button
-                                                key={idx}
-                                                type="button"
-                                                variant={newEntry.value === num ? "default" : "outline"}
-                                                size="sm"
-                                                className={cn(
-                                                    "rounded-xl font-black text-lg px-4 h-12 transition-all",
-                                                    newEntry.value === num
-                                                        ? "bg-primary text-white shadow-lg scale-105"
-                                                        : "border-primary/30 hover:border-primary hover:bg-primary/10"
-                                                )}
-                                                onClick={() => {
-                                                    setNewEntry(prev => ({ ...prev, value: num }));
-                                                    toast({
-                                                        title: "Número selecionado",
-                                                        description: `Leitura: ${num}`,
-                                                    });
-                                                }}
-                                            >
-                                                {num}
-                                                {idx === 0 && detectedNumbers.length > 1 && (
-                                                    <span className="ml-2 text-[8px] opacity-70">(maior)</span>
-                                                )}
-                                            </Button>
-                                        ))}
-                                    </div>
-                                    <p className="text-[9px] text-muted-foreground/60 mt-3 italic">
-                                        💡 Clique no número correto da leitura do medidor. Se nenhum estiver correto, digite manualmente abaixo.
-                                    </p>
-                                </div>
-                            )}
-
-                            {/* OCR detected text (for debugging) */}
-                            {ocrDetectedText && !isProcessingOCR && detectedNumbers.length === 0 && (
-                                <div className="p-3 bg-muted/30 rounded-xl border border-border/40">
-                                    <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/50 mb-1">
-                                        Texto Detectado pelo OCR:
-                                    </p>
-                                    <p className="text-xs font-mono text-muted-foreground break-all">
-                                        "{ocrDetectedText}"
-                                    </p>
-                                    <p className="text-[9px] text-muted-foreground/60 mt-1 italic">
-                                        Nenhum número válido encontrado. Digite manualmente abaixo.
-                                    </p>
-                                </div>
-                            )}
-                        </div>
-
-
                         <div className="space-y-2">
                             <Label htmlFor="value" className="text-xs font-black uppercase tracking-widest opacity-60">
                                 Valor Atual do Visor ({selectedDevice?.unit})
@@ -949,11 +481,90 @@ export function MeasurementManager({ contractId, devices: initialDevices, isAdmi
                     <DialogFooter>
                         <Button
                             className="w-full btn-premium py-6"
-                            onClick={handleAddEntry}
+                            onClick={handleRequestConfirmation}
                             disabled={loading || !newEntry.value}
                         >
+                            <Check className="h-4 w-4 mr-2" />
+                            Confirmar Leitura
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Confirmation Dialog */}
+            <Dialog open={showConfirmation} onOpenChange={setShowConfirmation}>
+                <DialogContent className="sm:max-w-[425px] rounded-[2rem]">
+                    <DialogHeader>
+                        <DialogTitle className="text-2xl font-black tracking-tighter">Confirmar Leitura</DialogTitle>
+                        <DialogDescription className="font-medium text-muted-foreground">
+                            Revise os dados antes de salvar
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="grid gap-4 py-4">
+                        <div className="p-4 bg-muted/30 rounded-xl border border-border/40">
+                            <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/50 mb-2">
+                                Dispositivo
+                            </p>
+                            <p className="text-lg font-black">{selectedDevice?.name}</p>
+                            <p className="text-xs text-muted-foreground">
+                                {selectedDevice?.type === "WATER" ? "Água" : selectedDevice?.type === "ENERGY" ? "Energia" : "Gás"}
+                            </p>
+                        </div>
+
+                        <div className="p-4 bg-primary/10 rounded-xl border-2 border-primary/30">
+                            <p className="text-[10px] font-black uppercase tracking-widest text-primary/70 mb-2">
+                                Nova Leitura
+                            </p>
+                            <div className="flex items-baseline gap-2">
+                                <span className="text-3xl font-black text-primary">{newEntry.value}</span>
+                                <span className="text-lg font-bold text-primary/70">{selectedDevice?.unit}</span>
+                            </div>
+                        </div>
+
+                        {selectedDevice && selectedDevice.entries && selectedDevice.entries.length > 0 && (
+                            <div className="p-4 bg-muted/20 rounded-xl border border-border/30">
+                                <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/50 mb-2">
+                                    Consumo do Período
+                                </p>
+                                <div className="flex items-baseline gap-2">
+                                    <TrendingUp className="h-5 w-5 text-amber-600" />
+                                    <span className="text-2xl font-black text-amber-600">
+                                        +{(parseFloat(newEntry.value) - selectedDevice.entries[0].value).toFixed(2)}
+                                    </span>
+                                    <span className="text-sm font-bold text-muted-foreground">{selectedDevice.unit}</span>
+                                </div>
+                                <p className="text-xs text-muted-foreground/60 mt-1">
+                                    Última leitura: {selectedDevice.entries[0].value} {selectedDevice.unit}
+                                </p>
+                            </div>
+                        )}
+
+                        {newEntry.notes && (
+                            <div className="p-3 bg-muted/20 rounded-xl border border-border/30">
+                                <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/50 mb-1">
+                                    Observações
+                                </p>
+                                <p className="text-sm text-muted-foreground">{newEntry.notes}</p>
+                            </div>
+                        )}
+                    </div>
+                    <DialogFooter className="gap-2">
+                        <Button
+                            variant="outline"
+                            className="flex-1 rounded-xl"
+                            onClick={() => setShowConfirmation(false)}
+                            disabled={loading}
+                        >
+                            <X className="h-4 w-4 mr-2" />
+                            Cancelar
+                        </Button>
+                        <Button
+                            className="flex-1 btn-premium rounded-xl"
+                            onClick={handleAddEntry}
+                            disabled={loading}
+                        >
                             {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Check className="h-4 w-4 mr-2" />}
-                            Salvar Medicao
+                            Salvar
                         </Button>
                     </DialogFooter>
                 </DialogContent>
