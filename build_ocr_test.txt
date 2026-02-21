@@ -1,0 +1,92 @@
+
+> manuflow@1.0.0 build
+> prisma generate && next build
+
+Environment variables loaded from .env
+Prisma schema loaded from prisma\schema.prisma
+
+✔ Generated Prisma Client (v5.22.0) to .\node_modules\@prisma\client in 356ms
+
+Start by importing your Prisma Client (See: https://pris.ly/d/importing-client)
+
+Tip: Curious about the SQL queries Prisma ORM generates? Optimize helps you enhance your visibility: https://pris.ly/tip-2-optimize
+
+  ▲ Next.js 14.2.35
+  - Environments: .env
+
+   Creating an optimized production build ...
+ ✓ (pwa) Compiling for server...
+ ✓ (pwa) Compiling for server...
+ ✓ (pwa) Compiling for client (static)...
+ ○ (pwa) Service worker: C:\Users\Ricardo Oliveira\Desktop\ManuFlow\public\service-worker.js
+ ○ (pwa)   URL: /service-worker.js
+ ○ (pwa)   Scope: /
+ ✓ Compiled successfully
+   Linting and checking validity of types ...
+   Collecting page data ...
+   Generating static pages (0/27) ...
+   Generating static pages (6/27) 
+   Generating static pages (13/27) 
+   Generating static pages (20/27) 
+ ✓ Generating static pages (27/27)
+   Finalizing page optimization ...
+   Collecting build traces ...
+
+Route (app)                                   Size     First Load JS
+┌ ○ /                                         152 B          90.1 kB
+├ ○ /_not-found                               880 B          90.8 kB
+├ ƒ /api/assets/[assetId]                     0 B                0 B
+├ ƒ /api/auth/[...nextauth]                   0 B                0 B
+├ ƒ /api/contracts                            0 B                0 B
+├ ƒ /api/contracts/[id]                       0 B                0 B
+├ ƒ /api/contracts/[id]/assets                0 B                0 B
+├ ƒ /api/contracts/[id]/measurements/devices  0 B                0 B
+├ ƒ /api/contracts/[id]/users                 0 B                0 B
+├ ƒ /api/contracts/[id]/users/[userId]        0 B                0 B
+├ ƒ /api/cron/alerts                          0 B                0 B
+├ ƒ /api/debug/technician-status              0 B                0 B
+├ ƒ /api/inspections                          0 B                0 B
+├ ƒ /api/measurements/devices/[id]/entries    0 B                0 B
+├ ƒ /api/reports                              0 B                0 B
+├ ƒ /api/reports/[id]/status                  0 B                0 B
+├ ƒ /api/rondas/[id]                          0 B                0 B
+├ ƒ /api/rondas/hoje                          0 B                0 B
+├ ƒ /api/rondas/steps/[stepId]                0 B                0 B
+├ ƒ /api/schedules                            0 B                0 B
+├ ƒ /api/schedules/[id]                       0 B                0 B
+├ ƒ /api/technician/devices                   0 B                0 B
+├ ƒ /api/technician/measurements              0 B                0 B
+├ ƒ /api/technician/pending                   0 B                0 B
+├ ƒ /api/upload/measurement-photo             0 B                0 B
+├ ƒ /api/users                                0 B                0 B
+├ ƒ /contracts                                1.46 kB         108 kB
+├ ƒ /contracts/[id]                           48 kB           177 kB
+├ ƒ /contracts/[id]/assets/[assetId]          3.02 kB         110 kB
+├ ƒ /contracts/[id]/assets/new                7.38 kB         105 kB
+├ ƒ /contracts/[id]/edit                      6.04 kB         113 kB
+├ ƒ /contracts/[id]/inspections               152 B          90.1 kB
+├ ƒ /contracts/[id]/reports                   152 B          90.1 kB
+├ ƒ /contracts/[id]/reports/new               4.27 kB         102 kB
+├ ƒ /contracts/[id]/users/[userId]/edit       5.27 kB         112 kB
+├ ƒ /contracts/[id]/users/new                 2.06 kB         112 kB
+├ ƒ /contracts/new                            5.56 kB         104 kB
+├ ƒ /dashboard                                6.49 kB         113 kB
+├ ƒ /inspections                              7.19 kB         105 kB
+├ ƒ /inspections/new                          5.95 kB         104 kB
+├ ○ /login                                    3.99 kB         114 kB
+├ ƒ /measurements                             922 B           108 kB
+├ ƒ /reports                                  3.22 kB         127 kB
+├ ƒ /reports/new                              4.37 kB         102 kB
+├ ƒ /users                                    1.46 kB         108 kB
+└ ƒ /users/new                                1.89 kB         112 kB
++ First Load JS shared by all                 90 kB
+  ├ chunks/6997-5eb9400cc330633b.js           34.1 kB
+  ├ chunks/fd9d1056-09d7f6b3853eb597.js       53.6 kB
+  └ other shared chunks (total)               2.21 kB
+
+
+ƒ Middleware                                  49.6 kB
+
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand
+

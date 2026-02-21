@@ -215,7 +215,7 @@ export const RondaPdf = ({ ronda }: RondaPdfProps) => {
                 <View style={styles.header}>
                     <View style={styles.logoSection}>
                         <View style={styles.logoBox}>
-                            <Text style={styles.logoText}>M</Text>
+                            <Image src="/logo.png" style={{ width: '100%', height: '100%', borderRadius: 8 }} />
                         </View>
                         <View>
                             <Text style={styles.title}>ManuFlow</Text>

@@ -44,3 +44,4 @@ next-env.d.ts
 # custom logs
 api-debug.log
 users_db.txt
+.env.local

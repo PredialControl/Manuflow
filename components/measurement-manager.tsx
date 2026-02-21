@@ -22,7 +22,6 @@ import {
 } from "lucide-react";
 import { cn, formatDate } from "@/lib/utils";
 import { useToast } from "@/components/ui/use-toast";
-import { createWorker } from "tesseract.js";
 
 import {
     Dialog,
@@ -172,25 +171,26 @@ export function MeasurementManager({ contractId, devices: initialDevices, isAdmi
         try {
             // Crop to reading zone
             const croppedBlob = await cropImageToReadingZone(pendingFile);
-            // Initialize Tesseract worker with optimized config for digits
-            const worker = await createWorker("eng", 1, {
-                logger: (m) => {
-                    if (m.status === "recognizing text") {
-                        console.log(`[OCR] Progress: ${Math.round(m.progress * 100)}%`);
-                    }
-                },
+
+            // Send cropped image to Google Vision API
+            const formData = new FormData();
+            formData.append('image', croppedBlob, 'meter.jpg');
+
+            console.log("[OCR] 📤 Sending to Google Vision API...");
+
+            const response = await fetch('/api/ocr/vision', {
+                method: 'POST',
+                body: formData,
             });
 
-            // Configure for better digit recognition
-            await worker.setParameters({
-                tessedit_char_whitelist: '0123456789.,', // Only digits and decimal separators
-            });
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.error || 'OCR API error');
+            }
 
-            // Perform OCR on cropped zone only
-            const { data } = await worker.recognize(croppedBlob);
-            await worker.terminate();
+            const data = await response.json();
 
-            console.log("[OCR] 📄 Text from zone:", data.text);
+            console.log("[OCR] 📄 Text from Google Vision:", data.text);
             console.log("[OCR] 📊 Confidence:", Math.round(data.confidence), "%");
 
             // Store detected text for user reference
@@ -208,12 +208,12 @@ export function MeasurementManager({ contractId, devices: initialDevices, isAdmi
             if (matches && matches.length > 0) {
                 // Normalize and filter numbers
                 const normalizedNumbers = matches
-                    .map(n => n.replace(',', '.'))
-                    .filter(n => n.length >= 3) // Filter out very small numbers (< 3 digits)
-                    .filter((v, i, a) => a.indexOf(v) === i); // Remove duplicates
+                    .map((n: string) => n.replace(',', '.'))
+                    .filter((n: string) => n.length >= 3) // Filter out very small numbers (< 3 digits)
+                    .filter((v: string, i: number, a: string[]) => a.indexOf(v) === i); // Remove duplicates
 
                 // Sort by length (longest first = likely the meter reading)
-                normalizedNumbers.sort((a, b) => b.length - a.length);
+                normalizedNumbers.sort((a: string, b: string) => b.length - a.length);
 
                 console.log("[OCR] ✅ Detected numbers:", normalizedNumbers);
                 console.log("[OCR] All raw matches:", matches);

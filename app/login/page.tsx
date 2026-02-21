@@ -50,8 +50,11 @@ export default function LoginPage() {
 
       <div className="w-full max-w-[400px] space-y-8 animate-in relative z-10">
         <div className="flex flex-col items-center gap-6">
-          <div className="h-16 w-16 bg-primary shadow-2xl shadow-primary/40 rounded-[1.25rem] flex items-center justify-center">
-            <span className="text-white text-3xl font-black italic">M</span>
+          <div className="h-16 w-16 bg-primary shadow-2xl shadow-primary/40 rounded-[1.25rem] flex items-center justify-center overflow-hidden">
+            <img src="/logo.png" alt="ManuFlow Logo" className="h-full w-full object-cover" onError={(e) => {
+              e.currentTarget.style.display = 'none';
+              e.currentTarget.parentElement!.innerHTML = '<span class="text-white text-3xl font-black italic">M</span>';
+            }} />
           </div>
           <div className="space-y-1 text-center">
             <h1 className="text-3xl font-black tracking-tighter text-foreground">ManuFlow</h1>
