@@ -105,7 +105,9 @@ export function MeasurementManager({ contractId, devices: initialDevices, isAdmi
     const valueToNumber = (formattedValue: string): number => {
         if (!formattedValue) return 0;
         // Replace comma with dot for parsing
-        return parseFloat(formattedValue.replace(',', '.'));
+        const cleaned = formattedValue.replace(',', '.');
+        const num = parseFloat(cleaned);
+        return isNaN(num) ? 0 : num;
     };
 
     // Format water meter value with comma in last 2 digits (ex: 12345 -> 123,45)
