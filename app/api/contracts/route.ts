@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { getContractWhereClause } from "@/lib/multi-tenancy";
 
 export async function GET() {
   const session = await getServerSession(authOptions);
@@ -10,13 +11,7 @@ export async function GET() {
     return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
   }
 
-  const whereClause = (session.user.role === "ADMIN" || session.user.role === "OWNER")
-    ? {}
-    : {
-      users: {
-        some: { userId: session.user.id }
-      }
-    };
+  const whereClause = getContractWhereClause(session);
 
   const contracts = await prisma.contract.findMany({
     where: {
@@ -38,12 +33,12 @@ export async function GET() {
 export async function POST(request: Request) {
   const session = await getServerSession(authOptions);
 
-  if (!session || (session.user.role !== "ADMIN" && session.user.role !== "OWNER")) {
+  if (!session || (session.user.role !== "ADMIN" && session.user.role !== "OWNER" && session.user.role !== "SUPER_ADMIN")) {
     return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
   }
 
   const body = await request.json();
-  const { name, company, responsible, email, phone, logo } = body;
+  const { name, company, responsible, email, phone, logo, companyId: targetCompanyId } = body;
 
   if (!name || !company || !responsible || !email) {
     return NextResponse.json(
@@ -52,10 +47,17 @@ export async function POST(request: Request) {
     );
   }
 
+  // SUPER_ADMIN can create contracts for any company (must provide companyId)
+  // ADMIN/OWNER creates contracts for their own company
+  const companyId = session.user.role === "SUPER_ADMIN" && targetCompanyId
+    ? targetCompanyId
+    : session.user.companyId;
+
   const contract = await prisma.contract.create({
     data: {
       name,
       company,
+      companyId,
       responsible,
       email,
       phone,

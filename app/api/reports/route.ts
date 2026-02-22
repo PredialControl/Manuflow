@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { getCompanyWhereClause } from "@/lib/multi-tenancy";
 
 export async function GET() {
   const session = await getServerSession(authOptions);
@@ -10,13 +11,7 @@ export async function GET() {
     return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
   }
 
-  const whereClause = session.user.role === "ADMIN"
-    ? {}
-    : {
-        contract: {
-          users: { some: { userId: session.user.id } },
-        },
-      };
+  const whereClause = getCompanyWhereClause(session);
 
   const reports = await prisma.report.findMany({
     where: {
@@ -65,6 +60,7 @@ export async function POST(request: Request) {
   const report = await prisma.report.create({
     data: {
       contractId,
+      companyId: session.user.companyId,
       assetId: assetId || null,
       userId: session.user.id,
       title,

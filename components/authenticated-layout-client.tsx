@@ -39,8 +39,15 @@ export function AuthenticatedLayoutClient({
     const contractId = contractMatch ? contractMatch[1] : null;
     const isContractRoute = !!contractId && contractId !== "new";
 
+    // SUPER_ADMIN vê painel global e empresas
     // Técnico vê apenas Dashboard
-    const mainNavItems = session.user.role === "TECHNICIAN"
+    // Outros usuários veem contratos e itens relevantes
+    const mainNavItems = session.user.role === "SUPER_ADMIN"
+        ? [
+            { href: "/super-admin/dashboard", label: "Dashboard Global", icon: LayoutDashboard },
+            { href: "/super-admin/companies", label: "Empresas", icon: Building2 },
+        ]
+        : session.user.role === "TECHNICIAN"
         ? [{ href: "/dashboard", label: "Minhas Tarefas", icon: LayoutDashboard }]
         : [
             { href: "/dashboard", label: "Geral", icon: LayoutDashboard },
@@ -48,7 +55,7 @@ export function AuthenticatedLayoutClient({
             { href: "/relevant-items", label: "Itens Relevantes", icon: Sparkles },
         ];
 
-    if (session.user.role === "ADMIN" || session.user.role === "OWNER") {
+    if ((session.user.role === "ADMIN" || session.user.role === "OWNER") && session.user.role !== "SUPER_ADMIN") {
         mainNavItems.push({ href: "/users", label: "Usuários", icon: Users });
     }
 
