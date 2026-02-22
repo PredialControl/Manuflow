@@ -3,25 +3,19 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Building2, Users, FileText, Package, TrendingUp } from "lucide-react";
+import { Building2, Users } from "lucide-react";
 
 export default async function SuperAdminDashboard() {
   const session = await getServerSession(authOptions);
 
-  // Obter estatísticas globais
+  // Obter estatísticas de gestão
   const [
     totalCompanies,
     totalUsers,
-    totalContracts,
-    totalAssets,
-    totalReports,
     companies,
   ] = await Promise.all([
     prisma.company.count(),
     prisma.user.count(),
-    prisma.contract.count(),
-    prisma.asset.count(),
-    prisma.report.count(),
     prisma.company.findMany({
       include: {
         _count: {
@@ -76,55 +70,31 @@ export default async function SuperAdminDashboard() {
         </p>
       </div>
 
-      {/* Estatísticas Globais */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
+      {/* Estatísticas de Gestão */}
+      <div className="grid gap-4 md:grid-cols-2">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Empresas</CardTitle>
+            <CardTitle className="text-sm font-medium">Empresas Cadastradas</CardTitle>
             <Building2 className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{totalCompanies}</div>
+            <p className="text-xs text-muted-foreground mt-1">
+              Total de empresas clientes
+            </p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Usuários</CardTitle>
+            <CardTitle className="text-sm font-medium">Usuários Ativos</CardTitle>
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{totalUsers}</div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Contratos</CardTitle>
-            <FileText className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{totalContracts}</div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Ativos</CardTitle>
-            <Package className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{totalAssets}</div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Laudos</CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{totalReports}</div>
+            <p className="text-xs text-muted-foreground mt-1">
+              Total de logins cadastrados
+            </p>
           </CardContent>
         </Card>
       </div>

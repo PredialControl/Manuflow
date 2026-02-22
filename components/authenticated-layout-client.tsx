@@ -39,13 +39,13 @@ export function AuthenticatedLayoutClient({
     const contractId = contractMatch ? contractMatch[1] : null;
     const isContractRoute = !!contractId && contractId !== "new";
 
-    // SUPER_ADMIN vê painel global e empresas
+    // SUPER_ADMIN vê apenas gestão de empresas e usuários
     // Técnico vê apenas Dashboard
     // Outros usuários veem contratos e itens relevantes
     const mainNavItems = session.user.role === "SUPER_ADMIN"
         ? [
-            { href: "/super-admin/dashboard", label: "Dashboard Global", icon: LayoutDashboard },
             { href: "/super-admin/companies", label: "Empresas", icon: Building2 },
+            { href: "/super-admin/users", label: "Usuários", icon: Users },
         ]
         : session.user.role === "TECHNICIAN"
         ? [{ href: "/dashboard", label: "Minhas Tarefas", icon: LayoutDashboard }]

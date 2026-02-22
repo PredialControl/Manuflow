@@ -6,8 +6,11 @@ export default withAuth(
     const token = req.nextauth.token;
     const pathname = req.nextUrl.pathname;
 
-    // SUPER_ADMIN has access to everything
+    // SUPER_ADMIN: redirecionar dashboard para gestão de empresas
     if (token?.role === "SUPER_ADMIN") {
+      if (pathname === "/dashboard") {
+        return NextResponse.redirect(new URL("/super-admin/companies", req.url));
+      }
       return NextResponse.next();
     }
 
