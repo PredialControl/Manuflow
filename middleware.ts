@@ -6,12 +6,22 @@ export default withAuth(
     const token = req.nextauth.token;
     const pathname = req.nextUrl.pathname;
 
+    // SUPER_ADMIN has access to everything
+    if (token?.role === "SUPER_ADMIN") {
+      return NextResponse.next();
+    }
+
+    // Super Admin routes - only SUPER_ADMIN can access
+    if (pathname.startsWith("/super-admin")) {
+      return NextResponse.redirect(new URL("/dashboard", req.url));
+    }
+
     // Admin-only routes
     if (pathname.startsWith("/admin") && token?.role !== "ADMIN") {
       return NextResponse.redirect(new URL("/dashboard", req.url));
     }
 
-    if (pathname.startsWith("/users") && token?.role !== "ADMIN") {
+    if (pathname.startsWith("/users") && token?.role !== "ADMIN" && token?.role !== "OWNER") {
       return NextResponse.redirect(new URL("/dashboard", req.url));
     }
 
@@ -59,5 +69,7 @@ export const config = {
     "/templates/:path*",
     "/users/:path*",
     "/settings/:path*",
+    "/super-admin/:path*",
+    "/relevant-items/:path*",
   ],
 };
