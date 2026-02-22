@@ -41,7 +41,7 @@ export async function POST(request: Request) {
     }
 
     const schedule = await prisma.inspectionSchedule.create({
-        data: { contractId, name, description, days, shift: shift || "DAY", time },
+        data: { companyId: session.user.companyId, contractId, name, description, days, shift: shift || "DAY", time },
     });
 
     return NextResponse.json(schedule, { status: 201 });

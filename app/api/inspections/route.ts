@@ -31,6 +31,7 @@ export async function POST(request: Request) {
 
   const inspection = await prisma.inspection.create({
     data: {
+      companyId: session.user.companyId,
       contractId,
       assetId,
       userId: session.user.id,
@@ -42,6 +43,7 @@ export async function POST(request: Request) {
     asset.scripts.map((script: any) =>
       prisma.inspectionStep.create({
         data: {
+          companyId: session.user.companyId,
           inspectionId: inspection.id,
           scriptId: script.id,
           question: script.question,
@@ -63,6 +65,7 @@ export async function POST(request: Request) {
     for (let i = 0; i < defaultSteps.length; i++) {
       await prisma.inspectionStep.create({
         data: {
+          companyId: session.user.companyId,
           inspectionId: inspection.id,
           question: defaultSteps[i],
           requirePhoto: i === 0,

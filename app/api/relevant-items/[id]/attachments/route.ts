@@ -39,6 +39,7 @@ export async function POST(
         // Save attachment in database
         const attachment = await prisma.relevantItemAttachment.create({
             data: {
+                companyId: session.user.companyId,
                 itemId,
                 url: blob.url,
                 filename: file.name,

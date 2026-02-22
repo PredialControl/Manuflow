@@ -50,6 +50,7 @@ export async function POST(
   const asset = await prisma.asset.create({
     data: {
       contractId,
+      companyId: session.user.companyId,
       name,
       type,
       location,
@@ -67,6 +68,7 @@ export async function POST(
       await prisma.assetScript.create({
         data: {
           assetId: asset.id,
+          companyId: session.user.companyId,
           order: i + 1,
           question: checklist[i],
           required: true,

@@ -95,6 +95,7 @@ export async function POST(request: Request) {
 
       await prisma.emailQueue.create({
         data: {
+          companyId: report.contract.companyId,
           contractId: report.contractId,
           reportId: report.id,
           type: "ALERT_60",
@@ -105,6 +106,7 @@ export async function POST(request: Request) {
     } else {
       await prisma.emailQueue.create({
         data: {
+          companyId: report.contract.companyId,
           contractId: report.contractId,
           reportId: report.id,
           type: "ALERT_60",
@@ -151,6 +153,7 @@ export async function POST(request: Request) {
 
       await prisma.emailQueue.create({
         data: {
+          companyId: report.contract.companyId,
           contractId: report.contractId,
           reportId: report.id,
           type: "EXPIRED",
@@ -161,6 +164,7 @@ export async function POST(request: Request) {
     } else {
       await prisma.emailQueue.create({
         data: {
+          companyId: report.contract.companyId,
           contractId: report.contractId,
           reportId: report.id,
           type: "EXPIRED",

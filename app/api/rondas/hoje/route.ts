@@ -64,6 +64,7 @@ export async function GET(request: Request) {
             if (!occurrence) {
                 occurrence = await prisma.scheduledInspection.create({
                     data: {
+                        companyId: session.user.companyId,
                         scheduleId: schedule.id,
                         contractId: schedule.contractId,
                         date: today,

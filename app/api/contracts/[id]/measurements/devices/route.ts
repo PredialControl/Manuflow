@@ -19,6 +19,7 @@ export async function POST(
 
         const device = await prisma.measurementDevice.create({
             data: {
+                companyId: session.user.companyId,
                 contractId,
                 name,
                 type,
