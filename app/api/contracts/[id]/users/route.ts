@@ -68,6 +68,7 @@ export async function POST(
                     password: hashedPassword,
                     role,
                     category,
+                    companyId: session.user.companyId,
                 } as any,
             });
 
