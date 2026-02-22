@@ -154,6 +154,19 @@ const defaultTemplates: Array<{
 async function main() {
   console.log("Iniciando seed...");
 
+  // Criar ou buscar empresa padrão
+  const defaultCompany = await prisma.company.upsert({
+    where: { id: "manuflow-default" },
+    update: {},
+    create: {
+      id: "manuflow-default",
+      name: "ManuFlow",
+      subscriptionStatus: "ACTIVE",
+    },
+  });
+
+  console.log("Empresa padrão criada:", defaultCompany.name);
+
   const hashedPassword = await bcrypt.hash("admin123", 10);
 
   const admin = await prisma.user.upsert({
@@ -164,6 +177,7 @@ async function main() {
       name: "Administrador",
       password: hashedPassword,
       role: "ADMIN",
+      companyId: defaultCompany.id,
     },
   });
 
