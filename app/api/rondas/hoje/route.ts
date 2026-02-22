@@ -75,6 +75,7 @@ export async function GET(request: Request) {
                         // Criar passos se existirem na agenda
                         steps: {
                             create: (schedule.steps as any[] || []).map((step: any) => ({
+                                companyId: session.user.companyId,
                                 description: step.task,
                                 assetId: step.assetId,
                                 status: "PENDING",
