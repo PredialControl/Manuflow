@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { getContractWhereClause } from "@/lib/multi-tenancy";
 
 export async function GET() {
     const session = await getServerSession(authOptions);
@@ -11,23 +12,20 @@ export async function GET() {
     }
 
     try {
-        // Buscar contratos do técnico
-        const userContracts = await prisma.userContract.findMany({
-            where: { userId: session.user.id },
-            select: { contractId: true },
+        // Get contracts using multi-tenancy helper
+        const contractWhere = getContractWhereClause(session);
+
+        const contracts = await prisma.contract.findMany({
+            where: contractWhere,
+            select: { id: true },
         });
 
-        const contractIds = userContracts.map(uc => uc.contractId);
-
-        // Se OWNER/ADMIN sem contratos, pega todos
-        const effectiveContractIds = ((session.user.role === "ADMIN" || session.user.role === "OWNER") && contractIds.length === 0)
-            ? (await prisma.contract.findMany({ where: { active: true }, select: { id: true } })).map(c => c.id)
-            : contractIds;
+        const contractIds = contracts.map(c => c.id);
 
         // Buscar todos os medidores dos contratos do técnico
         const devices = await prisma.measurementDevice.findMany({
             where: {
-                contractId: { in: effectiveContractIds },
+                contractId: { in: contractIds },
                 active: true,
             },
             include: {

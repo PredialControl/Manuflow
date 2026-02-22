@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { getContractWhereClause } from "@/lib/multi-tenancy";
 
 export async function GET(
   request: Request,
@@ -14,6 +15,21 @@ export async function GET(
   }
 
   const { id } = await params;
+
+  // Validate user has access to this contract
+  const contractWhere = getContractWhereClause(session);
+  const contract = await prisma.contract.findFirst({
+    where: {
+      id,
+      ...contractWhere,
+    },
+    select: { id: true },
+  });
+
+  if (!contract) {
+    return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+  }
+
   const assets = await prisma.asset.findMany({
     where: {
       contractId: id,

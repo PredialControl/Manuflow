@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { getCompanyWhereClause } from "@/lib/multi-tenancy";
 
 // GET /api/schedules?contractId=xxx
 export async function GET(request: Request) {
@@ -11,8 +12,11 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const contractId = searchParams.get("contractId");
 
+    const whereClause = getCompanyWhereClause(session);
+
     const schedules = await prisma.inspectionSchedule.findMany({
         where: {
+            ...whereClause,
             ...(contractId ? { contractId } : {}),
             active: true,
         },

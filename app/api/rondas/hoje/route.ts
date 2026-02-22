@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { getContractWhereClause } from "@/lib/multi-tenancy";
 
 // GET /api/rondas/hoje — Rondas do dia para o técnico logado
 export async function GET(request: Request) {
@@ -22,16 +23,19 @@ export async function GET(request: Request) {
     };
     const todayDow = dayMap[new Date().getDay()];
 
+    // Get contracts using multi-tenancy helper
+    const contractWhere = getContractWhereClause(session);
+
     // Buscar agendamentos ativos para hoje
     const schedules = await prisma.inspectionSchedule.findMany({
         where: {
+            ...contractWhere,
             active: true,
             days: { has: todayDow as any },
             ...(contractId ? { contractId } : {}),
             // Filtro por categoria do técnico
             ...(session.user.role === "TECHNICIAN"
                 ? {
-                    contract: { users: { some: { userId: session.user.id } } },
                     OR: [
                         { category: session.user.category }, // Rondas da especialidade dele
                         { category: "GERAL" },              // Ou rondas gerais
