@@ -6,6 +6,7 @@ import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Plus, Building2, Mail, Phone } from "lucide-react";
+import { getContractWhereClause, isCompanyAdmin } from "@/lib/multi-tenancy";
 
 export default async function ContractsPage() {
   const session = await getServerSession(authOptions);
@@ -14,13 +15,7 @@ export default async function ContractsPage() {
     redirect("/login");
   }
 
-  const whereClause = (session.user.role === "ADMIN" || session.user.role === "OWNER")
-    ? {}
-    : {
-      users: {
-        some: { userId: session.user.id }
-      }
-    };
+  const whereClause = getContractWhereClause(session);
 
   const contracts = await prisma.contract.findMany({
     where: {
@@ -45,7 +40,7 @@ export default async function ContractsPage() {
             Gerencie seus contratos e clientes
           </p>
         </div>
-        {session.user.role === "ADMIN" && (
+        {isCompanyAdmin(session) && (
           <Link href="/contracts/new">
             <Button>
               <Plus className="h-4 w-4 mr-2" />
@@ -65,7 +60,7 @@ export default async function ContractsPage() {
             <p className="text-muted-foreground mb-8 text-center max-w-xs">
               Você ainda não possui contratos vinculados a esta conta.
             </p>
-            {session.user.role === "ADMIN" && (
+            {isCompanyAdmin(session) && (
               <Link href="/contracts/new">
                 <Button className="rounded-xl px-6">
                   <Plus className="h-4 w-4 mr-2" />

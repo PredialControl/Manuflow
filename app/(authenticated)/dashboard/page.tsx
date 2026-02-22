@@ -7,6 +7,7 @@ import { Building2, FileText, AlertTriangle, CheckCircle, TrendingUp } from "luc
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { TechnicianDashboard } from "@/components/technician-dashboard";
+import { getContractWhereClause, getCompanyWhereClause } from "@/lib/multi-tenancy";
 
 export const dynamic = "force-dynamic";
 
@@ -17,21 +18,16 @@ export default async function DashboardPage() {
     redirect("/login");
   }
 
-  const whereClause = session.user.role === "ADMIN"
-    ? {}
-    : {
-      users: {
-        some: { userId: session.user.id }
-      }
-    };
+  const contractWhereClause = getContractWhereClause(session);
+  const companyWhereClause = getCompanyWhereClause(session);
 
   const [contracts, reports] = await Promise.all([
     prisma.contract.count({
-      where: { ...whereClause, active: true },
+      where: { ...contractWhereClause, active: true },
     }),
     prisma.report.findMany({
       where: {
-        contract: whereClause,
+        ...companyWhereClause,
         deletedAt: null,
       },
       select: {

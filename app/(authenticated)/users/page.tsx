@@ -6,15 +6,19 @@ import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Users, Plus, Shield, User, Wrench } from "lucide-react";
+import { getDirectCompanyWhereClause, isCompanyAdmin } from "@/lib/multi-tenancy";
 
 export default async function UsersPage() {
   const session = await getServerSession(authOptions);
 
-  if (!session || (session.user.role !== "OWNER" && session.user.role !== "ADMIN")) {
+  if (!session || !isCompanyAdmin(session)) {
     redirect("/dashboard");
   }
 
+  const whereClause = getDirectCompanyWhereClause(session);
+
   const users = await prisma.user.findMany({
+    where: whereClause,
     include: {
       _count: {
         select: { contracts: true, inspections: true, reports: true },

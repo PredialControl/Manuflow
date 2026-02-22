@@ -15,6 +15,7 @@ import { SupervisorMeasurementsDashboard } from "@/components/supervisor-measure
 import { ContractUserActions } from "@/components/contract-user-actions";
 import { ScheduleManager } from "@/components/schedule-manager";
 import { DeleteAssetButton } from "@/components/delete-asset-button";
+import { getContractWhereClause, isCompanyAdmin } from "@/lib/multi-tenancy";
 
 export const dynamic = "force-dynamic";
 
@@ -33,14 +34,14 @@ export default async function ContractDetailPage({
 
   const activeTab = searchParams.tab || "overview";
 
+  const contractWhereClause = getContractWhereClause(session);
+
   const contract = await prisma.contract.findFirst({
     where: {
       id: params.id,
       active: true,
       deletedAt: null,
-      ...(session.user.role !== "OWNER" && session.user.role !== "ADMIN"
-        ? { users: { some: { userId: session.user.id } } }
-        : {}),
+      ...contractWhereClause,
     },
     include: {
       assets: {
@@ -90,7 +91,7 @@ export default async function ContractDetailPage({
   }
 
   const isOwner = session.user.role === "OWNER";
-  const isAdmin = session.user.role === "ADMIN" || isOwner;
+  const isAdmin = isCompanyAdmin(session);
 
   const reportStats = await prisma.report.groupBy({
     by: ["status"],
@@ -121,7 +122,7 @@ export default async function ContractDetailPage({
             <p className="text-xs font-black text-muted-foreground uppercase tracking-[0.3em]">{contract.company}</p>
           </div>
         </div>
-        {session.user.role === "ADMIN" && (
+        {isAdmin && (
           <div className="flex gap-3">
             <Link href={`/contracts/${contract.id}/edit`}>
               <Button variant="outline" size="icon" className="rounded-xl border-border/60 hover:bg-primary/5 hover:text-primary transition-all">
@@ -236,7 +237,7 @@ export default async function ContractDetailPage({
         <TabsContent value="assets" className="space-y-4">
           <div className="flex items-center justify-between mb-2">
             <h2 className="text-xl font-black tracking-tight uppercase text-muted-foreground/40 italic">Ativos do Contrato</h2>
-            {session.user.role === "ADMIN" && (
+            {isAdmin && (
               <Link href={`/contracts/${contract.id}/assets/new`}>
                 <Button size="sm" className="btn-premium">
                   <Plus className="h-4 w-4 mr-2" />
@@ -250,7 +251,7 @@ export default async function ContractDetailPage({
               <CardContent className="flex flex-col items-center justify-center py-12">
                 <Building2 className="h-12 w-12 text-muted-foreground mb-4" />
                 <p className="text-muted-foreground mb-4">Nenhum ativo encontrado</p>
-                {session.user.role === "ADMIN" && (
+                {isAdmin && (
                   <Link href={`/contracts/${contract.id}/assets/new`}>
                     <Button variant="outline">
                       <Plus className="h-4 w-4 mr-2" />
@@ -413,7 +414,7 @@ export default async function ContractDetailPage({
         <TabsContent value="reports" className="space-y-4 pt-4">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-xl font-black tracking-tight uppercase text-muted-foreground/40">Gestão de Laudos</h2>
-            {(session.user.role === "ADMIN" || session.user.role === "OWNER") && (
+            {isAdmin && (
               <Link href={`/contracts/${contract.id}/reports/new`}>
                 <Button size="sm" className="btn-premium">
                   <Plus className="h-4 w-4 mr-2" />

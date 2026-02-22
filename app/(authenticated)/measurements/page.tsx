@@ -3,6 +3,7 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
 import { SupervisorMeasurementsDashboard } from "@/components/supervisor-measurements-dashboard";
+import { getContractWhereClause } from "@/lib/multi-tenancy";
 
 export default async function MeasurementsPage() {
     const session = await getServerSession(authOptions);
@@ -11,19 +12,13 @@ export default async function MeasurementsPage() {
         redirect("/login");
     }
 
-    const whereClause = (session.user.role === "ADMIN" || session.user.role === "OWNER")
-        ? {}
-        : {
-            users: {
-                some: { userId: session.user.id }
-            }
-        };
+    const contractWhereClause = getContractWhereClause(session);
 
     // ADMIN, OWNER e SUPERVISOR veem dashboard com gráficos
     const devices = await prisma.measurementDevice.findMany({
         where: {
             contract: {
-                ...whereClause,
+                ...contractWhereClause,
                 active: true,
                 deletedAt: null,
             },
