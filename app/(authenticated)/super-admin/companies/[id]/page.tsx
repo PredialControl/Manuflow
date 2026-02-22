@@ -47,6 +47,12 @@ export default function CompanyDetailsPage({ params }: { params: Promise<{ id: s
   const [company, setCompany] = useState<Company | null>(null);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
+  const [creatingAdmin, setCreatingAdmin] = useState(false);
+  const [adminForm, setAdminForm] = useState({
+    name: "",
+    email: "",
+    password: "",
+  });
   const [formData, setFormData] = useState({
     name: "",
     logo: "",
@@ -125,6 +131,37 @@ export default function CompanyDetailsPage({ params }: { params: Promise<{ id: s
     } catch (error) {
       console.error("Erro:", error);
       alert("Erro ao excluir empresa");
+    }
+  }
+
+  async function handleCreateAdmin(e: React.FormEvent) {
+    e.preventDefault();
+    setLoading(true);
+
+    try {
+      const res = await fetch("/api/super-admin/users", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...adminForm,
+          companyId: resolvedParams.id,
+        }),
+      });
+
+      if (res.ok) {
+        alert("Admin criado com sucesso!");
+        setCreatingAdmin(false);
+        setAdminForm({ name: "", email: "", password: "" });
+        await fetchCompany();
+      } else {
+        const error = await res.json();
+        alert(error.message || "Erro ao criar admin");
+      }
+    } catch (error) {
+      console.error("Erro:", error);
+      alert("Erro ao criar admin");
+    } finally {
+      setLoading(false);
     }
   }
 
@@ -344,10 +381,74 @@ export default function CompanyDetailsPage({ params }: { params: Promise<{ id: s
 
       {/* Usuários */}
       <Card>
-        <CardHeader>
+        <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle>Usuários ({company.users.length})</CardTitle>
+          <Button onClick={() => setCreatingAdmin(!creatingAdmin)} size="sm">
+            {creatingAdmin ? "Cancelar" : "+ Criar Admin"}
+          </Button>
         </CardHeader>
         <CardContent>
+          {creatingAdmin && (
+            <form onSubmit={handleCreateAdmin} className="space-y-4 mb-6 p-4 border rounded-lg bg-muted/50">
+              <h3 className="font-medium">Novo Administrador</h3>
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="admin-name">Nome</Label>
+                  <Input
+                    id="admin-name"
+                    value={adminForm.name}
+                    onChange={(e) =>
+                      setAdminForm({ ...adminForm, name: e.target.value })
+                    }
+                    required
+                    placeholder="João Silva"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="admin-email">Email</Label>
+                  <Input
+                    id="admin-email"
+                    type="email"
+                    value={adminForm.email}
+                    onChange={(e) =>
+                      setAdminForm({ ...adminForm, email: e.target.value })
+                    }
+                    required
+                    placeholder="admin@empresa.com"
+                  />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="admin-password">Senha</Label>
+                <Input
+                  id="admin-password"
+                  type="text"
+                  value={adminForm.password}
+                  onChange={(e) =>
+                    setAdminForm({ ...adminForm, password: e.target.value })
+                  }
+                  required
+                  placeholder="Senha do administrador"
+                />
+              </div>
+              <div className="flex gap-2">
+                <Button type="submit" disabled={loading}>
+                  {loading ? "Criando..." : "Criar Admin"}
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    setCreatingAdmin(false);
+                    setAdminForm({ name: "", email: "", password: "" });
+                  }}
+                >
+                  Cancelar
+                </Button>
+              </div>
+            </form>
+          )}
+
           <div className="space-y-3">
             {company.users.map((user) => (
               <div

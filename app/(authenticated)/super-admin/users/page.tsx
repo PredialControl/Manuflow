@@ -1,35 +1,117 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+"use client";
+
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Users, Building2, Mail } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Users, Building2, Mail, Key, Trash2 } from "lucide-react";
 
-export default async function SuperAdminUsersPage() {
-  const session = await getServerSession(authOptions);
+interface User {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+  company: {
+    id: string;
+    name: string;
+    subscriptionStatus: string;
+  };
+  _count: {
+    contracts: number;
+  };
+}
 
-  // Obter todos os usuários de todas as empresas
-  const users = await prisma.user.findMany({
-    include: {
-      company: {
-        select: {
-          id: true,
-          name: true,
-          subscriptionStatus: true,
-        },
-      },
-      _count: {
-        select: {
-          contracts: true,
-        },
-      },
-    },
-    orderBy: [
-      { company: { name: "asc" } },
-      { role: "asc" },
-      { name: "asc" },
-    ],
-  });
+export default function SuperAdminUsersPage() {
+  const [users, setUsers] = useState<User[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [resettingPassword, setResettingPassword] = useState<string | null>(null);
+  const [newPassword, setNewPassword] = useState("");
+
+  useEffect(() => {
+    fetchUsers();
+  }, []);
+
+  async function fetchUsers() {
+    try {
+      const res = await fetch("/api/super-admin/users");
+      if (res.ok) {
+        const data = await res.json();
+        setUsers(data);
+      }
+    } catch (error) {
+      console.error("Erro ao buscar usuários:", error);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleResetPassword(userId: string) {
+    if (!newPassword) {
+      alert("Digite uma nova senha");
+      return;
+    }
+
+    try {
+      const res = await fetch(`/api/super-admin/users/${userId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "reset-password",
+          password: newPassword,
+        }),
+      });
+
+      if (res.ok) {
+        alert("Senha resetada com sucesso!");
+        setResettingPassword(null);
+        setNewPassword("");
+      } else {
+        const error = await res.json();
+        alert(error.message || "Erro ao resetar senha");
+      }
+    } catch (error) {
+      console.error("Erro:", error);
+      alert("Erro ao resetar senha");
+    }
+  }
+
+  async function handleDeleteUser(userId: string, userName: string) {
+    if (!confirm(`Tem certeza que deseja excluir o usuário ${userName}?`)) {
+      return;
+    }
+
+    try {
+      const res = await fetch(`/api/super-admin/users/${userId}`, {
+        method: "DELETE",
+      });
+
+      if (res.ok) {
+        alert("Usuário excluído com sucesso!");
+        await fetchUsers();
+      } else {
+        const error = await res.json();
+        alert(error.message || "Erro ao excluir usuário");
+      }
+    } catch (error) {
+      console.error("Erro:", error);
+      alert("Erro ao excluir usuário");
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-3xl font-bold">Usuários</h1>
+          <p className="text-muted-foreground mt-1">Carregando...</p>
+        </div>
+      </div>
+    );
+  }
 
   // Estatísticas
   const totalUsers = users.length;
@@ -130,35 +212,84 @@ export default async function SuperAdminUsersPage() {
             {users.map((user) => (
               <div
                 key={user.id}
-                className="flex items-center justify-between border-b pb-3 last:border-0 last:pb-0"
+                className="border-b pb-3 last:border-0 last:pb-0"
               >
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-1">
-                    <p className="font-medium">{user.name}</p>
-                    <Badge variant="outline" className={roleColors[user.role as keyof typeof roleColors]}>
-                      {roleLabels[user.role as keyof typeof roleLabels]}
-                    </Badge>
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-1">
+                      <p className="font-medium">{user.name}</p>
+                      <Badge variant="outline" className={roleColors[user.role as keyof typeof roleColors]}>
+                        {roleLabels[user.role as keyof typeof roleLabels]}
+                      </Badge>
+                    </div>
+                    <div className="flex items-center gap-3 text-sm text-muted-foreground">
+                      <div className="flex items-center gap-1">
+                        <Mail className="h-3 w-3" />
+                        {user.email}
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <Building2 className="h-3 w-3" />
+                        {user.company.name}
+                      </div>
+                      {user._count.contracts > 0 && (
+                        <span>{user._count.contracts} contrato(s)</span>
+                      )}
+                    </div>
                   </div>
-                  <div className="flex items-center gap-3 text-sm text-muted-foreground">
-                    <div className="flex items-center gap-1">
-                      <Mail className="h-3 w-3" />
-                      {user.email}
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <Building2 className="h-3 w-3" />
-                      {user.company.name}
-                    </div>
-                    {user._count.contracts > 0 && (
-                      <span>{user._count.contracts} contrato(s)</span>
+                  <div className="flex items-center gap-2">
+                    <Badge
+                      variant="outline"
+                      className={statusColors[user.company.subscriptionStatus as keyof typeof statusColors]}
+                    >
+                      {user.company.subscriptionStatus}
+                    </Badge>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setResettingPassword(user.id)}
+                    >
+                      <Key className="h-3 w-3 mr-1" />
+                      Resetar Senha
+                    </Button>
+                    {user.role !== "SUPER_ADMIN" && (
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        onClick={() => handleDeleteUser(user.id, user.name)}
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </Button>
                     )}
                   </div>
                 </div>
-                <Badge
-                  variant="outline"
-                  className={statusColors[user.company.subscriptionStatus]}
-                >
-                  {user.company.subscriptionStatus}
-                </Badge>
+
+                {resettingPassword === user.id && (
+                  <div className="flex items-center gap-2 mt-2 p-3 bg-muted/50 rounded-lg">
+                    <Input
+                      type="text"
+                      placeholder="Nova senha"
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      className="flex-1"
+                    />
+                    <Button
+                      size="sm"
+                      onClick={() => handleResetPassword(user.id)}
+                    >
+                      Confirmar
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        setResettingPassword(null);
+                        setNewPassword("");
+                      }}
+                    >
+                      Cancelar
+                    </Button>
+                  </div>
+                )}
               </div>
             ))}
           </div>
