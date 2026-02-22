@@ -133,20 +133,26 @@ export default function CompaniesPage() {
                 </div>
               )}
 
-              <div className="grid grid-cols-2 gap-3 pt-3 border-t">
-                <div className="flex items-center gap-2">
-                  <Users className="h-4 w-4 text-muted-foreground" />
-                  <div>
-                    <p className="text-xs text-muted-foreground">Usuários</p>
-                    <p className="text-sm font-bold">{company._count.users}</p>
+              <div className="grid grid-cols-2 gap-4 pt-4 border-t">
+                <div className="flex flex-col">
+                  <div className="flex items-center gap-2 mb-1">
+                    <Users className="h-4 w-4 text-primary" />
+                    <p className="text-xs font-medium text-muted-foreground">Usuários</p>
                   </div>
+                  <p className="text-2xl font-bold text-primary">{company._count.users}</p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {company._count.users === 1 ? 'login cadastrado' : 'logins cadastrados'}
+                  </p>
                 </div>
-                <div className="flex items-center gap-2">
-                  <FileText className="h-4 w-4 text-muted-foreground" />
-                  <div>
-                    <p className="text-xs text-muted-foreground">Contratos</p>
-                    <p className="text-sm font-bold">{company._count.contracts}</p>
+                <div className="flex flex-col">
+                  <div className="flex items-center gap-2 mb-1">
+                    <FileText className="h-4 w-4 text-blue-500" />
+                    <p className="text-xs font-medium text-muted-foreground">Contratos</p>
                   </div>
+                  <p className="text-2xl font-bold text-blue-500">{company._count.contracts}</p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {company._count.contracts === 1 ? 'contrato ativo' : 'contratos ativos'}
+                  </p>
                 </div>
               </div>
             </CardContent>
