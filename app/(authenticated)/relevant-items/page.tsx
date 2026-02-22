@@ -1,0 +1,83 @@
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
+import { redirect } from "next/navigation";
+import { RelevantItemsKanban } from "@/components/relevant-items-kanban";
+
+export const dynamic = "force-dynamic";
+
+export default async function RelevantItemsPage({
+    searchParams,
+}: {
+    searchParams: { contractId?: string };
+}) {
+    const session = await getServerSession(authOptions);
+
+    if (!session) {
+        redirect("/login");
+    }
+
+    const where: any = {
+        deletedAt: null,
+    };
+
+    // Filter by contract if specified
+    if (searchParams.contractId) {
+        where.contractId = searchParams.contractId;
+    }
+
+    // Non-admin users can only see their own contracts
+    if (session.user.role !== "ADMIN" && session.user.role !== "OWNER") {
+        where.contract = {
+            users: {
+                some: {
+                    userId: session.user.id
+                }
+            }
+        };
+    }
+
+    const items = await prisma.relevantItem.findMany({
+        where,
+        include: {
+            user: {
+                select: {
+                    id: true,
+                    name: true,
+                    email: true,
+                }
+            },
+            contract: {
+                select: {
+                    id: true,
+                    name: true,
+                    company: true,
+                }
+            },
+            attachments: {
+                include: {
+                    user: {
+                        select: {
+                            name: true,
+                        }
+                    }
+                },
+                orderBy: {
+                    createdAt: "desc"
+                }
+            }
+        },
+        orderBy: {
+            createdAt: "desc"
+        }
+    });
+
+    return (
+        <div className="container mx-auto p-6">
+            <RelevantItemsKanban
+                initialItems={items as any}
+                contractId={searchParams.contractId}
+            />
+        </div>
+    );
+}

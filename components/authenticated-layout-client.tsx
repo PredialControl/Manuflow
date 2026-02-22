@@ -18,7 +18,8 @@ import {
     ClipboardCheck,
     Package,
     History,
-    Gauge
+    Gauge,
+    Sparkles
 } from "lucide-react";
 
 
@@ -44,6 +45,7 @@ export function AuthenticatedLayoutClient({
         : [
             { href: "/dashboard", label: "Geral", icon: LayoutDashboard },
             { href: "/contracts", label: "Contratos", icon: Building2 },
+            { href: "/relevant-items", label: "Itens Relevantes", icon: Sparkles },
         ];
 
     if (session.user.role === "ADMIN" || session.user.role === "OWNER") {

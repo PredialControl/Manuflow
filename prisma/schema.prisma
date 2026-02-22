@@ -94,13 +94,15 @@ model User {
   avatar        String?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
-  
+
   contracts     UserContract[]
   inspections   Inspection[]
   reports       Report[]
   auditLogs     AuditLog[]
   assignedRondas ScheduledInspection[]
   measurementEntries MeasurementEntry[]
+  relevantItems RelevantItem[]
+  relevantItemAttachments RelevantItemAttachment[]
 }
 
 model Contract {
@@ -115,7 +117,7 @@ model Contract {
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
   deletedAt       DateTime?
-  
+
   assets          Asset[]
   users           UserContract[]
   reports         Report[]
@@ -124,6 +126,7 @@ model Contract {
   schedules       InspectionSchedule[]
   scheduledInspections ScheduledInspection[]
   measurementDevices   MeasurementDevice[]
+  relevantItems   RelevantItem[]
 }
 
 model UserContract {
@@ -418,8 +421,49 @@ model MeasurementEntry {
   date            DateTime          @default(now())
   notes           String?
   createdAt       DateTime          @default(now())
-  
+
   device          MeasurementDevice @relation(fields: [deviceId], references: [id], onDelete: Cascade)
   user            User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+enum RelevantItemStatus {
+  AWAITING_BUDGET    // Ag. Orçamentos
+  AWAITING_APPROVAL  // Ag. Aprovação
+  APPROVED           // Aprovados
+  COMPLETED          // Concluídos
+}
+
+model RelevantItem {
+  id              String              @id @default(cuid())
+  contractId      String
+  userId          String
+  title           String
+  description     String?
+  status          RelevantItemStatus  @default(AWAITING_BUDGET)
+  priority        String?             // LOW, MEDIUM, HIGH
+  dueDate         DateTime?
+  value           Float?              // Valor do orçamento
+  notes           String?
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+  deletedAt       DateTime?
+
+  contract        Contract            @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  user            User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  attachments     RelevantItemAttachment[]
+}
+
+model RelevantItemAttachment {
+  id              String         @id @default(cuid())
+  itemId          String
+  url             String
+  filename        String
+  fileType        String         // image, pdf, doc, etc.
+  size            Int?
+  uploadedBy      String
+  createdAt       DateTime       @default(now())
+
+  item            RelevantItem   @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  user            User           @relation(fields: [uploadedBy], references: [id], onDelete: Cascade)
 }
 
