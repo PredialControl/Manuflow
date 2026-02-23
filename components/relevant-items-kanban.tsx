@@ -21,6 +21,7 @@ import {
     Sparkles,
     History,
     Clock,
+    AlertCircle,
 } from "lucide-react";
 import { formatDate } from "@/lib/utils";
 import {
