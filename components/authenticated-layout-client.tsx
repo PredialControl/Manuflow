@@ -19,7 +19,8 @@ import {
     Package,
     History,
     Gauge,
-    Sparkles
+    Sparkles,
+    DollarSign
 } from "lucide-react";
 
 
@@ -39,13 +40,13 @@ export function AuthenticatedLayoutClient({
     const contractId = contractMatch ? contractMatch[1] : null;
     const isContractRoute = !!contractId && contractId !== "new";
 
-    // SUPER_ADMIN vê apenas gestão de empresas e usuários
+    // SUPER_ADMIN vê apenas gestão de empresas e financeiro
     // Técnico vê apenas Dashboard
     // Outros usuários veem contratos e itens relevantes
     const mainNavItems = session.user.role === "SUPER_ADMIN"
         ? [
             { href: "/super-admin/companies", label: "Empresas", icon: Building2 },
-            { href: "/super-admin/users", label: "Usuários", icon: Users },
+            { href: "/super-admin/financial", label: "Financeiro", icon: DollarSign },
         ]
         : session.user.role === "TECHNICIAN"
         ? [{ href: "/dashboard", label: "Minhas Tarefas", icon: LayoutDashboard }]
