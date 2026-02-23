@@ -13,7 +13,11 @@ import Link from "next/link";
 interface Company {
   id: string;
   name: string;
+  cnpj: string | null;
+  address: string | null;
+  responsibleEmail: string | null;
   logo: string | null;
+  contractDate: string | null;
   subscriptionStatus: "TRIAL" | "ACTIVE" | "SUSPENDED" | "EXPIRED";
   expirationDate: string | null;
   createdAt: string;
@@ -55,7 +59,11 @@ export default function CompanyDetailsPage({ params }: { params: Promise<{ id: s
   });
   const [formData, setFormData] = useState({
     name: "",
+    cnpj: "",
+    address: "",
+    responsibleEmail: "",
     logo: "",
+    contractDate: "",
     subscriptionStatus: "TRIAL",
     expirationDate: "",
   });
@@ -72,7 +80,13 @@ export default function CompanyDetailsPage({ params }: { params: Promise<{ id: s
         setCompany(data);
         setFormData({
           name: data.name,
+          cnpj: data.cnpj || "",
+          address: data.address || "",
+          responsibleEmail: data.responsibleEmail || "",
           logo: data.logo || "",
+          contractDate: data.contractDate
+            ? new Date(data.contractDate).toISOString().split("T")[0]
+            : "",
           subscriptionStatus: data.subscriptionStatus,
           expirationDate: data.expirationDate
             ? new Date(data.expirationDate).toISOString().split("T")[0]
@@ -286,26 +300,80 @@ export default function CompanyDetailsPage({ params }: { params: Promise<{ id: s
         <CardContent>
           {editing ? (
             <form onSubmit={handleUpdate} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="name">Nome da Empresa</Label>
-                <Input
-                  id="name"
-                  value={formData.name}
-                  onChange={(e) =>
-                    setFormData({ ...formData, name: e.target.value })
-                  }
-                  required
-                />
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="name">Nome da Empresa *</Label>
+                  <Input
+                    id="name"
+                    value={formData.name}
+                    onChange={(e) =>
+                      setFormData({ ...formData, name: e.target.value })
+                    }
+                    required
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="cnpj">CNPJ</Label>
+                  <Input
+                    id="cnpj"
+                    value={formData.cnpj}
+                    onChange={(e) =>
+                      setFormData({ ...formData, cnpj: e.target.value })
+                    }
+                    placeholder="00.000.000/0000-00"
+                  />
+                </div>
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="logo">URL do Logo</Label>
+                <Label htmlFor="address">Endereço</Label>
+                <Input
+                  id="address"
+                  value={formData.address}
+                  onChange={(e) =>
+                    setFormData({ ...formData, address: e.target.value })
+                  }
+                  placeholder="Rua, número, bairro, cidade - UF"
+                />
+              </div>
+
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="responsibleEmail">Email do Responsável</Label>
+                  <Input
+                    id="responsibleEmail"
+                    type="email"
+                    value={formData.responsibleEmail}
+                    onChange={(e) =>
+                      setFormData({ ...formData, responsibleEmail: e.target.value })
+                    }
+                    placeholder="responsavel@empresa.com"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="contractDate">Data de Contratação</Label>
+                  <Input
+                    id="contractDate"
+                    type="date"
+                    value={formData.contractDate}
+                    onChange={(e) =>
+                      setFormData({ ...formData, contractDate: e.target.value })
+                    }
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="logo">URL do Logo/Foto</Label>
                 <Input
                   id="logo"
                   value={formData.logo}
                   onChange={(e) =>
                     setFormData({ ...formData, logo: e.target.value })
                   }
+                  placeholder="https://exemplo.com/logo.png"
                 />
               </div>
 
@@ -356,7 +424,37 @@ export default function CompanyDetailsPage({ params }: { params: Promise<{ id: s
             </form>
           ) : (
             <div className="space-y-4">
-              <div className="flex items-center justify-between">
+              {company.cnpj && (
+                <div className="flex items-center justify-between border-b pb-3">
+                  <span className="text-sm text-muted-foreground">CNPJ</span>
+                  <span className="text-sm font-medium">{company.cnpj}</span>
+                </div>
+              )}
+
+              {company.address && (
+                <div className="flex items-center justify-between border-b pb-3">
+                  <span className="text-sm text-muted-foreground">Endereço</span>
+                  <span className="text-sm font-medium">{company.address}</span>
+                </div>
+              )}
+
+              {company.responsibleEmail && (
+                <div className="flex items-center justify-between border-b pb-3">
+                  <span className="text-sm text-muted-foreground">Email do Responsável</span>
+                  <span className="text-sm font-medium">{company.responsibleEmail}</span>
+                </div>
+              )}
+
+              {company.contractDate && (
+                <div className="flex items-center justify-between border-b pb-3">
+                  <span className="text-sm text-muted-foreground">Data de Contratação</span>
+                  <span className="text-sm font-medium">
+                    {new Date(company.contractDate).toLocaleDateString("pt-BR")}
+                  </span>
+                </div>
+              )}
+
+              <div className="flex items-center justify-between border-b pb-3">
                 <span className="text-sm text-muted-foreground">Status</span>
                 <Badge
                   variant="outline"

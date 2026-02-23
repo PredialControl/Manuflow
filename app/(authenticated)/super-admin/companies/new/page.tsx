@@ -14,7 +14,11 @@ export default function NewCompanyPage() {
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
+    cnpj: "",
+    address: "",
+    responsibleEmail: "",
     logo: "",
+    contractDate: "",
     subscriptionStatus: "TRIAL",
     expirationDate: "",
   });
@@ -67,21 +71,74 @@ export default function NewCompanyPage() {
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="name">Nome da Empresa *</Label>
-              <Input
-                id="name"
-                value={formData.name}
-                onChange={(e) =>
-                  setFormData({ ...formData, name: e.target.value })
-                }
-                required
-                placeholder="Ex: Einstein Saúde"
-              />
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="name">Nome da Empresa *</Label>
+                <Input
+                  id="name"
+                  value={formData.name}
+                  onChange={(e) =>
+                    setFormData({ ...formData, name: e.target.value })
+                  }
+                  required
+                  placeholder="Ex: Einstein Saúde"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="cnpj">CNPJ</Label>
+                <Input
+                  id="cnpj"
+                  value={formData.cnpj}
+                  onChange={(e) =>
+                    setFormData({ ...formData, cnpj: e.target.value })
+                  }
+                  placeholder="00.000.000/0000-00"
+                />
+              </div>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="logo">URL do Logo</Label>
+              <Label htmlFor="address">Endereço</Label>
+              <Input
+                id="address"
+                value={formData.address}
+                onChange={(e) =>
+                  setFormData({ ...formData, address: e.target.value })
+                }
+                placeholder="Rua, número, bairro, cidade - UF"
+              />
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="responsibleEmail">Email do Responsável</Label>
+                <Input
+                  id="responsibleEmail"
+                  type="email"
+                  value={formData.responsibleEmail}
+                  onChange={(e) =>
+                    setFormData({ ...formData, responsibleEmail: e.target.value })
+                  }
+                  placeholder="responsavel@empresa.com"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="contractDate">Data de Contratação</Label>
+                <Input
+                  id="contractDate"
+                  type="date"
+                  value={formData.contractDate}
+                  onChange={(e) =>
+                    setFormData({ ...formData, contractDate: e.target.value })
+                  }
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="logo">URL do Logo/Foto</Label>
               <Input
                 id="logo"
                 value={formData.logo}

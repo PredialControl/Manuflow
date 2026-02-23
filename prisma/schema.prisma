@@ -95,7 +95,11 @@ enum EmailStatus {
 model Company {
   id                  String              @id @default(cuid())
   name                String
+  cnpj                String?
+  address             String?
+  responsibleEmail    String?
   logo                String?
+  contractDate        DateTime?           // Data de contratação
   subscriptionStatus  SubscriptionStatus  @default(TRIAL)
   expirationDate      DateTime?
   settings            Json?

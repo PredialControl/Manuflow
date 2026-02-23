@@ -66,13 +66,19 @@ export async function PATCH(
 
   const { id } = await params;
   const body = await request.json();
-  const { name, logo, subscriptionStatus, expirationDate, settings } = body;
+  const { name, cnpj, address, responsibleEmail, logo, contractDate, subscriptionStatus, expirationDate, settings } = body;
 
   const company = await prisma.company.update({
     where: { id },
     data: {
       ...(name && { name }),
+      ...(cnpj !== undefined && { cnpj }),
+      ...(address !== undefined && { address }),
+      ...(responsibleEmail !== undefined && { responsibleEmail }),
       ...(logo !== undefined && { logo }),
+      ...(contractDate !== undefined && {
+        contractDate: contractDate ? new Date(contractDate) : null,
+      }),
       ...(subscriptionStatus && { subscriptionStatus }),
       ...(expirationDate !== undefined && {
         expirationDate: expirationDate ? new Date(expirationDate) : null,
