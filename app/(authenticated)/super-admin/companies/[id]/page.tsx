@@ -22,7 +22,16 @@ interface Company {
   expirationDate: string | null;
   createdAt: string;
   users: Array<{ id: string; name: string; email: string; role: string; createdAt: string }>;
-  contracts: Array<{ id: string; name: string; company: string; active: boolean; createdAt: string }>;
+  contracts: Array<{
+    id: string;
+    name: string;
+    company: string;
+    active: boolean;
+    paymentStatus: "EM_DIA" | "VENCIDO" | "SUSPENSO" | "CANCELADO";
+    paymentDueDate: string | null;
+    monthlyValue: number | null;
+    createdAt: string;
+  }>;
   _count: {
     users: number;
     contracts: number;
@@ -43,6 +52,20 @@ const statusLabels = {
   EXPIRED: "Expirado",
 };
 
+const paymentStatusColors = {
+  EM_DIA: "bg-green-500/10 text-green-500 border-green-500/20",
+  VENCIDO: "bg-red-500/10 text-red-500 border-red-500/20",
+  SUSPENSO: "bg-orange-500/10 text-orange-500 border-orange-500/20",
+  CANCELADO: "bg-gray-500/10 text-gray-500 border-gray-500/20",
+};
+
+const paymentStatusLabels = {
+  EM_DIA: "Em Dia",
+  VENCIDO: "Vencido",
+  SUSPENSO: "Suspenso",
+  CANCELADO: "Cancelado",
+};
+
 export default function CompanyDetailsPage({ params }: { params: { id: string } }) {
   const router = useRouter();
   const [company, setCompany] = useState<Company | null>(null);
@@ -50,6 +73,7 @@ export default function CompanyDetailsPage({ params }: { params: { id: string } 
   const [editing, setEditing] = useState(false);
   const [creatingAdmin, setCreatingAdmin] = useState(false);
   const [editingUserId, setEditingUserId] = useState<string | null>(null);
+  const [editingContractId, setEditingContractId] = useState<string | null>(null);
   const [adminForm, setAdminForm] = useState({
     name: "",
     email: "",
@@ -58,6 +82,11 @@ export default function CompanyDetailsPage({ params }: { params: { id: string } 
   const [editUserForm, setEditUserForm] = useState({
     role: "",
     password: "",
+  });
+  const [editContractForm, setEditContractForm] = useState({
+    paymentStatus: "",
+    paymentDueDate: "",
+    monthlyValue: "",
   });
   const [formData, setFormData] = useState({
     name: "",
@@ -233,6 +262,39 @@ export default function CompanyDetailsPage({ params }: { params: { id: string } 
     } catch (error) {
       console.error("Erro:", error);
       alert("Erro ao excluir usuário");
+    }
+  }
+
+  async function handleEditContract(contractId: string, e: React.FormEvent) {
+    e.preventDefault();
+    setLoading(true);
+
+    try {
+      const updates: any = {};
+      if (editContractForm.paymentStatus) updates.paymentStatus = editContractForm.paymentStatus;
+      if (editContractForm.paymentDueDate) updates.paymentDueDate = editContractForm.paymentDueDate;
+      if (editContractForm.monthlyValue) updates.monthlyValue = parseFloat(editContractForm.monthlyValue);
+
+      const res = await fetch(`/api/super-admin/contracts/${contractId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(updates),
+      });
+
+      if (res.ok) {
+        alert("Contrato atualizado com sucesso!");
+        setEditingContractId(null);
+        setEditContractForm({ paymentStatus: "", paymentDueDate: "", monthlyValue: "" });
+        await fetchCompany();
+      } else {
+        const error = await res.json();
+        alert(error.message || "Erro ao atualizar contrato");
+      }
+    } catch (error) {
+      console.error("Erro:", error);
+      alert("Erro ao atualizar contrato");
+    } finally {
+      setLoading(false);
     }
   }
 
@@ -693,17 +755,103 @@ export default function CompanyDetailsPage({ params }: { params: { id: string } 
         <CardContent>
           <div className="space-y-3">
             {company.contracts.map((contract) => (
-              <div
-                key={contract.id}
-                className="flex items-center justify-between border-b pb-3 last:border-0 last:pb-0"
-              >
-                <div>
-                  <p className="font-medium">{contract.name}</p>
-                  <p className="text-sm text-muted-foreground">{contract.company}</p>
+              <div key={contract.id} className="border rounded-lg p-3">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex-1">
+                    <p className="font-medium">{contract.name}</p>
+                    <p className="text-sm text-muted-foreground">{contract.company}</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Badge variant="outline" className={paymentStatusColors[contract.paymentStatus]}>
+                      {paymentStatusLabels[contract.paymentStatus]}
+                    </Badge>
+                    {contract.monthlyValue && (
+                      <span className="text-sm font-medium text-green-600">
+                        {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(contract.monthlyValue)}
+                      </span>
+                    )}
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => {
+                        setEditingContractId(contract.id);
+                        setEditContractForm({
+                          paymentStatus: contract.paymentStatus,
+                          paymentDueDate: contract.paymentDueDate ? new Date(contract.paymentDueDate).toISOString().split("T")[0] : "",
+                          monthlyValue: contract.monthlyValue?.toString() || "",
+                        });
+                      }}
+                    >
+                      <Edit2 className="h-3 w-3" />
+                    </Button>
+                  </div>
                 </div>
-                <Badge variant={contract.active ? "default" : "outline"}>
-                  {contract.active ? "Ativo" : "Inativo"}
-                </Badge>
+
+                {editingContractId === contract.id && (
+                  <form onSubmit={(e) => handleEditContract(contract.id, e)} className="mt-3 p-3 bg-muted/50 rounded-lg space-y-3">
+                    <div className="grid gap-3 md:grid-cols-3">
+                      <div className="space-y-2">
+                        <Label htmlFor={`status-${contract.id}`}>Status de Pagamento</Label>
+                        <select
+                          id={`status-${contract.id}`}
+                          value={editContractForm.paymentStatus}
+                          onChange={(e) =>
+                            setEditContractForm({ ...editContractForm, paymentStatus: e.target.value })
+                          }
+                          className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                        >
+                          <option value="EM_DIA">Em Dia</option>
+                          <option value="VENCIDO">Vencido</option>
+                          <option value="SUSPENSO">Suspenso</option>
+                          <option value="CANCELADO">Cancelado</option>
+                        </select>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor={`duedate-${contract.id}`}>Data de Vencimento</Label>
+                        <Input
+                          id={`duedate-${contract.id}`}
+                          type="date"
+                          value={editContractForm.paymentDueDate}
+                          onChange={(e) =>
+                            setEditContractForm({ ...editContractForm, paymentDueDate: e.target.value })
+                          }
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor={`value-${contract.id}`}>Valor Mensal (R$)</Label>
+                        <Input
+                          id={`value-${contract.id}`}
+                          type="number"
+                          step="0.01"
+                          value={editContractForm.monthlyValue}
+                          onChange={(e) =>
+                            setEditContractForm({ ...editContractForm, monthlyValue: e.target.value })
+                          }
+                          placeholder="1000.00"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="flex gap-2">
+                      <Button type="submit" size="sm" disabled={loading}>
+                        {loading ? "Salvando..." : "Salvar"}
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          setEditingContractId(null);
+                          setEditContractForm({ paymentStatus: "", paymentDueDate: "", monthlyValue: "" });
+                        }}
+                      >
+                        Cancelar
+                      </Button>
+                    </div>
+                  </form>
+                )}
               </div>
             ))}
             {company.contracts.length === 0 && (
