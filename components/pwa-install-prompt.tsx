@@ -57,15 +57,17 @@ export function PwaInstallPrompt() {
         <div className="fixed bottom-6 left-6 right-6 z-[100] animate-in slide-in-from-bottom-8 duration-500">
             <div className="bg-card/80 backdrop-blur-2xl border border-primary/20 shadow-[0_20px_50px_rgba(0,0,0,0.2)] rounded-[2rem] p-6 max-w-md mx-auto relative overflow-hidden group">
                 {/* Decorative background element */}
-                <div className="absolute -top-24 -right-24 w-48 h-48 bg-primary/10 rounded-full blur-3xl group-hover:bg-primary/20 transition-colors" />
+                <div className="absolute -top-24 -right-24 w-48 h-48 bg-primary/10 rounded-full blur-3xl group-hover:bg-primary/20 transition-colors pointer-events-none" />
 
                 <button
-                    onClick={() => {
+                    onClick={(e) => {
+                        e.stopPropagation();
                         setShowPrompt(false);
                         localStorage.setItem('pwa-prompt-dismissed', 'true');
                     }}
-                    className="absolute top-3 right-3 p-2 rounded-full bg-background/80 hover:bg-background text-muted-foreground hover:text-foreground transition-all z-10 shadow-sm hover:shadow-md"
+                    className="absolute top-3 right-3 p-2 rounded-full bg-background hover:bg-background/90 text-muted-foreground hover:text-foreground transition-all z-50 shadow-lg hover:shadow-xl cursor-pointer"
                     aria-label="Fechar"
+                    type="button"
                 >
                     <X className="h-5 w-5" />
                 </button>
