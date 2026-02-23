@@ -64,9 +64,10 @@ export function PwaInstallPrompt() {
                         setShowPrompt(false);
                         localStorage.setItem('pwa-prompt-dismissed', 'true');
                     }}
-                    className="absolute top-4 right-4 p-2 text-muted-foreground/40 hover:text-foreground transition-colors"
+                    className="absolute top-3 right-3 p-2 rounded-full bg-background/80 hover:bg-background text-muted-foreground hover:text-foreground transition-all z-10 shadow-sm hover:shadow-md"
+                    aria-label="Fechar"
                 >
-                    <X className="h-4 w-4" />
+                    <X className="h-5 w-5" />
                 </button>
 
                 <div className="flex gap-4 items-start relative">
