@@ -17,9 +17,31 @@ export async function PATCH(
 
   const { id } = await params;
   const body = await request.json();
-  const { action, password } = body;
+  const { action, password, role } = body;
 
   try {
+    if (action === "update-user") {
+      const updates: any = {};
+
+      if (role) {
+        updates.role = role;
+      }
+
+      if (password) {
+        updates.password = await bcrypt.hash(password, 10);
+      }
+
+      const user = await prisma.user.update({
+        where: { id },
+        data: updates,
+      });
+
+      return NextResponse.json({
+        message: "Usuário atualizado com sucesso",
+        user: { id: user.id, email: user.email, role: user.role }
+      });
+    }
+
     if (action === "reset-password" && password) {
       const hashedPassword = await bcrypt.hash(password, 10);
 
@@ -35,8 +57,6 @@ export async function PATCH(
     }
 
     if (action === "toggle-status") {
-      // Para bloquear, podemos usar um campo "active" ou mudar a senha
-      // Por enquanto vamos apenas indicar que foi bloqueado
       const user = await prisma.user.findUnique({
         where: { id },
       });
@@ -45,8 +65,6 @@ export async function PATCH(
         return NextResponse.json({ message: "Usuário não encontrado" }, { status: 404 });
       }
 
-      // Aqui você pode adicionar um campo "active" ou "blocked" no schema
-      // Por enquanto vou apenas retornar sucesso
       return NextResponse.json({
         message: "Status alterado com sucesso",
         user: { id: user.id, email: user.email }

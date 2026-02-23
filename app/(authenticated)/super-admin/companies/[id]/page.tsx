@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Building2, Users, FileText, Trash2 } from "lucide-react";
+import { ArrowLeft, Building2, Users, FileText, Trash2, Edit2, Key } from "lucide-react";
 import Link from "next/link";
 
 interface Company {
@@ -49,9 +49,14 @@ export default function CompanyDetailsPage({ params }: { params: { id: string } 
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
   const [creatingAdmin, setCreatingAdmin] = useState(false);
+  const [editingUserId, setEditingUserId] = useState<string | null>(null);
   const [adminForm, setAdminForm] = useState({
     name: "",
     email: "",
+    password: "",
+  });
+  const [editUserForm, setEditUserForm] = useState({
+    role: "",
     password: "",
   });
   const [formData, setFormData] = useState({
@@ -173,6 +178,61 @@ export default function CompanyDetailsPage({ params }: { params: { id: string } 
       alert("Erro ao criar admin");
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function handleEditUser(userId: string, e: React.FormEvent) {
+    e.preventDefault();
+    setLoading(true);
+
+    try {
+      const updates: any = {};
+      if (editUserForm.role) updates.role = editUserForm.role;
+      if (editUserForm.password) updates.password = editUserForm.password;
+
+      const res = await fetch(`/api/super-admin/users/${userId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "update-user", ...updates }),
+      });
+
+      if (res.ok) {
+        alert("Usuário atualizado com sucesso!");
+        setEditingUserId(null);
+        setEditUserForm({ role: "", password: "" });
+        await fetchCompany();
+      } else {
+        const error = await res.json();
+        alert(error.message || "Erro ao atualizar usuário");
+      }
+    } catch (error) {
+      console.error("Erro:", error);
+      alert("Erro ao atualizar usuário");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleDeleteUser(userId: string, userName: string) {
+    if (!confirm(`Tem certeza que deseja excluir o usuário ${userName}?`)) {
+      return;
+    }
+
+    try {
+      const res = await fetch(`/api/super-admin/users/${userId}`, {
+        method: "DELETE",
+      });
+
+      if (res.ok) {
+        alert("Usuário excluído com sucesso!");
+        await fetchCompany();
+      } else {
+        const error = await res.json();
+        alert(error.message || "Erro ao excluir usuário");
+      }
+    } catch (error) {
+      console.error("Erro:", error);
+      alert("Erro ao excluir usuário");
     }
   }
 
@@ -532,15 +592,90 @@ export default function CompanyDetailsPage({ params }: { params: { id: string } 
 
           <div className="space-y-3">
             {company.users.map((user) => (
-              <div
-                key={user.id}
-                className="flex items-center justify-between border-b pb-3 last:border-0 last:pb-0"
-              >
-                <div>
-                  <p className="font-medium">{user.name}</p>
-                  <p className="text-sm text-muted-foreground">{user.email}</p>
+              <div key={user.id} className="border rounded-lg p-3">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex-1">
+                    <p className="font-medium">{user.name}</p>
+                    <p className="text-sm text-muted-foreground">{user.email}</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Badge variant="outline">{user.role}</Badge>
+                    {user.role !== "SUPER_ADMIN" && (
+                      <>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => {
+                            setEditingUserId(user.id);
+                            setEditUserForm({ role: user.role, password: "" });
+                          }}
+                        >
+                          <Edit2 className="h-3 w-3" />
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => handleDeleteUser(user.id, user.name)}
+                        >
+                          <Trash2 className="h-3 w-3 text-red-500" />
+                        </Button>
+                      </>
+                    )}
+                  </div>
                 </div>
-                <Badge variant="outline">{user.role}</Badge>
+
+                {editingUserId === user.id && (
+                  <form onSubmit={(e) => handleEditUser(user.id, e)} className="mt-3 p-3 bg-muted/50 rounded-lg space-y-3">
+                    <div className="grid gap-3 md:grid-cols-2">
+                      <div className="space-y-2">
+                        <Label htmlFor={`role-${user.id}`}>Tipo de Usuário</Label>
+                        <select
+                          id={`role-${user.id}`}
+                          value={editUserForm.role}
+                          onChange={(e) =>
+                            setEditUserForm({ ...editUserForm, role: e.target.value })
+                          }
+                          className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                        >
+                          <option value="OWNER">Proprietário</option>
+                          <option value="ADMIN">Administrador</option>
+                          <option value="SUPERVISOR">Supervisor</option>
+                          <option value="TECHNICIAN">Técnico</option>
+                        </select>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor={`password-${user.id}`}>Nova Senha (opcional)</Label>
+                        <Input
+                          id={`password-${user.id}`}
+                          type="text"
+                          value={editUserForm.password}
+                          onChange={(e) =>
+                            setEditUserForm({ ...editUserForm, password: e.target.value })
+                          }
+                          placeholder="Deixe em branco para não alterar"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="flex gap-2">
+                      <Button type="submit" size="sm" disabled={loading}>
+                        {loading ? "Salvando..." : "Salvar"}
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          setEditingUserId(null);
+                          setEditUserForm({ role: "", password: "" });
+                        }}
+                      >
+                        Cancelar
+                      </Button>
+                    </div>
+                  </form>
+                )}
               </div>
             ))}
             {company.users.length === 0 && (
