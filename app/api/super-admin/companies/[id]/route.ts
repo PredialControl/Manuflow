@@ -40,8 +40,6 @@ export async function GET(
         select: {
           users: true,
           contracts: true,
-          assets: true,
-          reports: true,
         },
       },
     },
