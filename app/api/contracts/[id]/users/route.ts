@@ -16,7 +16,8 @@ export async function POST(
         return NextResponse.json({ message: "Não autorizado" }, { status: 401 });
     }
 
-    // ROBUST PERMISSION CHECK: OWNER and ADMIN are global managers
+    // ROBUST PERMISSION CHECK: SUPER_ADMIN, OWNER, ADMIN are global managers
+    // SUPERVISOR can create users for their contract
     const userRole = (session.user as any).role as string;
     const userEmail = (session.user as any).email;
 
@@ -29,15 +30,37 @@ export async function POST(
     const dbRole = userInDb?.role as string;
     const dbEmail = userInDb?.email;
 
-    const hasPermission =
+    const isGlobalAdmin =
+        userRole === "SUPER_ADMIN" ||
         userRole === "OWNER" ||
         userRole === "ADMIN" ||
+        dbRole === "SUPER_ADMIN" ||
         dbRole === "OWNER" ||
         dbRole === "ADMIN" ||
         userEmail === "admin@admin.com" ||
         dbEmail === "admin@admin.com" ||
         userEmail === "admin@manuflow.com.br" ||
         dbEmail === "admin@manuflow.com.br";
+
+    const isSupervisor = userRole === "SUPERVISOR" || dbRole === "SUPERVISOR";
+
+    // If supervisor, check if they have access to this contract
+    if (isSupervisor && !isGlobalAdmin) {
+        const supervisorAccess = await prisma.userContract.findFirst({
+            where: {
+                userId: session.user.id,
+                contractId,
+            },
+        });
+
+        if (!supervisorAccess) {
+            return NextResponse.json({
+                message: "Você não tem acesso a este contrato"
+            }, { status: 403 });
+        }
+    }
+
+    const hasPermission = isGlobalAdmin || isSupervisor;
 
     if (!hasPermission) {
         return NextResponse.json({
@@ -54,6 +77,33 @@ export async function POST(
             { message: "Campos obrigatórios faltando" },
             { status: 400 }
         );
+    }
+
+    // SUPERVISOR can only create TECHNICIAN
+    if (isSupervisor && !isGlobalAdmin && role !== "TECHNICIAN") {
+        return NextResponse.json(
+            { message: "Supervisores só podem criar técnicos" },
+            { status: 403 }
+        );
+    }
+
+    // Check limit of 2 technicians per contract
+    if (role === "TECHNICIAN") {
+        const technicianCount = await prisma.userContract.count({
+            where: {
+                contractId,
+                user: {
+                    role: "TECHNICIAN",
+                },
+            },
+        });
+
+        if (technicianCount >= 2) {
+            return NextResponse.json(
+                { message: "Limite de 2 técnicos por contrato atingido" },
+                { status: 400 }
+            );
+        }
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);

@@ -71,7 +71,8 @@ export function AuthenticatedLayoutClient({
             { href: `/contracts/${contractId}?tab=measurements`, label: "Medições", icon: Gauge },
         ];
 
-    if (session.user.role === "ADMIN" || session.user.role === "OWNER") {
+    // ADMIN, OWNER e SUPERVISOR podem gerenciar equipe
+    if (session.user.role === "ADMIN" || session.user.role === "OWNER" || session.user.role === "SUPERVISOR") {
         contractNavItems.push({ href: `/contracts/${contractId}?tab=team`, label: "Equipe", icon: Users });
     }
 
