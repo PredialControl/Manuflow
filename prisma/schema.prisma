@@ -22,6 +22,13 @@ enum SubscriptionStatus {
   EXPIRED
 }
 
+enum ContractPaymentStatus {
+  EM_DIA
+  VENCIDO
+  SUSPENSO
+  CANCELADO
+}
+
 enum Frequency {
   DAILY
   WEEKLY
@@ -154,7 +161,7 @@ model User {
 }
 
 model Contract {
-  id              String    @id @default(cuid())
+  id              String                  @id @default(cuid())
   name            String
   company         String
   companyId       String
@@ -162,9 +169,12 @@ model Contract {
   responsible     String
   email           String
   phone           String?
-  active          Boolean   @default(true)
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  active          Boolean                 @default(true)
+  paymentStatus   ContractPaymentStatus   @default(EM_DIA)
+  paymentDueDate  DateTime?
+  monthlyValue    Float?
+  createdAt       DateTime                @default(now())
+  updatedAt       DateTime                @updatedAt
   deletedAt       DateTime?
 
   companyOwner    Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
@@ -180,6 +190,7 @@ model Contract {
 
   @@index([companyId])
   @@index([companyId, active])
+  @@index([companyId, paymentStatus])
 }
 
 model UserContract {
