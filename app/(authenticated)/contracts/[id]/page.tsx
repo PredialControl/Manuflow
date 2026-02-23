@@ -9,6 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Plus, Building2, FileText, ClipboardCheck, History, Settings, Package, MapPin, Users, User, UserPlus, Pencil, Trash2 } from "lucide-react";
 import { formatDate } from "@/lib/utils";
 import { ReportsKanban } from "@/components/reports-kanban";
+import { RelevantItemsKanban } from "@/components/relevant-items-kanban";
 import { MeasurementManager } from "@/components/measurement-manager";
 import { SupervisorMeasurementsDashboard } from "@/components/supervisor-measurements-dashboard";
 
@@ -16,6 +17,7 @@ import { ContractUserActions } from "@/components/contract-user-actions";
 import { ScheduleManager } from "@/components/schedule-manager";
 import { DeleteAssetButton } from "@/components/delete-asset-button";
 import { getContractWhereClause, isCompanyAdmin } from "@/lib/multi-tenancy";
+import { getStatusLabel, getStatusClass } from "@/lib/status";
 
 export const dynamic = "force-dynamic";
 
@@ -82,7 +84,18 @@ export default async function ContractDetailPage({
           }
         },
         orderBy: { createdAt: "desc" },
-      }
+      },
+      relevantItems: {
+        where: { deletedAt: null },
+        include: {
+          user: { select: { id: true, name: true, email: true } },
+          attachments: {
+            include: { user: { select: { name: true } } },
+            orderBy: { createdAt: "desc" },
+          },
+        },
+        orderBy: { createdAt: "desc" },
+      },
     },
   } as any) as any;
 
@@ -150,6 +163,9 @@ export default async function ContractDetailPage({
           <TabsTrigger value="measurements" asChild className="rounded-lg font-bold data-[state=active]:bg-background">
             <Link href={`/contracts/${contract.id}?tab=measurements`}>Medições</Link>
           </TabsTrigger>
+          <TabsTrigger value="relevant-items" asChild className="rounded-lg font-bold data-[state=active]:bg-background">
+            <Link href={`/contracts/${contract.id}?tab=relevant-items`}>Itens Relevantes</Link>
+          </TabsTrigger>
 
           {isAdmin && (
             <TabsTrigger value="team" asChild className="rounded-lg font-bold data-[state=active]:bg-background">
@@ -160,30 +176,25 @@ export default async function ContractDetailPage({
 
         <TabsContent value="overview" className="space-y-4">
           <div className="grid gap-4 md:grid-cols-3">
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium">Ativos</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{contract.assets.length}</div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium">Laudos Recentes</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{contract.reports.length}</div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium">Conformidade</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">100%</div>
-              </CardContent>
-            </Card>
+            {[
+              { label: "Ativos", value: contract.assets.length, icon: Package },
+              { label: "Laudos", value: contract.reports.length, icon: FileText },
+              { label: "Conformidade", value: "100%", icon: ClipboardCheck },
+            ].map((stat, i) => (
+              <Card key={i} className="card-premium group">
+                <CardHeader className="flex flex-row items-center justify-between pb-2">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                    {stat.label}
+                  </span>
+                  <stat.icon className="h-4 w-4 opacity-40 group-hover:opacity-100 transition-opacity text-primary" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-3xl font-black tracking-tighter text-foreground">
+                    {stat.value}
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
           </div>
 
           <Card>
@@ -216,14 +227,9 @@ export default async function ContractDetailPage({
                           Venc: {formatDate(report.expirationDate)}
                         </p>
                         <span
-                          className={`text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full ${report.status === "APPROVED"
-                            ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400"
-                            : report.status === "PENDING_APPROVAL"
-                              ? "bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-400"
-                              : "bg-muted text-muted-foreground"
-                            }`}
+                          className={`text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full ${getStatusClass(report.status)}`}
                         >
-                          {report.status}
+                          {getStatusLabel(report.status)}
                         </span>
                       </div>
                     </div>
@@ -451,6 +457,12 @@ export default async function ContractDetailPage({
           )}
         </TabsContent>
 
+        <TabsContent value="relevant-items" className="space-y-4 pt-4">
+          <RelevantItemsKanban
+            initialItems={contract.relevantItems as any}
+            contractId={contract.id}
+          />
+        </TabsContent>
 
       </Tabs>
     </div>
