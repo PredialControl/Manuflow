@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, use } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -45,8 +45,7 @@ const statusLabels = {
   EXPIRED: "Expirado",
 };
 
-export default function CompanyDetailsPage({ params }: { params: Promise<{ id: string }> }) {
-  const resolvedParams = use(params);
+export default function CompanyDetailsPage({ params }: { params: { id: string } }) {
   const router = useRouter();
   const [company, setCompany] = useState<Company | null>(null);
   const [loading, setLoading] = useState(true);
@@ -74,7 +73,7 @@ export default function CompanyDetailsPage({ params }: { params: Promise<{ id: s
 
   async function fetchCompany() {
     try {
-      const res = await fetch(`/api/super-admin/companies/${resolvedParams.id}`);
+      const res = await fetch(`/api/super-admin/companies/${params.id}`);
       if (res.ok) {
         const data = await res.json();
         setCompany(data);
@@ -105,7 +104,7 @@ export default function CompanyDetailsPage({ params }: { params: Promise<{ id: s
     setLoading(true);
 
     try {
-      const res = await fetch(`/api/super-admin/companies/${resolvedParams.id}`, {
+      const res = await fetch(`/api/super-admin/companies/${params.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(formData),
@@ -132,7 +131,7 @@ export default function CompanyDetailsPage({ params }: { params: Promise<{ id: s
     }
 
     try {
-      const res = await fetch(`/api/super-admin/companies/${resolvedParams.id}`, {
+      const res = await fetch(`/api/super-admin/companies/${params.id}`, {
         method: "DELETE",
       });
 
@@ -158,7 +157,7 @@ export default function CompanyDetailsPage({ params }: { params: Promise<{ id: s
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...adminForm,
-          companyId: resolvedParams.id,
+          companyId: params.id,
         }),
       });
 
