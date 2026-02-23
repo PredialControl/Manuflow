@@ -35,6 +35,7 @@ export default function NewAssetPage() {
   const [loading, setLoading] = useState(false);
   const [checklistItems, setChecklistItems] = useState<string[]>([""]);
   const [checklistEnabled, setChecklistEnabled] = useState(false);
+  const [includeInRonda, setIncludeInRonda] = useState(false);
   const [image, setImage] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -80,6 +81,7 @@ export default function NewAssetPage() {
           power: formData.get("power"),
           category: formData.get("category"),
           frequency: formData.get("frequency"),
+          includeInRonda: includeInRonda,
           image: image,
           checklist: checklist.length > 0 ? checklist : undefined,
         }),
@@ -310,7 +312,23 @@ export default function NewAssetPage() {
                 </div>
               </div>
 
-              <div className="pt-4">
+              <div className="pt-2">
+                <div
+                  className={`border-2 border-dashed rounded-[1.5rem] p-6 transition-all cursor-pointer flex items-center gap-4 ${includeInRonda ? 'border-primary/40 bg-primary/5' : 'border-border/40 hover:border-primary/20'}`}
+                  onClick={() => setIncludeInRonda(!includeInRonda)}
+                >
+                  <div className={`h-6 w-6 rounded-md border-2 flex items-center justify-center transition-all ${includeInRonda ? 'bg-primary border-primary' : 'border-muted-foreground/30'}`}>
+                    {includeInRonda && <Plus className="h-4 w-4 text-white" />}
+                  </div>
+                  <div className="flex-1">
+                    <p className="font-black text-sm uppercase tracking-tight italic">Incluir na Ronda Diária</p>
+                    <p className="text-[10px] font-bold text-muted-foreground/60 uppercase tracking-widest">Este ativo aparecerá para o técnico verificar todos os dias</p>
+                  </div>
+                  <div className={`h-2 w-2 rounded-full ${includeInRonda ? 'bg-primary animate-pulse' : 'bg-muted-foreground/30'}`} />
+                </div>
+              </div>
+
+              <div className="pt-2">
                 <div
                   className={`border-2 border-dashed rounded-[1.5rem] p-6 transition-all cursor-pointer flex items-center gap-4 ${checklistEnabled ? 'border-primary/40 bg-primary/5' : 'border-border/40 hover:border-primary/20'}`}
                   onClick={() => setChecklistEnabled(!checklistEnabled)}

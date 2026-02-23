@@ -54,7 +54,7 @@ export async function POST(
 
   const { id: contractId } = await params;
   const body = await request.json();
-  const { name, type, location, frequency, checklist, image, brand, model, power, category } = body;
+  const { name, type, location, frequency, checklist, image, brand, model, power, category, includeInRonda } = body;
 
   if (!name || !type || !location) {
     return NextResponse.json(
@@ -76,6 +76,7 @@ export async function POST(
       category,
       image,
       frequency: frequency || "MONTHLY",
+      includeInRonda: !!includeInRonda,
     },
   });
 

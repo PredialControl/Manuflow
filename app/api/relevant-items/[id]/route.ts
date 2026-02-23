@@ -18,6 +18,21 @@ export async function PATCH(
         const body = await req.json();
         const { title, description, status, priority, dueDate, value, notes } = body;
 
+        // Buscar o estado atual para ver se mudou o status
+        const currentItem = await prisma.relevantItem.findUnique({
+            where: { id },
+            select: { status: true }
+        });
+
+        const historyUpdate: any = {};
+        if (status && currentItem && currentItem.status !== status) {
+            historyUpdate.create = {
+                userId: session.user.id,
+                oldStatus: currentItem.status,
+                newStatus: status,
+            };
+        }
+
         const item = await prisma.relevantItem.update({
             where: { id },
             data: {
@@ -28,6 +43,7 @@ export async function PATCH(
                 dueDate: dueDate ? new Date(dueDate) : null,
                 value: value ? parseFloat(value) : null,
                 notes,
+                history: historyUpdate
             },
             include: {
                 user: {

@@ -93,6 +93,10 @@ export default async function ContractDetailPage({
             include: { user: { select: { name: true } } },
             orderBy: { createdAt: "desc" },
           },
+          history: {
+            include: { user: { select: { name: true } } },
+            orderBy: { createdAt: "desc" },
+          },
         },
         orderBy: { createdAt: "desc" },
       },
@@ -154,6 +158,9 @@ export default async function ContractDetailPage({
           <TabsTrigger value="assets" asChild className="rounded-lg font-bold data-[state=active]:bg-background">
             <Link href={`/contracts/${contract.id}?tab=assets`}>Ativos</Link>
           </TabsTrigger>
+          <TabsTrigger value="relevant-items" asChild className="rounded-lg font-bold data-[state=active]:bg-background">
+            <Link href={`/contracts/${contract.id}?tab=relevant-items`}>Itens / Orçamentos</Link>
+          </TabsTrigger>
           <TabsTrigger value="inspections" asChild className="rounded-lg font-bold data-[state=active]:bg-background">
             <Link href={`/contracts/${contract.id}?tab=inspections`}>Rondas</Link>
           </TabsTrigger>
@@ -162,9 +169,6 @@ export default async function ContractDetailPage({
           </TabsTrigger>
           <TabsTrigger value="measurements" asChild className="rounded-lg font-bold data-[state=active]:bg-background">
             <Link href={`/contracts/${contract.id}?tab=measurements`}>Medições</Link>
-          </TabsTrigger>
-          <TabsTrigger value="relevant-items" asChild className="rounded-lg font-bold data-[state=active]:bg-background">
-            <Link href={`/contracts/${contract.id}?tab=relevant-items`}>Itens Relevantes</Link>
           </TabsTrigger>
 
           {isAdmin && (

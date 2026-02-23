@@ -57,12 +57,15 @@ export function AuthenticatedLayoutClient({
                 { href: "/super-admin/financial", label: "Financeiro", icon: DollarSign },
             ]
             : session.user.role === "TECHNICIAN"
-            ? [{ href: "/dashboard", label: "Minhas Tarefas", icon: LayoutDashboard }]
-            : [
-                { href: "/dashboard", label: "Geral", icon: LayoutDashboard },
-                { href: "/contracts", label: "Contratos", icon: Building2 },
-                { href: "/relevant-items", label: "Itens Relevantes", icon: Sparkles },
-            ];
+                ? [
+                    { href: "/dashboard", label: "Minhas Tarefas", icon: LayoutDashboard },
+                    { href: "/relevant-items", label: "Itens / Orçamentos", icon: Sparkles },
+                ]
+                : [
+                    { href: "/dashboard", label: "Geral", icon: LayoutDashboard },
+                    { href: "/contracts", label: "Contratos", icon: Building2 },
+                    { href: "/relevant-items", label: "Itens / Orçamentos", icon: Sparkles },
+                ];
 
     if (session.user.role === "ADMIN" || session.user.role === "OWNER") {
         mainNavItems.push({ href: "/users", label: "Usuários", icon: Users });
@@ -70,10 +73,14 @@ export function AuthenticatedLayoutClient({
 
     const contractNavItems =
         session.user.role === "TECHNICIAN"
-            ? [{ href: `/contracts/${contractId}?tab=measurements`, label: "Medições", icon: Gauge }]
+            ? [
+                { href: `/contracts/${contractId}?tab=measurements`, label: "Medições", icon: Gauge },
+                { href: `/contracts/${contractId}?tab=relevant-items`, label: "Itens / Orçamentos", icon: Sparkles },
+            ]
             : [
                 { href: `/contracts/${contractId}`, label: "Visão Geral", icon: LayoutDashboard },
                 { href: `/contracts/${contractId}?tab=assets`, label: "Ativos", icon: Package },
+                { href: `/contracts/${contractId}?tab=relevant-items`, label: "Itens / Orçamentos", icon: Sparkles },
                 { href: `/contracts/${contractId}?tab=inspections`, label: "Rondas", icon: ClipboardCheck },
                 { href: `/contracts/${contractId}?tab=reports`, label: "Laudos", icon: FileText },
                 { href: `/contracts/${contractId}?tab=measurements`, label: "Medições", icon: Gauge },
