@@ -22,6 +22,7 @@ import {
     History,
     Clock,
     AlertCircle,
+    Eye,
 } from "lucide-react";
 import { cn, formatDate } from "@/lib/utils";
 import {
@@ -180,8 +181,8 @@ export function RelevantItemsKanban({ initialItems = [], contractId }: RelevantI
     }, [contractId]);
 
     const sensors = useSensors(
-        useSensor(PointerSensor),
-        useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 5 } })
+        useSensor(TouchSensor, { activationConstraint: { delay: 100, tolerance: 5 } }),
+        useSensor(PointerSensor, { activationConstraint: { distance: 3 } })
     );
 
     // ── Drag & Drop ──────────────────────────────────────────────
@@ -947,8 +948,9 @@ function DraggableItem({ item, onAttach }: { item: RelevantItem; onAttach: (id: 
             ref={setNodeRef}
             style={{ transform: CSS.Transform.toString(transform), transition, zIndex: isDragging ? 50 : 1 }}
             className="group"
+            onDoubleClick={() => (window as any).openItemDetail?.(item)}
         >
-            <div {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing" onClick={() => (window as any).openItemDetail?.(item)}>
+            <div {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing">
                 <ItemCard item={item} onAttach={onAttach} isDragging={isDragging} />
             </div>
         </div>
@@ -1110,6 +1112,15 @@ function ItemCard({ item, isDragging, onAttach }: { item: RelevantItem; isDraggi
                                     </DialogContent>
                                 </Dialog>
                             )}
+                            <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={(e) => { e.stopPropagation(); (window as any).openItemDetail?.(item); }}
+                                className="h-8 rounded-lg text-[10px] font-black uppercase tracking-widest px-2.5 hover:bg-primary/5 hover:text-primary transition-all gap-1.5"
+                            >
+                                <Eye className="h-3 w-3" />
+                                Ver
+                            </Button>
                             <Button
                                 size="sm"
                                 variant="ghost"
