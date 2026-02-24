@@ -181,8 +181,8 @@ export function RelevantItemsKanban({ initialItems = [], contractId }: RelevantI
     }, [contractId]);
 
     const sensors = useSensors(
-        useSensor(PointerSensor, { activationConstraint: { distance: 3 } }),
-        useSensor(TouchSensor, { activationConstraint: { delay: 0, tolerance: 10 } })
+        useSensor(PointerSensor, { activationConstraint: { distance: 10 } }),
+        useSensor(TouchSensor, { activationConstraint: { delay: 150, tolerance: 8 } })
     );
 
     // ── Drag & Drop ──────────────────────────────────────────────
