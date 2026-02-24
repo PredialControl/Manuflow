@@ -181,8 +181,8 @@ export function RelevantItemsKanban({ initialItems = [], contractId }: RelevantI
     }, [contractId]);
 
     const sensors = useSensors(
-        useSensor(TouchSensor, { activationConstraint: { delay: 100, tolerance: 5 } }),
-        useSensor(PointerSensor, { activationConstraint: { distance: 3 } })
+        useSensor(PointerSensor, { activationConstraint: { distance: 3 } }),
+        useSensor(TouchSensor, { activationConstraint: { delay: 0, tolerance: 10 } })
     );
 
     // ── Drag & Drop ──────────────────────────────────────────────
@@ -747,9 +747,11 @@ export function RelevantItemsKanban({ initialItems = [], contractId }: RelevantI
                                                 <div className="space-y-1">
                                                     <p className="text-xs font-bold leading-tight">
                                                         {log.oldStatus ? (
-                                                            <>Moveu para <span className="text-primary uppercase italic">{COLUMNS.find(c => c.status.includes(log.newStatus))?.title}</span></>
+                                                            <>
+                                                                Moveu de <span className="text-muted-foreground/50 line-through lowercase italic">{COLUMNS.find(c => c.status.includes(log.oldStatus || ""))?.title || log.oldStatus}</span> para <span className="text-primary italic">{COLUMNS.find(c => c.status.includes(log.newStatus))?.title || log.newStatus}</span>
+                                                            </>
                                                         ) : (
-                                                            <>Criou o item como <span className="text-primary uppercase italic">{COLUMNS.find(c => c.status.includes(log.newStatus))?.title}</span></>
+                                                            <>Criou o item como <span className="text-primary italic">{COLUMNS.find(c => c.status.includes(log.newStatus))?.title || log.newStatus}</span></>
                                                         )}
                                                     </p>
                                                     <div className="flex items-center gap-2 text-[9px] font-black uppercase tracking-widest text-muted-foreground opacity-60">
