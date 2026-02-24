@@ -61,11 +61,16 @@ export function AuthenticatedLayoutClient({
                     { href: "/dashboard", label: "Minhas Tarefas", icon: LayoutDashboard },
                     { href: "/relevant-items", label: "Itens / Orçamentos", icon: Sparkles },
                 ]
-                : [
-                    { href: "/dashboard", label: "Geral", icon: LayoutDashboard },
-                    { href: "/contracts", label: "Contratos", icon: Building2 },
-                    { href: "/relevant-items", label: "Itens / Orçamentos", icon: Sparkles },
-                ];
+                : session.user.role === "SUPERVISOR"
+                    ? [
+                        { href: "/dashboard", label: "Geral", icon: LayoutDashboard },
+                        { href: "/contracts", label: "Contratos", icon: Building2 },
+                    ]
+                    : [
+                        { href: "/dashboard", label: "Geral", icon: LayoutDashboard },
+                        { href: "/contracts", label: "Contratos", icon: Building2 },
+                        { href: "/relevant-items", label: "Itens / Orçamentos", icon: Sparkles },
+                    ];
 
     if (session.user.role === "ADMIN" || session.user.role === "OWNER") {
         mainNavItems.push({ href: "/users", label: "Usuários", icon: Users });
