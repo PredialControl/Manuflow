@@ -23,7 +23,7 @@ import {
     Clock,
     AlertCircle,
 } from "lucide-react";
-import { formatDate } from "@/lib/utils";
+import { cn, formatDate } from "@/lib/utils";
 import {
     Dialog,
     DialogTrigger,
