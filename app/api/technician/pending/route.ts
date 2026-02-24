@@ -28,6 +28,7 @@ export async function GET() {
             contractId: { in: contractIds },
             active: true,
             deletedAt: null,
+            includeInRonda: true,
             // Filter by category if user has one
             ...((session.user as any).category ? { category: (session.user as any).category } : {}),
         },

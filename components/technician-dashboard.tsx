@@ -15,7 +15,9 @@ import {
     Loader2,
     Gauge,
     PartyPopper,
-    Target
+    Target,
+    Play,
+    Zap as ZapFast
 } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
@@ -238,8 +240,9 @@ export function TechnicianDashboard() {
                                                         <CheckCircle2 className="h-6 w-6" />
                                                     </div>
                                                 ) : (
-                                                    <div className="h-12 w-12 rounded-xl bg-primary/5 group-hover:bg-primary group-hover:text-white transition-all flex items-center justify-center text-primary">
-                                                        <Gauge className="h-5 w-5" />
+                                                    <div className="h-12 w-12 rounded-xl bg-primary/5 group-hover:bg-primary group-hover:text-white transition-all flex flex-col items-center justify-center text-primary">
+                                                        <Play className="h-4 w-4 fill-current mb-0.5" />
+                                                        <span className="text-[8px] font-black uppercase tracking-tighter">Iniciar</span>
                                                     </div>
                                                 )}
                                             </div>
@@ -308,8 +311,9 @@ export function TechnicianDashboard() {
                                                     <CheckCircle2 className="h-5 w-5" />
                                                 </div>
                                             ) : (
-                                                <div className="h-10 w-10 rounded-xl bg-primary/5 group-hover:bg-primary group-hover:text-white transition-all flex items-center justify-center text-primary">
-                                                    <ChevronRight className="h-5 w-5" />
+                                                <div className="h-12 px-3 rounded-xl bg-primary/5 group-hover:bg-primary group-hover:text-white transition-all flex flex-col items-center justify-center text-primary">
+                                                    <Play className="h-4 w-4 fill-current mb-0.5" />
+                                                    <span className="text-[8px] font-black uppercase">Iniciar</span>
                                                 </div>
                                             )}
                                         </div>
