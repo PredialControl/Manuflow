@@ -698,7 +698,7 @@ export function RelevantItemsKanban({ initialItems = [], contractId }: RelevantI
                                         </div>
 
                                         <div className="grid grid-cols-2 gap-3">
-                                            {selectedItem.attachments.map((att) => (
+                                            {(selectedItem.attachments || []).map((att) => (
                                                 <div key={att.id} className="group relative rounded-2xl border border-border/40 overflow-hidden bg-card transition-all hover:border-primary/40 shadow-sm">
                                                     {att.fileType === "image" ? (
                                                         <div className="aspect-video w-full bg-muted overflow-hidden">
@@ -723,7 +723,7 @@ export function RelevantItemsKanban({ initialItems = [], contractId }: RelevantI
                                                     </div>
                                                 </div>
                                             ))}
-                                            {selectedItem.attachments.length === 0 && (
+                                            {(selectedItem.attachments || []).length === 0 && (
                                                 <div className="col-span-2 py-8 text-center border-2 border-dashed border-border/20 rounded-3xl opacity-40">
                                                     <p className="text-[10px] font-black uppercase tracking-[0.2em]">Nenhum anexo</p>
                                                 </div>
@@ -737,7 +737,7 @@ export function RelevantItemsKanban({ initialItems = [], contractId }: RelevantI
                                         <History className="h-3 w-3" /> Linha do Tempo
                                     </Label>
                                     <div className="space-y-6 relative before:absolute before:inset-0 before:left-2 before:w-0.5 before:bg-muted/60">
-                                        {selectedItem.history.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).map((log) => (
+                                        {[...(selectedItem.history || [])].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).map((log) => (
                                             <div key={log.id} className="relative pl-8 animate-in fade-in slide-in-from-left-2 transition-all">
                                                 <div className="absolute left-0 top-0.5 h-4.5 w-4.5 rounded-full bg-card border-2 border-primary flex items-center justify-center z-10 shadow-sm">
                                                     <div className="h-1.5 w-1.5 rounded-full bg-primary" />
