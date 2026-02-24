@@ -137,6 +137,12 @@ interface RelevantItemsKanbanProps {
 export function RelevantItemsKanban({ initialItems = [], contractId }: RelevantItemsKanbanProps) {
     const { toast } = useToast();
     const [items, setItems] = useState<RelevantItem[]>(initialItems || []);
+
+    // Expor função de abrir modal para os cards
+    useEffect(() => {
+        (window as any).openItemDetail = (item: RelevantItem) => setSelectedItem(item);
+        return () => { delete (window as any).openItemDetail; };
+    }, [items]);
     const [activeId, setActiveId] = useState<string | null>(null);
 
     // Formulário inline
@@ -160,6 +166,11 @@ export function RelevantItemsKanban({ initialItems = [], contractId }: RelevantI
     const [completing, setCompleting] = useState(false);
     const completionFileRef = useRef<HTMLInputElement>(null);
     const completionCameraRef = useRef<HTMLInputElement>(null);
+
+    // Modal de Detalhes
+    const [selectedItem, setSelectedItem] = useState<RelevantItem | null>(null);
+    const [uploadingDetail, setUploadingDetail] = useState(false);
+    const detailFileRef = useRef<HTMLInputElement>(null);
 
     // Debug logging
     useEffect(() => {
@@ -354,6 +365,28 @@ export function RelevantItemsKanban({ initialItems = [], contractId }: RelevantI
     };
 
     const activeItem = activeId ? items.find((i) => i.id === activeId) : null;
+
+    // Atualiza o item selecionado se ele mudar no estado global (ex: após upload)
+    useEffect(() => {
+        if (selectedItem) {
+            const updated = items.find(i => i.id === selectedItem.id);
+            if (updated) setSelectedItem(updated);
+        }
+    }, [items]);
+
+    const handleDetailUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file || !selectedItem) return;
+        setUploadingDetail(true);
+        try {
+            await handleAttach(selectedItem.id, file);
+            toast({ title: "Arquivo anexado!" });
+        } catch {
+            toast({ title: "Erro ao anexar", variant: "destructive" });
+        } finally {
+            setUploadingDetail(false);
+        }
+    };
 
     return (
         <div className="space-y-6">
@@ -587,6 +620,155 @@ export function RelevantItemsKanban({ initialItems = [], contractId }: RelevantI
                 </DndContext>
             )}
 
+            {/* ── Modal de Detalhes ── */}
+            <Dialog open={!!selectedItem} onOpenChange={(open) => !open && setSelectedItem(null)}>
+                <DialogContent className="sm:max-w-[700px] border-border/40 shadow-2xl rounded-[2.5rem] overflow-hidden p-0 gap-0">
+                    {selectedItem && (
+                        <>
+                            <div className="bg-card p-8 border-b border-border/40 relative">
+                                <div className="flex justify-between items-start gap-6">
+                                    <div className="space-y-1">
+                                        <div className="flex items-center gap-2 mb-1">
+                                            <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-lg border ${selectedItem.priority ? {
+                                                HIGH: "bg-red-500/10 text-red-500 border-red-500/30",
+                                                MEDIUM: "bg-amber-500/10 text-amber-500 border-amber-500/30",
+                                                LOW: "bg-blue-500/10 text-blue-500 border-blue-500/30",
+                                            }[selectedItem.priority] : ""}`}>{selectedItem.priority}</span>
+                                            <span className="text-[10px] font-black uppercase bg-muted px-2 py-0.5 rounded-lg border border-border/40">
+                                                {COLUMNS.find(c => c.status.includes(selectedItem.status))?.title}
+                                            </span>
+                                        </div>
+                                        <DialogTitle className="text-3xl font-black italic uppercase tracking-tighter leading-none">
+                                            {selectedItem.title}
+                                        </DialogTitle>
+                                    </div>
+                                    <div className="h-14 w-14 rounded-2xl bg-primary/5 flex items-center justify-center border border-primary/10">
+                                        <FileText className="h-8 w-8 text-primary/40" />
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="p-8 grid md:grid-cols-2 gap-8 overflow-y-auto max-h-[70vh]">
+                                <div className="space-y-6">
+                                    <div className="space-y-2">
+                                        <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Descrição</Label>
+                                        <p className="text-sm font-medium leading-relaxed text-foreground/80 bg-muted/30 p-4 rounded-2xl border border-border/20">
+                                            {selectedItem.description || "Sem descrição disponível."}
+                                        </p>
+                                    </div>
+
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div className="space-y-1">
+                                            <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Valor Estimado</Label>
+                                            <div className="flex items-center gap-2 text-lg font-black italic text-emerald-600">
+                                                <DollarSign className="h-5 w-5" />
+                                                {selectedItem.value ? `R$ ${selectedItem.value.toLocaleString("pt-BR")}` : "---"}
+                                            </div>
+                                        </div>
+                                        <div className="space-y-1">
+                                            <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Prazo / Vencimento</Label>
+                                            <div className="flex items-center gap-2 text-sm font-bold text-foreground">
+                                                <Calendar className="h-4 w-4 text-muted-foreground" />
+                                                {selectedItem.dueDate ? formatDate(selectedItem.dueDate) : "---"}
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="space-y-4">
+                                        <div className="flex items-center justify-between">
+                                            <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Anexos e Fotos</Label>
+                                            <Button
+                                                size="sm"
+                                                variant="outline"
+                                                disabled={uploadingDetail}
+                                                onClick={() => detailFileRef.current?.click()}
+                                                className="h-8 rounded-xl text-[10px] font-black uppercase tracking-widest border-dashed hover:border-primary hover:bg-primary/5"
+                                            >
+                                                {uploadingDetail ? <Loader2 className="h-3 w-3 animate-spin mr-2" /> : <Plus className="h-3 w-3 mr-2" />}
+                                                Novo Arquivo
+                                            </Button>
+                                            <input type="file" ref={detailFileRef} className="hidden" onChange={handleDetailUpload} />
+                                        </div>
+
+                                        <div className="grid grid-cols-2 gap-3">
+                                            {selectedItem.attachments.map((att) => (
+                                                <div key={att.id} className="group relative rounded-2xl border border-border/40 overflow-hidden bg-card transition-all hover:border-primary/40 shadow-sm">
+                                                    {att.fileType === "image" ? (
+                                                        <div className="aspect-video w-full bg-muted overflow-hidden">
+                                                            <img src={att.url} alt={att.filename} className="w-full h-full object-cover transition-transform group-hover:scale-110" />
+                                                        </div>
+                                                    ) : (
+                                                        <div className="aspect-video w-full bg-muted flex items-center justify-center">
+                                                            <FileText className="h-8 w-8 text-muted-foreground/40" />
+                                                        </div>
+                                                    )}
+                                                    <div className="p-3 flex items-center justify-between gap-2">
+                                                        <span className="text-[10px] font-black uppercase truncate flex-1 opacity-60">{att.filename}</span>
+                                                        <a
+                                                            href={att.url}
+                                                            download={att.filename}
+                                                            target="_blank"
+                                                            rel="noopener noreferrer"
+                                                            className="h-7 w-7 rounded-lg bg-primary/10 flex items-center justify-center text-primary hover:bg-primary hover:text-white transition-all"
+                                                        >
+                                                            <Upload className="h-3 w-3 rotate-180" />
+                                                        </a>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                            {selectedItem.attachments.length === 0 && (
+                                                <div className="col-span-2 py-8 text-center border-2 border-dashed border-border/20 rounded-3xl opacity-40">
+                                                    <p className="text-[10px] font-black uppercase tracking-[0.2em]">Nenhum anexo</p>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="space-y-6 border-l border-border/20 pl-8">
+                                    <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2">
+                                        <History className="h-3 w-3" /> Linha do Tempo
+                                    </Label>
+                                    <div className="space-y-6 relative before:absolute before:inset-0 before:left-2 before:w-0.5 before:bg-muted/60">
+                                        {selectedItem.history.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).map((log) => (
+                                            <div key={log.id} className="relative pl-8 animate-in fade-in slide-in-from-left-2 transition-all">
+                                                <div className="absolute left-0 top-0.5 h-4.5 w-4.5 rounded-full bg-card border-2 border-primary flex items-center justify-center z-10 shadow-sm">
+                                                    <div className="h-1.5 w-1.5 rounded-full bg-primary" />
+                                                </div>
+                                                <div className="space-y-1">
+                                                    <p className="text-xs font-bold leading-tight">
+                                                        {log.oldStatus ? (
+                                                            <>Moveu para <span className="text-primary uppercase italic">{COLUMNS.find(c => c.status.includes(log.newStatus))?.title}</span></>
+                                                        ) : (
+                                                            <>Criou o item como <span className="text-primary uppercase italic">{COLUMNS.find(c => c.status.includes(log.newStatus))?.title}</span></>
+                                                        )}
+                                                    </p>
+                                                    <div className="flex items-center gap-2 text-[9px] font-black uppercase tracking-widest text-muted-foreground opacity-60">
+                                                        <span>{log.user.name}</span>
+                                                        <span>•</span>
+                                                        <span>{formatDate(log.createdAt)}</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+
+                            <DialogFooter className="p-8 pt-4 border-t border-border/20 bg-muted/5">
+                                <Button
+                                    variant="ghost"
+                                    onClick={() => setSelectedItem(null)}
+                                    className="h-12 px-8 rounded-2xl font-black uppercase text-xs tracking-widest"
+                                >
+                                    Fechar Detalhes
+                                </Button>
+                            </DialogFooter>
+                        </>
+                    )}
+                </DialogContent>
+            </Dialog>
+
             {/* ── Modal de Conclusão ── */}
             <Dialog open={!!itemToComplete} onOpenChange={(open) => !open && setItemToComplete(null)}>
                 <DialogContent className="sm:max-w-[500px] border-border/40 shadow-2xl rounded-[2rem] overflow-hidden p-0 gap-0">
@@ -758,7 +940,7 @@ function DraggableItem({ item, onAttach }: { item: RelevantItem; onAttach: (id: 
             style={{ transform: CSS.Transform.toString(transform), transition, zIndex: isDragging ? 50 : 1 }}
             className="group"
         >
-            <div {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing">
+            <div {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing" onClick={() => (window as any).openItemDetail?.(item)}>
                 <ItemCard item={item} onAttach={onAttach} isDragging={isDragging} />
             </div>
         </div>
