@@ -38,6 +38,7 @@ import {
     DragOverlay,
     DragStartEvent,
     PointerSensor,
+    TouchSensor,
     useSensor,
     useSensors,
     closestCenter,
@@ -178,7 +179,8 @@ export function RelevantItemsKanban({ initialItems = [], contractId }: RelevantI
     }, [contractId]);
 
     const sensors = useSensors(
-        useSensor(PointerSensor, { activationConstraint: { distance: 10 } })
+        useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+        useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 5 } })
     );
 
     // ── Drag & Drop ──────────────────────────────────────────────
