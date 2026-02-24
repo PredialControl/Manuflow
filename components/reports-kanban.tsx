@@ -3,9 +3,17 @@
 import React, { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Eye, Download, Calendar, Building2, FileText, History } from "lucide-react";
+import { Eye, Download, Calendar, Building2, FileText, History, Clock, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { formatDate } from "@/lib/utils";
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+    DialogFooter,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
 import {
     DndContext,
     DragEndEvent,
@@ -21,6 +29,14 @@ import { SortableContext, useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { useDroppable } from "@dnd-kit/core";
 
+type ReportHistory = {
+    id: string;
+    oldStatus: string | null;
+    newStatus: string;
+    createdAt: string | Date;
+    user: { name: string };
+};
+
 type Report = {
     id: string;
     title: string;
@@ -30,6 +46,7 @@ type Report = {
     contract: { name: string };
     asset: { name: string } | null;
     user: { name: string };
+    history?: ReportHistory[];
 };
 
 type KanbanColumn = {
@@ -106,7 +123,7 @@ const columns: KanbanColumn[] = [
     },
 ];
 
-function ReportCard({ report }: { report: Report }) {
+function ReportCard({ report, onViewDetails }: { report: Report; onViewDetails: (id: string) => void }) {
     const {
         attributes,
         listeners,
@@ -160,13 +177,16 @@ function ReportCard({ report }: { report: Report }) {
                     </div>
                 </div>
 
-                <div className="flex gap-1.5 pt-1">
-                    <Link href={`/reports/${report.id}`} className="flex-1">
-                        <Button variant="outline" size="sm" className="w-full h-7 rounded-lg text-[10px] font-bold border-border/60 hover:bg-primary hover:text-primary-foreground transition-all duration-300 px-2">
-                            <Eye className="h-3 w-3 mr-1" />
-                            Detalhes
-                        </Button>
-                    </Link>
+                <div className="flex gap-1.5 pt-1" onMouseDown={(e) => e.stopPropagation()} onPointerDown={(e) => e.stopPropagation()}>
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={(e) => { e.stopPropagation(); onViewDetails(report.id); }}
+                        className="flex-1 h-7 rounded-lg text-[10px] font-bold border-border/60 hover:bg-primary hover:text-primary-foreground transition-all duration-300 px-2"
+                    >
+                        <Eye className="h-3 w-3 mr-1" />
+                        Ver Detalhes
+                    </Button>
                     <Button variant="ghost" size="sm" className="h-7 w-7 rounded-lg hover:bg-muted border border-transparent hover:border-border/60 p-0">
                         <Download className="h-3 w-3" />
                     </Button>
@@ -219,6 +239,8 @@ function DroppableColumn({
 export function ReportsKanban({ initialReports = [] }: { initialReports: Report[] }) {
     const [reports, setReports] = useState(initialReports || []);
     const [activeId, setActiveId] = useState<string | null>(null);
+    const [selectedReport, setSelectedReport] = useState<Report | null>(null);
+    const [loadingDetail, setLoadingDetail] = useState(false);
 
     // Sync state when props change
     React.useEffect(() => {
@@ -308,6 +330,20 @@ export function ReportsKanban({ initialReports = [] }: { initialReports: Report[
 
     const activeReport = reports.find((r) => r.id === activeId);
 
+    const handleViewDetails = async (reportId: string) => {
+        setLoadingDetail(true);
+        try {
+            const res = await fetch(`/api/reports/${reportId}`);
+            if (!res.ok) throw new Error();
+            const reportWithHistory = await res.json();
+            setSelectedReport(reportWithHistory);
+        } catch (error) {
+            console.error("Error fetching report details:", error);
+        } finally {
+            setLoadingDetail(false);
+        }
+    };
+
     return (
         <DndContext
             sensors={sensors}
@@ -329,7 +365,7 @@ export function ReportsKanban({ initialReports = [] }: { initialReports: Report[
                             <SortableContext items={columnReports.map((r) => r.id)}>
                                 {columnReports.length > 0 ? (
                                     columnReports.map((report) => (
-                                        <ReportCard key={report.id} report={report} />
+                                        <ReportCard key={report.id} report={report} onViewDetails={handleViewDetails} />
                                     ))
                                 ) : (
                                     <div className="flex flex-col items-center justify-center h-32 text-[10px] uppercase tracking-widest text-muted-foreground/40 border-2 border-dashed border-border/20 rounded-[1.5rem] bg-secondary/10">
@@ -355,5 +391,137 @@ export function ReportsKanban({ initialReports = [] }: { initialReports: Report[
                 ) : null}
             </DragOverlay>
         </DndContext>
+
+        {/* Modal de Detalhes com Histórico */}
+        <Dialog open={!!selectedReport} onOpenChange={(open) => !open && setSelectedReport(null)}>
+            <DialogContent className="sm:max-w-[700px] border-border/40 shadow-2xl rounded-[2.5rem] overflow-hidden p-0 gap-0">
+                {selectedReport && (
+                    <>
+                        <div className="bg-card p-8 border-b border-border/40 relative">
+                            <div className="flex justify-between items-start gap-6">
+                                <div className="space-y-1">
+                                    <div className="flex items-center gap-2 mb-1">
+                                        <span className="text-[10px] font-black uppercase bg-muted px-2 py-0.5 rounded-lg border border-border/40">
+                                            {columns.find(c => c.status.includes(selectedReport.status))?.title || selectedReport.status}
+                                        </span>
+                                    </div>
+                                    <DialogTitle className="text-3xl font-black italic uppercase tracking-tighter leading-none">
+                                        {selectedReport.title}
+                                    </DialogTitle>
+                                </div>
+                                <div className="h-14 w-14 rounded-2xl bg-primary/5 flex items-center justify-center border border-primary/10">
+                                    <FileText className="h-8 w-8 text-primary/40" />
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="p-8 grid md:grid-cols-2 gap-8 overflow-y-auto max-h-[70vh]">
+                            <div className="space-y-6">
+                                <div className="space-y-4">
+                                    <div className="space-y-2">
+                                        <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Contrato</Label>
+                                        <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-muted/30 border border-border/20">
+                                            <Building2 className="h-4 w-4 text-muted-foreground" />
+                                            <span className="text-sm font-bold">{selectedReport.contract.name}</span>
+                                        </div>
+                                    </div>
+
+                                    {selectedReport.asset && (
+                                        <div className="space-y-2">
+                                            <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Ativo/Equipamento</Label>
+                                            <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-muted/30 border border-border/20">
+                                                <FileText className="h-4 w-4 text-muted-foreground" />
+                                                <span className="text-sm font-bold">{selectedReport.asset.name}</span>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div className="space-y-1">
+                                            <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Data de Execução</Label>
+                                            <div className="flex items-center gap-2 text-sm font-bold text-foreground">
+                                                <Calendar className="h-4 w-4 text-muted-foreground" />
+                                                {formatDate(selectedReport.executionDate)}
+                                            </div>
+                                        </div>
+                                        <div className="space-y-1">
+                                            <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Vencimento</Label>
+                                            <div className="flex items-center gap-2 text-sm font-bold text-foreground">
+                                                <Calendar className="h-4 w-4 text-muted-foreground" />
+                                                {formatDate(selectedReport.expirationDate)}
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="space-y-2">
+                                        <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Responsável</Label>
+                                        <div className="flex items-center gap-2 text-sm font-bold text-foreground">
+                                            {selectedReport.user.name}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="pt-4">
+                                    <Link href={`/reports/${selectedReport.id}`}>
+                                        <Button className="w-full h-12 rounded-xl btn-premium text-sm font-black uppercase">
+                                            <Eye className="h-4 w-4 mr-2" />
+                                            Ver Laudo Completo
+                                        </Button>
+                                    </Link>
+                                </div>
+                            </div>
+
+                            <div className="space-y-6 border-l border-border/20 pl-8">
+                                <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2">
+                                    <History className="h-3 w-3" /> Linha do Tempo
+                                </Label>
+                                {selectedReport.history && selectedReport.history.length > 0 ? (
+                                    <div className="space-y-6 relative before:absolute before:inset-0 before:left-2 before:w-0.5 before:bg-muted/60">
+                                        {selectedReport.history.map((log) => (
+                                            <div key={log.id} className="relative pl-8 animate-in fade-in slide-in-from-left-2 transition-all">
+                                                <div className="absolute left-0 top-0.5 h-4.5 w-4.5 rounded-full bg-card border-2 border-primary flex items-center justify-center z-10 shadow-sm">
+                                                    <div className="h-1.5 w-1.5 rounded-full bg-primary" />
+                                                </div>
+                                                <div className="space-y-1">
+                                                    <p className="text-xs font-bold leading-tight">
+                                                        {log.oldStatus ? (
+                                                            <>
+                                                                Moveu de <span className="text-muted-foreground/50 line-through lowercase italic">{columns.find(c => c.status.includes(log.oldStatus || ""))?.title || log.oldStatus}</span> para <span className="text-primary italic">{columns.find(c => c.status.includes(log.newStatus))?.title || log.newStatus}</span>
+                                                            </>
+                                                        ) : (
+                                                            <>Criou o laudo como <span className="text-primary italic">{columns.find(c => c.status.includes(log.newStatus))?.title || log.newStatus}</span></>
+                                                        )}
+                                                    </p>
+                                                    <div className="flex items-center gap-2 text-[9px] font-black uppercase tracking-widest text-muted-foreground opacity-60">
+                                                        <span>{log.user.name}</span>
+                                                        <span>•</span>
+                                                        <span>{formatDate(log.createdAt)}</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <div className="flex flex-col items-center justify-center py-12 text-center border-2 border-dashed border-border/20 rounded-3xl opacity-40">
+                                        <Clock className="h-8 w-8 mb-2 text-muted-foreground" />
+                                        <p className="text-[10px] font-black uppercase tracking-[0.2em]">Sem histórico</p>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
+                        <DialogFooter className="p-8 pt-4 border-t border-border/20 bg-muted/5">
+                            <Button
+                                variant="ghost"
+                                onClick={() => setSelectedReport(null)}
+                                className="h-12 px-8 rounded-2xl font-black uppercase text-xs tracking-widest"
+                            >
+                                Fechar
+                            </Button>
+                        </DialogFooter>
+                    </>
+                )}
+            </DialogContent>
+        </Dialog>
     );
 }
