@@ -66,13 +66,6 @@ type KanbanColumn = {
 
 const columns: KanbanColumn[] = [
     {
-        id: "draft",
-        title: "Rascunhos",
-        status: ["DRAFT"],
-        color: "text-slate-600 dark:text-slate-400",
-        bgColor: "bg-slate-500/10",
-    },
-    {
         id: "in_progress",
         title: "Em andamento",
         status: ["IN_PROGRESS"],
