@@ -383,13 +383,14 @@ export function ReportsKanban({ initialReports = [] }: { initialReports: Report[
     };
 
     return (
-        <DndContext
-            sensors={sensors}
-            collisionDetection={rectIntersection}
-            onDragStart={handleDragStart}
-            onDragEnd={handleDragEnd}
-        >
-            <div className="flex gap-3 overflow-x-auto pb-8 scrollbar-hide px-1">
+        <>
+            <DndContext
+                sensors={sensors}
+                collisionDetection={rectIntersection}
+                onDragStart={handleDragStart}
+                onDragEnd={handleDragEnd}
+            >
+                <div className="flex gap-3 overflow-x-auto pb-8 scrollbar-hide px-1">
                 {columns.map((column) => {
                     const columnReports = reports.filter((report) =>
                         column.status.includes(report.status)
@@ -428,10 +429,10 @@ export function ReportsKanban({ initialReports = [] }: { initialReports: Report[
                     </div>
                 ) : null}
             </DragOverlay>
-        </DndContext>
+            </DndContext>
 
-        {/* Modal de Detalhes com Histórico */}
-        <Dialog open={!!selectedReport} onOpenChange={(open) => !open && setSelectedReport(null)}>
+            {/* Modal de Detalhes com Histórico */}
+            <Dialog open={!!selectedReport} onOpenChange={(open) => !open && setSelectedReport(null)}>
             <DialogContent className="sm:max-w-[700px] border-border/40 shadow-2xl rounded-[2.5rem] overflow-hidden p-0 gap-0">
                 {selectedReport && (
                     <>
@@ -594,6 +595,7 @@ export function ReportsKanban({ initialReports = [] }: { initialReports: Report[
                     </>
                 )}
             </DialogContent>
-        </Dialog>
+            </Dialog>
+        </>
     );
 }
