@@ -42,6 +42,7 @@ import {
     useSensor,
     useSensors,
     closestCenter,
+    rectIntersection,
 } from "@dnd-kit/core";
 import { SortableContext, useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
@@ -179,7 +180,7 @@ export function RelevantItemsKanban({ initialItems = [], contractId }: RelevantI
     }, [contractId]);
 
     const sensors = useSensors(
-        useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+        useSensor(PointerSensor),
         useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 5 } })
     );
 
@@ -595,7 +596,7 @@ export function RelevantItemsKanban({ initialItems = [], contractId }: RelevantI
             {items.length > 0 && (
                 <DndContext
                     sensors={sensors}
-                    collisionDetection={closestCenter}
+                    collisionDetection={rectIntersection}
                     onDragStart={handleDragStart}
                     onDragEnd={handleDragEnd}
                 >
