@@ -255,6 +255,7 @@ export function ReportsKanban({ initialReports = [] }: { initialReports: Report[
         const overId = over.id as string;
 
         const column = columns.find((col) => col.id === overId);
+        let newStatus: string | null = null;
 
         if (!column) {
             const targetReport = reports.find((r) => r.id === overId);
@@ -272,21 +273,22 @@ export function ReportsKanban({ initialReports = [] }: { initialReports: Report[
                 return;
             }
 
-            await updateReportStatus(reportId, targetColumn.status[0]);
+            newStatus = targetColumn.status[0];
         } else {
-            await updateReportStatus(reportId, column.status[0]);
+            newStatus = column.status[0];
         }
 
-        setActiveId(null);
-    };
-
-    const updateReportStatus = async (reportId: string, newStatus: string) => {
+        // Atualização otimista ANTES de limpar activeId
+        const oldReports = [...reports];
         setReports((prev) =>
             prev.map((report) =>
-                report.id === reportId ? { ...report, status: newStatus } : report
+                report.id === reportId ? { ...report, status: newStatus! } : report
             )
         );
 
+        setActiveId(null);
+
+        // Agora faz a chamada API em background
         try {
             const response = await fetch(`/api/reports/${reportId}/status`, {
                 method: "PATCH",
@@ -299,9 +301,10 @@ export function ReportsKanban({ initialReports = [] }: { initialReports: Report[
             }
         } catch (error) {
             console.error("Failed to update report status:", error);
-            setReports(initialReports);
+            setReports(oldReports);
         }
     };
+
 
     const activeReport = reports.find((r) => r.id === activeId);
 

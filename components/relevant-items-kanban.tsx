@@ -190,23 +190,55 @@ export function RelevantItemsKanban({ initialItems = [], contractId }: RelevantI
 
     const handleDragEnd = async (event: DragEndEvent) => {
         const { active, over } = event;
-        setActiveId(null);
-        if (!over) return;
+        if (!over) {
+            setActiveId(null);
+            return;
+        }
 
         const activeItem = items.find((i) => i.id === active.id);
         const overColumn = COLUMNS.find((c) => c.id === over.id);
-        if (!activeItem || !overColumn) return;
+        if (!activeItem || !overColumn) {
+            setActiveId(null);
+            return;
+        }
 
         const newStatus = overColumn.status[0];
-        if (activeItem.status === newStatus) return;
+        if (activeItem.status === newStatus) {
+            setActiveId(null);
+            return;
+        }
 
         // Se mover para Concluído, pede fotos
         if (newStatus === "COMPLETED") {
+            setActiveId(null);
             setItemToComplete(activeItem);
             return;
         }
 
-        await updateItemStatus(activeItem.id, newStatus);
+        // Atualização otimista ANTES de limpar activeId
+        const oldItems = [...items];
+        setItems((prev) =>
+            prev.map((i) => (i.id === activeItem.id ? { ...i, status: newStatus } : i))
+        );
+
+        setActiveId(null);
+
+        // Chamada API em background
+        try {
+            const res = await fetch(`/api/relevant-items/${activeItem.id}`, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ status: newStatus }),
+            });
+            if (!res.ok) throw new Error();
+            const updatedItem = await res.json();
+            setItems((prev) => prev.map((i) => (i.id === activeItem.id ? updatedItem : i)));
+            const colName = COLUMNS.find(c => c.status.includes(newStatus))?.title || newStatus;
+            toast({ title: "Status atualizado!", description: `Movido para ${colName}`, variant: "success" });
+        } catch {
+            setItems(oldItems);
+            toast({ title: "Erro ao atualizar status", variant: "destructive" });
+        }
     };
 
     const updateItemStatus = async (itemId: string, newStatus: string, additionalFiles: PendingFile[] = []) => {
