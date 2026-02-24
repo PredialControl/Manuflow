@@ -3,7 +3,7 @@
 import React, { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Eye, Download, Calendar, Building2, FileText, History, Clock, Loader2 } from "lucide-react";
+import { Eye, Download, Calendar, Building2, FileText, History, Clock, Loader2, Paperclip, Image } from "lucide-react";
 import Link from "next/link";
 import { formatDate } from "@/lib/utils";
 import {
@@ -37,6 +37,12 @@ type ReportHistory = {
     user: { name: string };
 };
 
+type Photo = {
+    id: string;
+    url: string;
+    filename: string;
+};
+
 type Report = {
     id: string;
     title: string;
@@ -46,6 +52,7 @@ type Report = {
     contract: { name: string };
     asset: { name: string } | null;
     user: { name: string };
+    photos?: Photo[];
     history?: ReportHistory[];
 };
 
@@ -177,6 +184,37 @@ function ReportCard({ report, onViewDetails }: { report: Report; onViewDetails: 
                     </div>
                 </div>
 
+                {/* Anexos/Fotos */}
+                {report.photos && report.photos.length > 0 && (
+                    <div className="space-y-2">
+                        <div className="flex gap-1.5 flex-wrap">
+                            {report.photos.slice(0, 3).map((photo) => (
+                                <a
+                                    key={photo.id}
+                                    href={photo.url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    download={photo.filename}
+                                    onClick={(e) => e.stopPropagation()}
+                                    onMouseDown={(e) => e.stopPropagation()}
+                                    onPointerDown={(e) => e.stopPropagation()}
+                                    className="relative h-12 w-12 rounded-lg overflow-hidden border border-border/40 hover:scale-105 transition-transform shadow-sm group/photo"
+                                >
+                                    <img src={photo.url} alt={photo.filename} className="w-full h-full object-cover" />
+                                    <div className="absolute inset-0 bg-black/20 opacity-0 group-hover/photo:opacity-100 transition-opacity flex items-center justify-center">
+                                        <Download className="h-3 w-3 text-white" />
+                                    </div>
+                                </a>
+                            ))}
+                            {report.photos.length > 3 && (
+                                <div className="h-12 w-12 rounded-lg bg-muted/60 border border-border/40 flex items-center justify-center">
+                                    <span className="text-[10px] font-black text-muted-foreground">+{report.photos.length - 3}</span>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                )}
+
                 <div className="flex gap-1.5 pt-1" onMouseDown={(e) => e.stopPropagation()} onPointerDown={(e) => e.stopPropagation()}>
                     <Button
                         variant="outline"
@@ -187,9 +225,16 @@ function ReportCard({ report, onViewDetails }: { report: Report; onViewDetails: 
                         <Eye className="h-3 w-3 mr-1" />
                         Ver Detalhes
                     </Button>
-                    <Button variant="ghost" size="sm" className="h-7 w-7 rounded-lg hover:bg-muted border border-transparent hover:border-border/60 p-0">
-                        <Download className="h-3 w-3" />
-                    </Button>
+                    {report.photos && report.photos.length > 0 && (
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 w-7 rounded-lg hover:bg-muted border border-transparent hover:border-border/60 p-0"
+                            title={`${report.photos.length} foto${report.photos.length > 1 ? 's' : ''}`}
+                        >
+                            <Image className="h-3 w-3" />
+                        </Button>
+                    )}
                 </div>
             </div>
         </div>
@@ -460,6 +505,40 @@ export function ReportsKanban({ initialReports = [] }: { initialReports: Report[
                                         </div>
                                     </div>
                                 </div>
+
+                                {/* Fotos/Anexos */}
+                                {selectedReport.photos && selectedReport.photos.length > 0 && (
+                                    <div className="space-y-4">
+                                        <div className="flex items-center justify-between">
+                                            <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Fotos do Laudo</Label>
+                                            <span className="text-[10px] font-black text-primary uppercase bg-primary/10 px-2 py-0.5 rounded-lg">
+                                                {selectedReport.photos.length} {selectedReport.photos.length === 1 ? 'foto' : 'fotos'}
+                                            </span>
+                                        </div>
+
+                                        <div className="grid grid-cols-2 gap-3">
+                                            {selectedReport.photos.map((photo) => (
+                                                <div key={photo.id} className="group relative rounded-2xl border border-border/40 overflow-hidden bg-card transition-all hover:border-primary/40 shadow-sm">
+                                                    <div className="aspect-video w-full bg-muted overflow-hidden">
+                                                        <img src={photo.url} alt={photo.filename} className="w-full h-full object-cover transition-transform group-hover:scale-110" />
+                                                    </div>
+                                                    <div className="p-3 flex items-center justify-between gap-2">
+                                                        <span className="text-[10px] font-black uppercase truncate flex-1 opacity-60">{photo.filename}</span>
+                                                        <a
+                                                            href={photo.url}
+                                                            download={photo.filename}
+                                                            target="_blank"
+                                                            rel="noopener noreferrer"
+                                                            className="h-7 w-7 rounded-lg bg-primary/10 flex items-center justify-center text-primary hover:bg-primary hover:text-white transition-all"
+                                                        >
+                                                            <Download className="h-3 w-3" />
+                                                        </a>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
 
                                 <div className="pt-4">
                                     <Link href={`/reports/${selectedReport.id}`}>

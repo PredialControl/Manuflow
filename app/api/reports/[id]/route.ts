@@ -23,6 +23,14 @@ export async function GET(
                 contract: { select: { id: true, name: true } },
                 asset: { select: { id: true, name: true } },
                 user: { select: { name: true, email: true } },
+                photos: {
+                    select: {
+                        id: true,
+                        url: true,
+                        filename: true,
+                    },
+                    orderBy: { createdAt: "desc" },
+                },
             },
         });
 
