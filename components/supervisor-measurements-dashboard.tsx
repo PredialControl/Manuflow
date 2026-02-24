@@ -3,8 +3,9 @@
 import React, { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { Droplets, Zap, Flame, Calendar, TrendingUp, TrendingDown, Activity } from "lucide-react";
+import { Droplets, Zap, Flame, Calendar, TrendingUp, TrendingDown, Activity, Filter, Clock } from "lucide-react";
 import { cn, formatDate } from "@/lib/utils";
+import { subDays, isAfter, startOfWeek, startOfMonth, startOfYear } from "date-fns";
 
 type MeasurementType = "WATER" | "ENERGY" | "GAS";
 
@@ -35,6 +36,8 @@ interface SupervisorMeasurementsDashboardProps {
 }
 
 export function SupervisorMeasurementsDashboard({ devices }: SupervisorMeasurementsDashboardProps) {
+    const [timeRange, setTimeRange] = useState<"week" | "month" | "year" | "all">("month");
+
     const typeIcons = {
         WATER: Droplets,
         ENERGY: Zap,
@@ -47,17 +50,46 @@ export function SupervisorMeasurementsDashboard({ devices }: SupervisorMeasureme
         GAS: { bg: "bg-orange-500/10", text: "text-orange-600", chart: "#f97316" },
     };
 
-    // Preparar dados para gráficos (últimas 10 leituras, ordem crescente por data)
+    // Filtrar entradas por período
+    const getFilteredEntries = (entries: Entry[]) => {
+        const now = new Date();
+        let startDate: Date;
+
+        if (timeRange === "week") startDate = startOfWeek(now);
+        else if (timeRange === "month") startDate = startOfMonth(now);
+        else if (timeRange === "year") startDate = startOfYear(now);
+        else return entries;
+
+        return entries.filter(e => isAfter(new Date(e.createdAt), startDate));
+    };
+
+    // Preparar dados para gráficos
     const getChartData = (device: Device) => {
-        const sortedEntries = [...device.entries]
-            .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
-            .slice(-10);
+        const filtered = getFilteredEntries(device.entries);
+        const sortedEntries = [...filtered]
+            .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
 
         return sortedEntries.map((entry) => ({
             date: new Date(entry.createdAt).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }),
             value: entry.value,
             fullDate: formatDate(entry.createdAt),
         }));
+    };
+
+    // Calcular consumo acumulado no período
+    const getAccumulatedStats = (device: Device) => {
+        const filtered = [...getFilteredEntries(device.entries)].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+        if (filtered.length < 2) return null;
+
+        const latest = filtered[0];
+        const oldest = filtered[filtered.length - 1];
+        const consumption = latest.value - oldest.value;
+
+        return {
+            total: consumption,
+            period: timeRange === "week" ? "esta semana" : timeRange === "month" ? "este mês" : "este ano",
+            count: filtered.length
+        };
     };
 
     // Calcular estatísticas
@@ -90,55 +122,115 @@ export function SupervisorMeasurementsDashboard({ devices }: SupervisorMeasureme
 
     return (
         <div className="space-y-8">
-            {/* Últimas Leituras Realizadas */}
-            <div className="space-y-4">
-                <div className="flex items-center gap-2">
-                    <Activity className="h-5 w-5 text-primary" />
-                    <h2 className="text-xl font-black tracking-tight uppercase">Últimas Leituras Realizadas</h2>
+            {/* Filtros e Cabeçalho */}
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-card/40 p-6 rounded-[2rem] border border-border/40 backdrop-blur-md">
+                <div className="flex items-center gap-3">
+                    <div className="h-12 w-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary">
+                        <Activity className="h-6 w-6" />
+                    </div>
+                    <div>
+                        <h1 className="text-2xl font-black tracking-tight uppercase italic">Dashboard de Consumo</h1>
+                        <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground opacity-60">Análise de medidores e eficiência</p>
+                    </div>
                 </div>
 
-                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                    {latestReadings.map(({ device, entry, stats }) => {
-                        const Icon = typeIcons[device.type];
-                        const colors = typeColors[device.type];
-
-                        return (
-                            <Card key={entry.id} className="card-premium overflow-hidden">
-                                <CardContent className="p-4">
-                                    <div className="flex items-start gap-3">
-                                        <div className={cn("h-10 w-10 rounded-xl flex items-center justify-center flex-shrink-0", colors.bg)}>
-                                            <Icon className={cn("h-5 w-5", colors.text)} />
-                                        </div>
-                                        <div className="flex-1 min-w-0">
-                                            <p className="text-xs font-bold text-muted-foreground truncate">{device.contract.name}</p>
-                                            <h3 className="text-sm font-black truncate">{device.name}</h3>
-                                            <div className="flex items-baseline gap-2 mt-1">
-                                                <span className="text-2xl font-black tracking-tighter">{entry.value}</span>
-                                                <span className="text-xs font-bold text-muted-foreground">{device.unit}</span>
-                                            </div>
-                                            {stats && stats.consumption !== 0 && (
-                                                <div className={cn(
-                                                    "flex items-center gap-1 mt-1 text-xs font-black",
-                                                    stats.isIncrease ? "text-amber-600" : "text-emerald-600"
-                                                )}>
-                                                    {stats.isIncrease ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
-                                                    {stats.isIncrease ? "+" : ""}{stats.consumption.toFixed(2)} {device.unit}
-                                                </div>
-                                            )}
-                                            <div className="flex items-center gap-1 mt-2 text-[10px] text-muted-foreground">
-                                                <Calendar className="h-3 w-3" />
-                                                {formatDate(entry.createdAt)} • {entry.user.name}
-                                            </div>
-                                        </div>
-                                    </div>
-                                </CardContent>
-                            </Card>
-                        );
-                    })}
+                <div className="flex bg-muted/50 p-1.5 rounded-2xl border border-border/20">
+                    {[
+                        { id: "week", label: "Semana" },
+                        { id: "month", label: "Mês" },
+                        { id: "year", label: "Ano" },
+                        { id: "all", label: "Tudo" },
+                    ].map((range) => (
+                        <button
+                            key={range.id}
+                            onClick={() => setTimeRange(range.id as any)}
+                            className={cn(
+                                "px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all",
+                                timeRange === range.id
+                                    ? "bg-background text-primary shadow-lg"
+                                    : "text-muted-foreground hover:bg-background/40 hover:text-foreground"
+                            )}
+                        >
+                            {range.label}
+                        </button>
+                    ))}
                 </div>
             </div>
 
-            {/* Gráficos por Medidor */}
+            {/* Resumo Consolidados */}
+            <div className="grid gap-6 md:grid-cols-3">
+                {["WATER", "ENERGY", "GAS"].map((type) => {
+                    const typeDevices = devices.filter(d => d.type === type);
+                    const totalCons = typeDevices.reduce((sum, d) => sum + (getAccumulatedStats(d)?.total || 0), 0);
+                    const Icon = typeIcons[type as MeasurementType];
+                    const colors = typeColors[type as MeasurementType];
+                    const unit = typeDevices[0]?.unit || "";
+
+                    return (
+                        <Card key={type} className="card-premium overflow-hidden border-none bg-muted/20 relative group">
+                            <div className={cn("absolute top-0 right-0 h-24 w-24 -mr-8 -mt-8 rounded-full blur-3xl opacity-10 transition-opacity group-hover:opacity-30", type === "WATER" ? "bg-blue-500" : type === "ENERGY" ? "bg-yellow-500" : "bg-orange-500")} />
+                            <CardContent className="p-6">
+                                <div className="flex items-center gap-4 mb-4">
+                                    <div className={cn("h-12 w-12 rounded-2xl flex items-center justify-center", colors.bg)}>
+                                        <Icon className={cn("h-6 w-6", colors.text)} />
+                                    </div>
+                                    <div>
+                                        <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60">Total {type === "WATER" ? "Água" : type === "ENERGY" ? "Energia" : "Gás"}</p>
+                                        <div className="flex items-baseline gap-2">
+                                            <span className="text-3xl font-black tracking-tighter">{totalCons.toFixed(1)}</span>
+                                            <span className="text-xs font-bold text-muted-foreground">{unit}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="flex items-center gap-2 text-[10px] font-bold text-muted-foreground/40 uppercase tracking-widest">
+                                    <Clock className="h-3 w-3" /> acumulado {timeRange === "week" ? "esta semana" : timeRange === "month" ? "este mês" : timeRange === "year" ? "este ano" : "total"}
+                                </div>
+                            </CardContent>
+                        </Card>
+                    );
+                })}
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                {latestReadings.map(({ device, entry, stats }) => {
+                    const Icon = typeIcons[device.type];
+                    const colors = typeColors[device.type];
+
+                    return (
+                        <Card key={entry.id} className="card-premium overflow-hidden">
+                            <CardContent className="p-4">
+                                <div className="flex items-start gap-3">
+                                    <div className={cn("h-10 w-10 rounded-xl flex items-center justify-center flex-shrink-0", colors.bg)}>
+                                        <Icon className={cn("h-5 w-5", colors.text)} />
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <p className="text-xs font-bold text-muted-foreground truncate">{device.contract.name}</p>
+                                        <h3 className="text-sm font-black truncate">{device.name}</h3>
+                                        <div className="flex items-baseline gap-2 mt-1">
+                                            <span className="text-2xl font-black tracking-tighter">{entry.value}</span>
+                                            <span className="text-xs font-bold text-muted-foreground">{device.unit}</span>
+                                        </div>
+                                        {stats && stats.consumption !== 0 && (
+                                            <div className={cn(
+                                                "flex items-center gap-1 mt-1 text-xs font-black",
+                                                stats.isIncrease ? "text-amber-600" : "text-emerald-600"
+                                            )}>
+                                                {stats.isIncrease ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
+                                                {stats.isIncrease ? "+" : ""}{stats.consumption.toFixed(2)} {device.unit}
+                                            </div>
+                                        )}
+                                        <div className="flex items-center gap-1 mt-2 text-[10px] text-muted-foreground">
+                                            <Calendar className="h-3 w-3" />
+                                            {formatDate(entry.createdAt)} • {entry.user.name}
+                                        </div>
+                                    </div>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    );
+                })}
+            </div>
+
             <div className="space-y-4">
                 <div className="flex items-center gap-2">
                     <TrendingUp className="h-5 w-5 text-primary" />
@@ -251,17 +343,19 @@ export function SupervisorMeasurementsDashboard({ devices }: SupervisorMeasureme
                 </div>
             </div>
 
-            {devices.filter(d => d.entries.length >= 2).length === 0 && (
-                <div className="py-20 text-center">
-                    <Activity className="h-16 w-16 text-muted-foreground/20 mx-auto mb-4" />
-                    <p className="text-sm font-bold text-muted-foreground">
-                        Aguardando mais leituras para exibir gráficos
-                    </p>
-                    <p className="text-xs text-muted-foreground/60 mt-1">
-                        É necessário pelo menos 2 leituras por medidor
-                    </p>
-                </div>
-            )}
-        </div>
+            {
+                devices.filter(d => d.entries.length >= 2).length === 0 && (
+                    <div className="py-20 text-center">
+                        <Activity className="h-16 w-16 text-muted-foreground/20 mx-auto mb-4" />
+                        <p className="text-sm font-bold text-muted-foreground">
+                            Aguardando mais leituras para exibir gráficos
+                        </p>
+                        <p className="text-xs text-muted-foreground/60 mt-1">
+                            É necessário pelo menos 2 leituras por medidor
+                        </p>
+                    </div>
+                )
+            }
+        </div >
     );
 }

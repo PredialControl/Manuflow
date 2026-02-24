@@ -614,8 +614,13 @@ export function RelevantItemsKanban({ initialItems = [], contractId }: RelevantI
                         })}
                     </div>
 
-                    <DragOverlay>
-                        {activeItem && <ItemCard item={activeItem} isDragging onAttach={handleAttach} />}
+                    <DragOverlay dropAnimation={{ duration: 250, easing: 'cubic-bezier(0.18, 0.67, 0.6, 1.22)' }}>
+                        {activeItem && (() => {
+                            (window as any).isDraggingOverlay = true;
+                            const card = <ItemCard item={activeItem} isDragging onAttach={handleAttach} />;
+                            (window as any).isDraggingOverlay = false;
+                            return card;
+                        })()}
                     </DragOverlay>
                 </DndContext>
             )}
@@ -974,8 +979,15 @@ function ItemCard({ item, isDragging, onAttach }: { item: RelevantItem; isDraggi
     };
     const p = item.priority ? priorityMap[item.priority] : null;
 
+    const isOverlay = (window as any).isDraggingOverlay;
+
     return (
-        <Card className={`card-premium overflow-hidden transition-all duration-300 ${isDragging ? "opacity-0" : "hover:shadow-xl hover:scale-[1.02] active:scale-95 group-hover:border-primary/30"}`}>
+        <Card className={cn(
+            "card-premium overflow-hidden transition-all duration-300",
+            isDragging && !isOverlay && "opacity-20 cursor-grabbing border-primary/50",
+            isOverlay && "shadow-2xl scale-105 rotate-1 z-[100] cursor-grabbing border-primary shadow-primary/20",
+            !isDragging && "hover:shadow-xl hover:scale-[1.02] active:scale-95 group-hover:border-primary/30"
+        )}>
             <CardHeader className="p-4 pb-2">
                 <div className="flex justify-between items-start gap-2">
                     <CardTitle className="text-sm font-black tracking-tight leading-snug uppercase italic">{item.title}</CardTitle>
