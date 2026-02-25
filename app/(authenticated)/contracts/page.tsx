@@ -20,12 +20,20 @@ export default async function ContractsPage() {
       active: true,
       deletedAt: null,
     },
-    include: {
+    select: {
+      id: true,
+      name: true,
+      company: true,
+      contractNumber: true,
+      startDate: true,
+      endDate: true,
+      createdAt: true,
       _count: {
         select: { assets: true, reports: true },
       },
     },
     orderBy: { createdAt: "desc" },
+    take: 50, // Limitar a 50 contratos iniciais
   });
 
   return (

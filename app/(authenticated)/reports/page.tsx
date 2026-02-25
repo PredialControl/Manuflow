@@ -22,12 +22,27 @@ export default async function ReportsPage() {
       ...whereClause,
       deletedAt: null,
     },
-    include: {
+    select: {
+      id: true,
+      title: true,
+      status: true,
+      executionDate: true,
+      expirationDate: true,
       contract: { select: { name: true } },
       asset: { select: { name: true } },
       user: { select: { name: true } },
+      photos: {
+        select: {
+          id: true,
+          url: true,
+          filename: true,
+        },
+        take: 3, // Só os 3 primeiros para o card
+        orderBy: { createdAt: "desc" },
+      },
     },
     orderBy: { createdAt: "desc" },
+    take: 100, // Limitar a 100 reports iniciais
   });
 
   return (

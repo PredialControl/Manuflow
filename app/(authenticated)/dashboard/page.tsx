@@ -10,6 +10,7 @@ import { TechnicianDashboard } from "@/components/technician-dashboard";
 import { getContractWhereClause, getCompanyWhereClause } from "@/lib/multi-tenancy";
 
 export const dynamic = "force-dynamic";
+export const revalidate = 60; // Cache por 60 segundos
 
 export default async function DashboardPage() {
   const session = await getServerSession(authOptions);
