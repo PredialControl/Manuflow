@@ -79,7 +79,22 @@ export async function POST(request: Request) {
       crea,
       notes: notes || null,
       recommendations: recommendations || null,
-      status: "DRAFT",
+      status: "IN_PROGRESS",
+    },
+  });
+
+  // Create initial audit log
+  await prisma.auditLog.create({
+    data: {
+      userId: session.user.id,
+      companyId: session.user.companyId,
+      action: "UPDATE_REPORT_STATUS",
+      entity: "Report",
+      entityId: report.id,
+      changes: {
+        from: null,
+        to: "IN_PROGRESS",
+      },
     },
   });
 

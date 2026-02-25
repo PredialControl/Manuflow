@@ -23,11 +23,21 @@ export async function POST(
             return new NextResponse("No file provided", { status: 400 });
         }
 
+        console.log("[ATTACHMENT_POST] Uploading file:", file.name, "Size:", file.size);
+
+        // Check if BLOB_READ_WRITE_TOKEN is configured
+        if (!process.env.BLOB_READ_WRITE_TOKEN) {
+            console.error("[ATTACHMENT_POST] BLOB_READ_WRITE_TOKEN not configured");
+            return new NextResponse("Upload service not configured", { status: 500 });
+        }
+
         // Upload to Vercel Blob
         const blob = await put(file.name, file, {
             access: "public",
             addRandomSuffix: true,
         });
+
+        console.log("[ATTACHMENT_POST] Upload successful:", blob.url);
 
         // Determine file type
         const fileType = file.type.startsWith("image/")
@@ -56,9 +66,12 @@ export async function POST(
             }
         });
 
+        console.log("[ATTACHMENT_POST] Attachment saved to DB:", attachment.id);
         return NextResponse.json(attachment);
-    } catch (error) {
-        console.error("[ATTACHMENT_POST]", error);
-        return new NextResponse("Internal Error", { status: 500 });
+    } catch (error: any) {
+        console.error("[ATTACHMENT_POST] Error:", error);
+        console.error("[ATTACHMENT_POST] Error message:", error?.message);
+        console.error("[ATTACHMENT_POST] Error stack:", error?.stack);
+        return new NextResponse(`Upload failed: ${error?.message || 'Unknown error'}`, { status: 500 });
     }
 }
