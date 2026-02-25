@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { put } from "@vercel/blob";
+import { uploadFile } from "@/lib/upload-helper";
 
 export async function POST(
     req: Request,
@@ -25,19 +25,9 @@ export async function POST(
 
         console.log("[ATTACHMENT_POST] Uploading file:", file.name, "Size:", file.size);
 
-        // Check if BLOB_READ_WRITE_TOKEN is configured
-        if (!process.env.BLOB_READ_WRITE_TOKEN) {
-            console.error("[ATTACHMENT_POST] BLOB_READ_WRITE_TOKEN not configured");
-            return new NextResponse("Upload service not configured", { status: 500 });
-        }
-
-        // Upload to Vercel Blob
-        const blob = await put(file.name, file, {
-            access: "public",
-            addRandomSuffix: true,
-        });
-
-        console.log("[ATTACHMENT_POST] Upload successful:", blob.url);
+        // Upload file (with fallback for dev)
+        const fileUrl = await uploadFile(file);
+        console.log("[ATTACHMENT_POST] Upload successful:", fileUrl);
 
         // Determine file type
         const fileType = file.type.startsWith("image/")
@@ -51,7 +41,7 @@ export async function POST(
             data: {
                 companyId: session.user.companyId,
                 itemId,
-                url: blob.url,
+                url: fileUrl,
                 filename: file.name,
                 fileType,
                 size: file.size,
