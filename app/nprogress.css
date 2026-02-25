@@ -8,22 +8,24 @@
   background: linear-gradient(
     90deg,
     hsl(var(--primary)) 0%,
-    hsl(var(--primary) / 0.8) 50%,
+    hsl(var(--primary) / 0.85) 25%,
+    hsl(var(--primary) / 0.7) 50%,
+    hsl(var(--primary) / 0.85) 75%,
     hsl(var(--primary)) 100%
   );
   background-size: 200% 100%;
-  animation: gradient-shift 2s ease infinite;
+  animation: gradient-shift 1.5s ease-in-out infinite;
 
   position: fixed;
-  z-index: 9999;
+  z-index: 99999 !important;
   top: 0;
   left: 0;
 
   width: 100%;
   height: 3px;
 
-  box-shadow: 0 0 10px hsl(var(--primary) / 0.5),
-              0 0 5px hsl(var(--primary) / 0.3);
+  box-shadow: 0 0 12px hsl(var(--primary) / 0.6),
+              0 0 6px hsl(var(--primary) / 0.4);
 }
 
 @keyframes gradient-shift {
@@ -38,34 +40,38 @@
   }
 }
 
-/* Fancy blur effect */
+/* Fancy blur effect at the end */
 #nprogress .peg {
   display: block;
   position: absolute;
   right: 0px;
-  width: 100px;
+  width: 120px;
   height: 100%;
-  box-shadow: 0 0 15px hsl(var(--primary)), 0 0 8px hsl(var(--primary));
+  box-shadow: 0 0 20px hsl(var(--primary)),
+              0 0 12px hsl(var(--primary)),
+              0 0 6px hsl(var(--primary) / 0.5);
   opacity: 1;
-
-  transform: rotate(3deg) translate(0px, -4px);
+  transform: rotate(2deg) translate(0px, -2px);
 }
 
-/* Remove spinner */
-#nprogress .spinner {
-  display: none;
-}
-
-/* Custom pulse animation for better feedback */
+/* Pulse effect for better visibility */
 @keyframes nprogress-pulse {
   0%, 100% {
     opacity: 1;
+    filter: brightness(1);
   }
   50% {
-    opacity: 0.7;
+    opacity: 0.85;
+    filter: brightness(1.2);
   }
 }
 
 #nprogress .bar {
-  animation: gradient-shift 2s ease infinite, nprogress-pulse 1s ease-in-out infinite;
+  animation: gradient-shift 1.5s ease-in-out infinite,
+             nprogress-pulse 1.2s ease-in-out infinite;
+}
+
+/* Remove spinner */
+#nprogress .spinner {
+  display: none !important;
 }
