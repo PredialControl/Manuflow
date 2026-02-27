@@ -74,6 +74,13 @@ enum RecurrenceType {
   ANNUAL
 }
 
+enum OperationalStatus {
+  OPERATIONAL      // Funcionando (verde)
+  NOT_OPERATIONAL  // Não funcionando (vermelho)
+  MAINTENANCE      // Em manutenção (amarelo)
+  UNKNOWN          // Desconhecido (cinza)
+}
+
 enum ReportStatus {
   DRAFT
   APPROVED              // Em dia
@@ -206,23 +213,24 @@ model UserContract {
 }
 
 model Asset {
-  id              String    @id @default(cuid())
-  contractId      String
-  companyId       String
-  name            String
-  type            String
-  category        String?   // Specialty category (e.g., AR_CONDICIONADO, CIVIL, ELETRICA)
-  location        String
-  brand           String?
-  model           String?
-  power           String?
-  image           String?
-  frequency       Frequency @default(MONTHLY)
-  includeInRonda  Boolean   @default(false)
-  active          Boolean   @default(true)
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
-  deletedAt       DateTime?
+  id                  String              @id @default(cuid())
+  contractId          String
+  companyId           String
+  name                String
+  type                String
+  category            String?             // Specialty category (e.g., AR_CONDICIONADO, CIVIL, ELETRICA)
+  location            String
+  brand               String?
+  model               String?
+  power               String?
+  image               String?
+  frequency           Frequency           @default(MONTHLY)
+  includeInRonda      Boolean             @default(false)
+  operationalStatus   OperationalStatus   @default(OPERATIONAL)
+  active              Boolean             @default(true)
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
+  deletedAt           DateTime?
 
   company         Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
   contract        Contract  @relation(fields: [contractId], references: [id], onDelete: Cascade)

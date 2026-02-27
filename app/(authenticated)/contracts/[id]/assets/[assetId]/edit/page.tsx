@@ -37,6 +37,7 @@ interface Asset {
   power: string | null;
   category: string;
   frequency: string;
+  operationalStatus: string;
   image: string | null;
 }
 
@@ -115,6 +116,7 @@ export default function EditAssetPage() {
           power: formData.get("power"),
           category: formData.get("category"),
           frequency: formData.get("frequency"),
+          operationalStatus: formData.get("operationalStatus"),
           image: image,
         }),
       });
@@ -359,6 +361,23 @@ export default function EditAssetPage() {
                         {freq.label.toUpperCase()}
                       </option>
                     ))}
+                  </select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="operationalStatus" className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">
+                    Status Operacional
+                  </Label>
+                  <select
+                    id="operationalStatus"
+                    name="operationalStatus"
+                    defaultValue={asset.operationalStatus}
+                    className="flex h-12 w-full rounded-xl border border-border/40 bg-muted/30 px-4 py-2 text-sm font-bold focus:bg-background focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all cursor-pointer"
+                  >
+                    <option value="OPERATIONAL">FUNCIONANDO</option>
+                    <option value="NOT_OPERATIONAL">PARADO</option>
+                    <option value="MAINTENANCE">EM MANUTENÇÃO</option>
+                    <option value="UNKNOWN">DESCONHECIDO</option>
                   </select>
                 </div>
               </div>

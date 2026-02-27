@@ -307,6 +307,27 @@ export default async function ContractDetailPage({
                             </span>
                           )}
                         </div>
+
+                        <div className="absolute top-4 right-4">
+                          {asset.operationalStatus === 'OPERATIONAL' && (
+                            <div className="flex items-center gap-2 bg-green-500/90 backdrop-blur-md px-3 py-1.5 rounded-full shadow-lg">
+                              <div className="h-3 w-3 bg-white rounded-full animate-pulse" />
+                              <span className="text-[9px] font-black text-white uppercase tracking-widest">Funcionando</span>
+                            </div>
+                          )}
+                          {asset.operationalStatus === 'NOT_OPERATIONAL' && (
+                            <div className="flex items-center gap-2 bg-red-500/90 backdrop-blur-md px-3 py-1.5 rounded-full shadow-lg">
+                              <div className="h-3 w-3 bg-white rounded-full" />
+                              <span className="text-[9px] font-black text-white uppercase tracking-widest">Parado</span>
+                            </div>
+                          )}
+                          {asset.operationalStatus === 'MAINTENANCE' && (
+                            <div className="flex items-center gap-2 bg-yellow-500/90 backdrop-blur-md px-3 py-1.5 rounded-full shadow-lg">
+                              <div className="h-3 w-3 bg-white rounded-full animate-pulse" />
+                              <span className="text-[9px] font-black text-white uppercase tracking-widest">Manutenção</span>
+                            </div>
+                          )}
+                        </div>
                       </div>
 
                       <CardContent className="p-6">

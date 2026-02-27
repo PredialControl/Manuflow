@@ -27,6 +27,7 @@ export async function GET(
                 power: true,
                 category: true,
                 frequency: true,
+                operationalStatus: true,
                 image: true,
             },
         });
