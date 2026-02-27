@@ -1,10 +1,8 @@
-import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
-import { getContractWhereClause } from "@/lib/multi-tenancy";
+import { PrismaClient } from '@prisma/client'
 
-// Perguntas predefinidas por tipo de ativo de ronda
+const prisma = new PrismaClient()
+
+// Simular o código do endpoint POST /api/contracts
 const RONDA_ASSET_QUESTIONS = {
   "Gerador": [
     "Gerador está aquecendo o óleo diesel?",
@@ -73,80 +71,43 @@ const RONDA_ASSET_QUESTIONS = {
     "Sem vazamentos?",
     "Porta fechada?"
   ]
-};
-
-export async function GET() {
-  const session = await getServerSession(authOptions);
-
-  if (!session) {
-    return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-  }
-
-  const whereClause = getContractWhereClause(session);
-
-  const contracts = await prisma.contract.findMany({
-    where: {
-      ...whereClause,
-      active: true,
-      deletedAt: null,
-    },
-    include: {
-      _count: {
-        select: { assets: true, reports: true },
-      },
-    },
-    orderBy: { createdAt: "desc" },
-  });
-
-  return NextResponse.json(contracts);
 }
 
-export async function POST(request: Request) {
-  const session = await getServerSession(authOptions);
+async function testContractCreation() {
+  console.log('\n🧪 TESTE: Criação de Contrato com Ativos\n')
 
-  if (!session || (session.user.role !== "ADMIN" && session.user.role !== "OWNER" && session.user.role !== "SUPER_ADMIN")) {
-    return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+  // Buscar uma empresa existente
+  const company = await prisma.company.findFirst()
+
+  if (!company) {
+    console.log('❌ Nenhuma empresa encontrada no banco')
+    return
   }
 
-  const body = await request.json();
-  const { name, company, responsible, email, phone, logo, companyId: targetCompanyId } = body;
+  console.log(`✓ Empresa encontrada: ${company.name} (${company.id})`)
 
-  if (!name || !company || !responsible || !email) {
-    return NextResponse.json(
-      { message: "Campos obrigatórios faltando" },
-      { status: 400 }
-    );
-  }
-
-  // SUPER_ADMIN can create contracts for any company (must provide companyId)
-  // ADMIN/OWNER creates contracts for their own company
-  const companyId = session.user.role === "SUPER_ADMIN" && targetCompanyId
-    ? targetCompanyId
-    : session.user.companyId;
-
+  // Criar contrato de teste
+  console.log('\n📝 Criando contrato de teste...')
   const contract = await prisma.contract.create({
     data: {
-      name,
-      company,
-      companyId,
-      responsible,
-      email,
-      phone,
-      logo,
+      name: "TESTE AUTO-CRIAÇÃO",
+      company: "Empresa Teste",
+      companyId: company.id,
+      responsible: "Teste",
+      email: "teste@teste.com",
+      phone: "1234567890",
     },
-  });
+  })
 
-  await prisma.userContract.create({
-    data: {
-      userId: session.user.id,
-      contractId: contract.id,
-    },
-  });
+  console.log(`✓ Contrato criado: ${contract.id}`)
 
-  // Criar ativos de ronda automaticamente
+  // Criar ativos (novo código otimizado)
+  console.log('\n🔧 Criando ativos de ronda...')
+
+  const startTime = Date.now()
+
   const assetCreationPromises = Object.entries(RONDA_ASSET_QUESTIONS).map(async ([assetType, questions]) => {
     try {
-      // Criar o ativo
       const asset = await prisma.asset.create({
         data: {
           name: assetType,
@@ -156,32 +117,64 @@ export async function POST(request: Request) {
           frequency: "DAILY",
           includeInRonda: true,
           contractId: contract.id,
-          companyId: companyId,
+          companyId: company.id,
         }
-      });
+      })
 
-      // Criar as perguntas (AssetScript) em paralelo
       const scriptPromises = questions.map((question, index) =>
         prisma.assetScript.create({
           data: {
             assetId: asset.id,
-            companyId: companyId,
+            companyId: company.id,
             order: index + 1,
             question: question,
             required: true,
             requirePhoto: false,
           }
         })
-      );
+      )
 
-      await Promise.all(scriptPromises);
-      console.log(`✓ Ativo de ronda criado: ${assetType}`);
+      await Promise.all(scriptPromises)
+      console.log(`   ✓ ${assetType} (${questions.length} perguntas)`)
     } catch (error) {
-      console.error(`✗ Erro ao criar ativo ${assetType}:`, error);
+      console.error(`   ✗ Erro ao criar ${assetType}:`, error)
     }
-  });
+  })
 
-  await Promise.all(assetCreationPromises);
+  await Promise.all(assetCreationPromises)
 
-  return NextResponse.json(contract, { status: 201 });
+  const endTime = Date.now()
+
+  console.log(`\n✅ Teste concluído em ${endTime - startTime}ms`)
+
+  // Verificar resultado
+  const createdAssets = await prisma.asset.count({
+    where: {
+      contractId: contract.id,
+      includeInRonda: true,
+    }
+  })
+
+  console.log(`\n📊 Resultado: ${createdAssets} ativos criados`)
+
+  if (createdAssets === 8) {
+    console.log('🎉 SUCESSO! Todos os 8 ativos foram criados corretamente.')
+  } else {
+    console.log(`⚠️  PROBLEMA: Esperado 8 ativos, mas foram criados ${createdAssets}`)
+  }
+
+  // Limpar teste
+  console.log('\n🗑️  Removendo contrato de teste...')
+  await prisma.contract.delete({
+    where: { id: contract.id }
+  })
+  console.log('✓ Teste limpo')
 }
+
+testContractCreation()
+  .catch((error) => {
+    console.error('\n❌ Erro no teste:', error)
+  })
+  .finally(async () => {
+    await prisma.$disconnect()
+  })
