@@ -47,9 +47,22 @@ Sistema completo de checklist mobile para técnicos realizarem rondas em ativos 
 
 ## 🚀 Como Usar
 
-### Passo 1: Popular os Ativos (Uma Vez)
+### ✨ Criação Automática de Ativos
 
-Execute o script para criar os 8 ativos predefinidos em um contrato:
+**Os 8 ativos de ronda são criados AUTOMATICAMENTE quando você cria um novo contrato!**
+
+Não precisa fazer nada - os ativos já nascem prontos para uso:
+- ✅ 8 ativos com `includeInRonda = true`
+- ✅ Todas as perguntas específicas de cada ativo
+- ✅ Tudo configurado e pronto para o técnico usar
+
+**Você pode excluir os ativos que não precisar** através da interface normal de ativos.
+
+---
+
+### Passo 1 (Opcional): Popular Ativos em Contratos Antigos
+
+Se você tem contratos criados ANTES desta atualização, use o script:
 
 ```bash
 npx tsx seed-ronda-assets.ts <ID_DO_CONTRATO>
@@ -59,11 +72,6 @@ npx tsx seed-ronda-assets.ts <ID_DO_CONTRATO>
 ```bash
 npx tsx seed-ronda-assets.ts cmlr63opz0000123lk1d4gcl4
 ```
-
-Isso criará automaticamente:
-- 8 ativos com `includeInRonda = true`
-- Todas as perguntas específicas de cada ativo
-- Tudo pronto para uso imediato
 
 ### Passo 2: Acessar como Técnico
 
