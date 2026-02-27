@@ -94,17 +94,19 @@ export default async function AssetDetailPage({
                     </div>
                 </div>
 
-                {session.user.role === "ADMIN" && (
+                {(session.user.role === "ADMIN" || session.user.role === "OWNER") && (
                     <div className="flex gap-2">
                         <DeleteAssetButton
                             assetId={asset.id}
                             contractId={params.id}
                             assetName={asset.name}
                         />
-                        <Button variant="outline" className="rounded-xl border-border/60 font-bold uppercase tracking-widest text-[10px] h-10">
-                            <Settings className="h-4 w-4 mr-2" />
-                            Configurar
-                        </Button>
+                        <Link href={`/contracts/${params.id}/assets/${params.assetId}/edit`}>
+                            <Button variant="outline" className="rounded-xl border-border/60 font-bold uppercase tracking-widest text-[10px] h-10">
+                                <Settings className="h-4 w-4 mr-2" />
+                                Editar
+                            </Button>
+                        </Link>
                         <Link href={`/inspections/new?assetId=${asset.id}`}>
                             <Button className="btn-premium px-6 h-10 text-[10px] uppercase font-black tracking-widest">
                                 <Plus className="h-4 w-4 mr-2" />

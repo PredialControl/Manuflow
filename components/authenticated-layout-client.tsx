@@ -59,6 +59,7 @@ export function AuthenticatedLayoutClient({
             : session.user.role === "TECHNICIAN"
                 ? [
                     { href: "/dashboard", label: "Minhas Tarefas", icon: LayoutDashboard },
+                    { href: "/ronda", label: "Ronda Técnica", icon: ClipboardCheck },
                     { href: "/relevant-items", label: "Itens / Orçamentos", icon: Sparkles },
                 ]
                 : session.user.role === "SUPERVISOR"

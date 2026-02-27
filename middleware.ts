@@ -28,9 +28,9 @@ export default withAuth(
       return NextResponse.redirect(new URL("/dashboard", req.url));
     }
 
-    // Technician restrictions - can only access dashboard, inspections, and measurements
+    // Technician restrictions - can only access dashboard, inspections, ronda, and measurements
     if (token?.role === "TECHNICIAN") {
-      const allowedPaths = ["/dashboard", "/inspections", "/contracts"];
+      const allowedPaths = ["/dashboard", "/inspections", "/contracts", "/ronda", "/relevant-items"];
       const isAllowed = allowedPaths.some(path => pathname.startsWith(path));
 
       // Block access to reports, templates, settings, etc.
@@ -74,5 +74,6 @@ export const config = {
     "/settings/:path*",
     "/super-admin/:path*",
     "/relevant-items/:path*",
+    "/ronda/:path*",
   ],
 };
