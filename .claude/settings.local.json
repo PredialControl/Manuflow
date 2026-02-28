@@ -9,7 +9,8 @@
       "Bash(npm run dev:*)",
       "Bash(cat:*)",
       "Bash(npx tsx:*)",
-      "Bash(npx prisma db push:*)"
+      "Bash(npx prisma db push:*)",
+      "Bash(npm run db:seed:*)"
     ],
     "deny": [],
     "ask": []
