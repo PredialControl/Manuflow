@@ -31,7 +31,6 @@ import {
 import { SortableContext, useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { useDroppable } from "@dnd-kit/core";
-import { useSession } from "next-auth/react";
 
 type ReportHistory = {
     id: string;
@@ -213,7 +212,13 @@ function DroppableColumn({
     );
 }
 
-export function ReportsKanban({ initialReports = [] }: { initialReports: Report[] }) {
+export function ReportsKanban({
+    initialReports = [],
+    isOwnerOrAdmin = false
+}: {
+    initialReports: Report[];
+    isOwnerOrAdmin?: boolean;
+}) {
     const [reports, setReports] = useState(initialReports || []);
     const [columns, setColumns] = useState<KanbanColumn[]>([]);
     const [loadingColumns, setLoadingColumns] = useState(true);
@@ -228,9 +233,6 @@ export function ReportsKanban({ initialReports = [] }: { initialReports: Report[
     const [deletingColumn, setDeletingColumn] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const { toast } = useToast();
-    const { data: session } = useSession();
-
-    const isOwnerOrAdmin = session?.user?.role === "OWNER" || session?.user?.role === "ADMIN";
 
     // Carregar colunas da API
     useEffect(() => {

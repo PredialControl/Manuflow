@@ -6,7 +6,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
 import { ReportsKanban } from "@/components/reports-kanban";
-import { getCompanyWhereClause } from "@/lib/multi-tenancy";
+import { getCompanyWhereClause, isCompanyAdmin } from "@/lib/multi-tenancy";
 
 export default async function ReportsPage() {
   const session = await getServerSession(authOptions);
@@ -15,6 +15,7 @@ export default async function ReportsPage() {
     redirect("/login");
   }
 
+  const isOwnerOrAdmin = session.user.role === "OWNER" || isCompanyAdmin(session);
   const whereClause = getCompanyWhereClause(session);
 
   const reports = await prisma.report.findMany({
@@ -64,7 +65,7 @@ export default async function ReportsPage() {
         )}
       </div>
 
-      <ReportsKanban initialReports={reports} />
+      <ReportsKanban initialReports={reports} isOwnerOrAdmin={isOwnerOrAdmin} />
     </div>
   );
 }

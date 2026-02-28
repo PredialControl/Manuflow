@@ -527,7 +527,7 @@ export default async function ContractDetailPage({
               </Link>
             )}
           </div>
-          <ReportsKanban initialReports={contract.reports as any} />
+          <ReportsKanban initialReports={contract.reports as any} isOwnerOrAdmin={isOwner || isAdmin} />
         </TabsContent>
 
         <TabsContent value="measurements" className="space-y-8 pt-4">
