@@ -1,9 +1,9 @@
 "use client";
 
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Eye, Download, Calendar, Building2, FileText, History, Clock, Loader2, Paperclip, Image, Camera, Plus, File } from "lucide-react";
+import { Eye, Download, Calendar, Building2, FileText, History, Clock, Loader2, Paperclip, Image, Camera, Plus, File, Settings2, Trash2, AlertTriangle } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import Link from "next/link";
 import { formatDate } from "@/lib/utils";
@@ -13,8 +13,10 @@ import {
     DialogHeader,
     DialogTitle,
     DialogFooter,
+    DialogDescription,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 import {
     DndContext,
     DragEndEvent,
@@ -29,6 +31,7 @@ import {
 import { SortableContext, useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { useDroppable } from "@dnd-kit/core";
+import { useSession } from "next-auth/react";
 
 type ReportHistory = {
     id: string;
@@ -63,52 +66,8 @@ type KanbanColumn = {
     status: string[];
     color: string;
     bgColor: string;
+    isDefault?: boolean;
 };
-
-const columns: KanbanColumn[] = [
-    {
-        id: "in_progress",
-        title: "Em andamento",
-        status: ["IN_PROGRESS"],
-        color: "text-blue-600 dark:text-blue-400",
-        bgColor: "bg-blue-500/10",
-    },
-    {
-        id: "pending_approval",
-        title: "Aguardando aprovação",
-        status: ["PENDING_APPROVAL"],
-        color: "text-orange-600 dark:text-orange-400",
-        bgColor: "bg-orange-500/10",
-    },
-    {
-        id: "approved_execution",
-        title: "Aprovado para execução",
-        status: ["APPROVED_FOR_EXECUTION"],
-        color: "text-cyan-600 dark:text-cyan-400",
-        bgColor: "bg-cyan-500/10",
-    },
-    {
-        id: "approved",
-        title: "Em dia",
-        status: ["APPROVED", "RENEWED"],
-        color: "text-emerald-600 dark:text-emerald-400",
-        bgColor: "bg-emerald-500/10",
-    },
-    {
-        id: "expiring",
-        title: "Próximo ao vencimento",
-        status: ["EXPIRING_SOON"],
-        color: "text-amber-600 dark:text-amber-400",
-        bgColor: "bg-amber-500/10",
-    },
-    {
-        id: "expired",
-        title: "Vencidos",
-        status: ["EXPIRED"],
-        color: "text-rose-600 dark:text-rose-400",
-        bgColor: "bg-rose-500/10",
-    },
-];
 
 function ReportCard({ report, onViewDetails, onAddPhoto, isUploadingPhoto }: { report: Report; onViewDetails: (id: string) => void; onAddPhoto: (reportId: string) => void; isUploadingPhoto: boolean; }) {
     const {
@@ -203,10 +162,14 @@ function DroppableColumn({
     column,
     children,
     count,
+    onDelete,
+    isOwnerOrAdmin,
 }: {
     column: KanbanColumn;
     children: React.ReactNode;
     count: number;
+    onDelete?: (column: KanbanColumn) => void;
+    isOwnerOrAdmin?: boolean;
 }) {
     const { setNodeRef, isOver } = useDroppable({
         id: column.id,
@@ -225,9 +188,20 @@ function DroppableColumn({
                         {column.title}
                     </h2>
                 </div>
-                <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black ${column.color} ${column.bgColor} border border-current/10 shadow-sm`}>
-                    {count}
-                </span>
+                <div className="flex items-center gap-2">
+                    <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black ${column.color} ${column.bgColor} border border-current/10 shadow-sm`}>
+                        {count}
+                    </span>
+                    {isOwnerOrAdmin && !column.isDefault && onDelete && (
+                        <button
+                            onClick={() => onDelete(column)}
+                            className="h-6 w-6 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 flex items-center justify-center text-rose-600 transition-all"
+                            title="Deletar coluna"
+                        >
+                            <Trash2 className="h-3 w-3" />
+                        </button>
+                    )}
+                </div>
             </div>
 
             <div className="flex-1 px-2 pb-6">
@@ -241,12 +215,49 @@ function DroppableColumn({
 
 export function ReportsKanban({ initialReports = [] }: { initialReports: Report[] }) {
     const [reports, setReports] = useState(initialReports || []);
+    const [columns, setColumns] = useState<KanbanColumn[]>([]);
+    const [loadingColumns, setLoadingColumns] = useState(true);
     const [activeId, setActiveId] = useState<string | null>(null);
     const [selectedReport, setSelectedReport] = useState<Report | null>(null);
     const [loadingDetail, setLoadingDetail] = useState(false);
     const [uploadingPhotoForReport, setUploadingPhotoForReport] = useState<string | null>(null);
+    const [showColumnManager, setShowColumnManager] = useState(false);
+    const [showNewColumnDialog, setShowNewColumnDialog] = useState(false);
+    const [newColumnName, setNewColumnName] = useState("");
+    const [columnToDelete, setColumnToDelete] = useState<KanbanColumn | null>(null);
+    const [deletingColumn, setDeletingColumn] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const { toast } = useToast();
+    const { data: session } = useSession();
+
+    const isOwnerOrAdmin = session?.user?.role === "OWNER" || session?.user?.role === "ADMIN";
+
+    // Carregar colunas da API
+    useEffect(() => {
+        async function loadColumns() {
+            try {
+                const res = await fetch("/api/report-columns");
+                if (res.ok) {
+                    const data = await res.json();
+                    // Converter para formato KanbanColumn
+                    const formattedColumns: KanbanColumn[] = data.map((col: any) => ({
+                        id: col.statusKey.toLowerCase(),
+                        title: col.title,
+                        status: [col.statusKey],
+                        color: col.color,
+                        bgColor: col.bgColor,
+                        isDefault: col.isDefault,
+                    }));
+                    setColumns(formattedColumns);
+                }
+            } catch (error) {
+                console.error("Error loading columns:", error);
+            } finally {
+                setLoadingColumns(false);
+            }
+        }
+        loadColumns();
+    }, []);
 
     // Sync state when props change
     React.useEffect(() => {
@@ -411,8 +422,137 @@ export function ReportsKanban({ initialReports = [] }: { initialReports: Report[
         input.click();
     };
 
+    const handleCreateColumn = async () => {
+        if (!newColumnName.trim()) {
+            toast({
+                variant: "destructive",
+                title: "Erro",
+                description: "Digite um nome para a coluna",
+            });
+            return;
+        }
+
+        try {
+            const res = await fetch("/api/report-columns", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ title: newColumnName }),
+            });
+
+            if (!res.ok) {
+                const error = await res.json();
+                throw new Error(error.error || "Erro ao criar coluna");
+            }
+
+            const newColumn = await res.json();
+
+            // Adicionar à lista
+            setColumns(prev => [...prev, {
+                id: newColumn.statusKey.toLowerCase(),
+                title: newColumn.title,
+                status: [newColumn.statusKey],
+                color: newColumn.color,
+                bgColor: newColumn.bgColor,
+                isDefault: newColumn.isDefault,
+            }]);
+
+            toast({
+                title: "Sucesso",
+                description: `Coluna "${newColumnName}" criada!`,
+            });
+
+            setNewColumnName("");
+            setShowNewColumnDialog(false);
+        } catch (error: any) {
+            toast({
+                variant: "destructive",
+                title: "Erro",
+                description: error.message,
+            });
+        }
+    };
+
+    const handleDeleteColumn = async () => {
+        if (!columnToDelete) return;
+
+        setDeletingColumn(true);
+        try {
+            // Buscar coluna do banco para pegar o ID real
+            const columnsRes = await fetch("/api/report-columns");
+            const columnsData = await columnsRes.json();
+            const columnData = columnsData.find((c: any) => c.statusKey === columnToDelete.status[0]);
+
+            if (!columnData) {
+                throw new Error("Coluna não encontrada");
+            }
+
+            const res = await fetch(`/api/report-columns/${columnData.id}`, {
+                method: "DELETE",
+            });
+
+            if (!res.ok) {
+                const error = await res.json();
+                throw new Error(error.error || "Erro ao deletar coluna");
+            }
+
+            const result = await res.json();
+
+            // Remover da lista
+            setColumns(prev => prev.filter(c => c.id !== columnToDelete.id));
+
+            // Mover reports desta coluna para "Em andamento"
+            if (result.reportsAffected > 0) {
+                setReports(prev =>
+                    prev.map(report =>
+                        columnToDelete.status.includes(report.status)
+                            ? { ...report, status: "IN_PROGRESS" }
+                            : report
+                    )
+                );
+            }
+
+            toast({
+                title: "Coluna deletada",
+                description: result.reportsAffected > 0
+                    ? `${result.reportsAffected} laudo(s) movido(s) para "Em andamento"`
+                    : "Coluna deletada com sucesso",
+            });
+
+            setColumnToDelete(null);
+        } catch (error: any) {
+            toast({
+                variant: "destructive",
+                title: "Erro",
+                description: error.message,
+            });
+        } finally {
+            setDeletingColumn(false);
+        }
+    };
+
+    if (loadingColumns) {
+        return (
+            <div className="flex items-center justify-center py-12">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            </div>
+        );
+    }
+
     return (
         <>
+            {isOwnerOrAdmin && (
+                <div className="flex justify-end mb-4">
+                    <Button
+                        onClick={() => setShowNewColumnDialog(true)}
+                        size="sm"
+                        className="btn-premium h-9 rounded-xl text-xs font-black uppercase"
+                    >
+                        <Plus className="h-3 w-3 mr-2" />
+                        Nova Coluna
+                    </Button>
+                </div>
+            )}
+
             <DndContext
                 sensors={sensors}
                 collisionDetection={rectIntersection}
@@ -429,6 +569,8 @@ export function ReportsKanban({ initialReports = [] }: { initialReports: Report[
                             key={column.id}
                             column={column}
                             count={columnReports.length}
+                            onDelete={setColumnToDelete}
+                            isOwnerOrAdmin={isOwnerOrAdmin}
                         >
                             <SortableContext items={columnReports.map((r) => r.id)}>
                                 {columnReports.length > 0 ? (
@@ -673,6 +815,122 @@ export function ReportsKanban({ initialReports = [] }: { initialReports: Report[
                     </>
                 )}
             </DialogContent>
+            </Dialog>
+
+            {/* Modal para Criar Nova Coluna */}
+            <Dialog open={showNewColumnDialog} onOpenChange={setShowNewColumnDialog}>
+                <DialogContent className="sm:max-w-[425px] border-border/40 shadow-2xl rounded-[2rem]">
+                    <DialogHeader>
+                        <DialogTitle className="text-2xl font-black italic uppercase tracking-tighter">
+                            Nova Coluna
+                        </DialogTitle>
+                        <DialogDescription>
+                            Crie uma coluna personalizada para organizar seus laudos
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4 py-4">
+                        <div className="space-y-2">
+                            <Label htmlFor="columnName" className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                                Nome da Coluna
+                            </Label>
+                            <Input
+                                id="columnName"
+                                value={newColumnName}
+                                onChange={(e) => setNewColumnName(e.target.value)}
+                                placeholder="Ex: Aguardando Compra"
+                                className="h-12 rounded-xl bg-muted/30 focus:bg-background border-border/40 font-bold"
+                                onKeyDown={(e) => {
+                                    if (e.key === "Enter") {
+                                        handleCreateColumn();
+                                    }
+                                }}
+                            />
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button
+                            variant="ghost"
+                            onClick={() => setShowNewColumnDialog(false)}
+                            className="h-12 px-8 rounded-2xl font-black uppercase text-xs"
+                        >
+                            Cancelar
+                        </Button>
+                        <Button
+                            onClick={handleCreateColumn}
+                            className="h-12 px-8 rounded-2xl font-black uppercase text-xs btn-premium"
+                        >
+                            <Plus className="h-4 w-4 mr-2" />
+                            Criar Coluna
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Modal de Confirmação para Deletar Coluna */}
+            <Dialog open={!!columnToDelete} onOpenChange={(open) => !open && setColumnToDelete(null)}>
+                <DialogContent className="sm:max-w-[500px] border-rose-500/40 shadow-2xl rounded-[2rem]">
+                    <DialogHeader>
+                        <div className="flex items-center gap-3 mb-2">
+                            <div className="h-12 w-12 rounded-xl bg-rose-500/20 flex items-center justify-center">
+                                <AlertTriangle className="h-6 w-6 text-rose-600" />
+                            </div>
+                            <DialogTitle className="text-2xl font-black italic uppercase tracking-tighter text-rose-600">
+                                Deletar Coluna
+                            </DialogTitle>
+                        </div>
+                        <DialogDescription className="text-base">
+                            Tem certeza que deseja deletar a coluna{" "}
+                            <span className="font-black text-foreground">"{columnToDelete?.title}"</span>?
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="py-4">
+                        <div className="p-4 bg-amber-500/10 border-2 border-amber-500/20 rounded-xl">
+                            <div className="flex items-start gap-3">
+                                <AlertTriangle className="h-5 w-5 text-amber-600 mt-0.5 flex-shrink-0" />
+                                <div className="space-y-2">
+                                    <p className="text-sm font-bold text-amber-600">
+                                        ⚠️ ATENÇÃO: Perda de Dados
+                                    </p>
+                                    <p className="text-xs text-amber-600/80 font-medium">
+                                        Todos os laudos nesta coluna serão{" "}
+                                        <span className="font-black">automaticamente movidos</span>{" "}
+                                        para a coluna "Em andamento".
+                                    </p>
+                                    <p className="text-xs text-amber-600/80 font-medium">
+                                        Esta ação <span className="font-black">não pode ser desfeita</span>.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button
+                            variant="ghost"
+                            onClick={() => setColumnToDelete(null)}
+                            disabled={deletingColumn}
+                            className="h-12 px-8 rounded-2xl font-black uppercase text-xs"
+                        >
+                            Cancelar
+                        </Button>
+                        <Button
+                            onClick={handleDeleteColumn}
+                            disabled={deletingColumn}
+                            className="h-12 px-8 rounded-2xl font-black uppercase text-xs bg-rose-600 hover:bg-rose-700 text-white"
+                        >
+                            {deletingColumn ? (
+                                <>
+                                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                    Deletando...
+                                </>
+                            ) : (
+                                <>
+                                    <Trash2 className="h-4 w-4 mr-2" />
+                                    Sim, Deletar
+                                </>
+                            )}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
             </Dialog>
         </>
     );

@@ -141,6 +141,7 @@ model Company {
   measurementEntries  MeasurementEntry[]
   relevantItems       RelevantItem[]
   relevantItemAttachments RelevantItemAttachment[]
+  reportColumns       ReportColumn[]
 }
 
 model User {
@@ -420,6 +421,24 @@ model ReportVersion {
 
   @@unique([reportId, version])
   @@index([companyId])
+}
+
+model ReportColumn {
+  id              String    @id @default(cuid())
+  companyId       String
+  title           String    // Nome da coluna (ex: "Aguardando Compra")
+  statusKey       String    // Chave única do status (ex: "AWAITING_PURCHASE")
+  color           String    @default("text-blue-600 dark:text-blue-400") // Cor do texto
+  bgColor         String    @default("bg-blue-500/10") // Cor de fundo
+  order           Int       // Ordem de exibição
+  isDefault       Boolean   @default(false) // Se é uma coluna padrão do sistema (não pode deletar)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  company         Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([companyId, statusKey])
+  @@index([companyId, order])
 }
 
 model Photo {
