@@ -123,6 +123,25 @@ export default async function ContractDetailPage({
     _count: true,
   });
 
+  // Calcular métricas de conformidade
+  const today = new Date();
+  const expiredReports = contract.reports.filter((r: any) => new Date(r.expirationDate) < today);
+  const assetsWithIssues = contract.assets.filter((a: any) =>
+    a.operationalStatus === 'NOT_OPERATIONAL' || a.operationalStatus === 'MAINTENANCE'
+  );
+  const maintenanceAssets = contract.assets.filter((a: any) => a.operationalStatus === 'MAINTENANCE');
+  const stoppedAssets = contract.assets.filter((a: any) => a.operationalStatus === 'NOT_OPERATIONAL');
+
+  // Calcular conformidade: 100% - penalidades
+  // Cada laudo vencido: -10%
+  // Cada ativo parado: -15%
+  // Cada ativo em manutenção: -5%
+  let complianceScore = 100;
+  complianceScore -= expiredReports.length * 10;
+  complianceScore -= stoppedAssets.length * 15;
+  complianceScore -= maintenanceAssets.length * 5;
+  complianceScore = Math.max(0, complianceScore); // Mínimo 0%
+
   return (
     <div className="space-y-8 w-full animate-in">
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-6 pb-2 border-b border-border/40">
@@ -157,26 +176,102 @@ export default async function ContractDetailPage({
       <Tabs key={activeTab} value={activeTab} className="space-y-4">
 
         <TabsContent value="overview" className="space-y-4">
-          <div className="grid gap-4 md:grid-cols-3">
-            {[
-              { label: "Ativos", value: contract.assets.length, icon: Package },
-              { label: "Laudos", value: contract.reports.length, icon: FileText },
-              { label: "Conformidade", value: "100%", icon: ClipboardCheck },
-            ].map((stat, i) => (
-              <Card key={i} className="card-premium group">
-                <CardHeader className="flex flex-row items-center justify-between pb-2">
-                  <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
-                    {stat.label}
-                  </span>
-                  <stat.icon className="h-4 w-4 opacity-40 group-hover:opacity-100 transition-opacity text-primary" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-3xl font-black tracking-tighter text-foreground">
-                    {stat.value}
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+          <div className="grid gap-4 md:grid-cols-4">
+            <Card className="card-premium group">
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                  Ativos
+                </span>
+                <Package className="h-4 w-4 opacity-40 group-hover:opacity-100 transition-opacity text-primary" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-3xl font-black tracking-tighter text-foreground">
+                  {contract.assets.length}
+                </div>
+                {assetsWithIssues.length > 0 && (
+                  <p className="text-xs text-amber-600 dark:text-amber-400 font-bold mt-2">
+                    {assetsWithIssues.length} com problema{assetsWithIssues.length > 1 ? 's' : ''}
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card className="card-premium group">
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                  Laudos
+                </span>
+                <FileText className="h-4 w-4 opacity-40 group-hover:opacity-100 transition-opacity text-primary" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-3xl font-black tracking-tighter text-foreground">
+                  {contract.reports.length}
+                </div>
+                {expiredReports.length > 0 && (
+                  <p className="text-xs text-red-600 dark:text-red-400 font-bold mt-2">
+                    {expiredReports.length} vencido{expiredReports.length > 1 ? 's' : ''}
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card className={`card-premium group ${complianceScore < 70 ? 'border-amber-500/40' : complianceScore < 50 ? 'border-red-500/40' : ''}`}>
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                  Conformidade
+                </span>
+                <ClipboardCheck className="h-4 w-4 opacity-40 group-hover:opacity-100 transition-opacity text-primary" />
+              </CardHeader>
+              <CardContent>
+                <div className={`text-3xl font-black tracking-tighter ${complianceScore >= 90 ? 'text-emerald-600 dark:text-emerald-400' : complianceScore >= 70 ? 'text-amber-600 dark:text-amber-400' : 'text-red-600 dark:text-red-400'}`}>
+                  {complianceScore}%
+                </div>
+                {complianceScore < 100 && (
+                  <p className="text-xs text-muted-foreground font-bold mt-2">
+                    {expiredReports.length > 0 && `${expiredReports.length} laudo${expiredReports.length > 1 ? 's' : ''} vencido${expiredReports.length > 1 ? 's' : ''}`}
+                    {expiredReports.length > 0 && assetsWithIssues.length > 0 && ', '}
+                    {assetsWithIssues.length > 0 && `${assetsWithIssues.length} ativo${assetsWithIssues.length > 1 ? 's' : ''}`}
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card className="card-premium group">
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                  Status Ativos
+                </span>
+                <ClipboardCheck className="h-4 w-4 opacity-40 group-hover:opacity-100 transition-opacity text-primary" />
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  {stoppedAssets.length > 0 && (
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground font-bold flex items-center gap-2">
+                        <div className="h-2 w-2 bg-red-500 rounded-full" />
+                        Parados
+                      </span>
+                      <span className="font-black text-red-600 dark:text-red-400">{stoppedAssets.length}</span>
+                    </div>
+                  )}
+                  {maintenanceAssets.length > 0 && (
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground font-bold flex items-center gap-2">
+                        <div className="h-2 w-2 bg-yellow-500 rounded-full" />
+                        Manutenção
+                      </span>
+                      <span className="font-black text-yellow-600 dark:text-yellow-400">{maintenanceAssets.length}</span>
+                    </div>
+                  )}
+                  {stoppedAssets.length === 0 && maintenanceAssets.length === 0 && (
+                    <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400">
+                      <div className="h-2 w-2 bg-emerald-500 rounded-full animate-pulse" />
+                      <span className="text-sm font-black">Todos OK</span>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
           </div>
 
           <Card>
