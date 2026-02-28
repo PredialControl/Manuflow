@@ -24,6 +24,7 @@ export default async function ContractsPage() {
       id: true,
       name: true,
       company: true,
+      email: true,
       createdAt: true,
       _count: {
         select: { assets: true, reports: true },
