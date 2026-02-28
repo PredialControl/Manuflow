@@ -3,7 +3,7 @@
 import React, { useState, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Eye, Download, Calendar, Building2, FileText, History, Clock, Loader2, Paperclip, Image, Camera, Plus } from "lucide-react";
+import { Eye, Download, Calendar, Building2, FileText, History, Clock, Loader2, Paperclip, Image, Camera, Plus, File } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import Link from "next/link";
 import { formatDate } from "@/lib/utils";
@@ -182,24 +182,35 @@ function ReportCard({ report, onViewDetails, onAddPhoto, isUploadingPhoto }: { r
                 {report.photos && report.photos.length > 0 && (
                     <div className="space-y-2">
                         <div className="flex gap-1.5 flex-wrap">
-                            {report.photos.slice(0, 3).map((photo) => (
-                                <a
-                                    key={photo.id}
-                                    href={photo.url}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    download={photo.filename}
-                                    onClick={(e) => e.stopPropagation()}
-                                    onMouseDown={(e) => e.stopPropagation()}
-                                    onPointerDown={(e) => e.stopPropagation()}
-                                    className="relative h-12 w-12 rounded-lg overflow-hidden border border-border/40 hover:scale-105 transition-transform shadow-sm group/photo"
-                                >
-                                    <img src={photo.url} alt={photo.filename} className="w-full h-full object-cover" />
-                                    <div className="absolute inset-0 bg-black/20 opacity-0 group-hover/photo:opacity-100 transition-opacity flex items-center justify-center">
-                                        <Download className="h-3 w-3 text-white" />
-                                    </div>
-                                </a>
-                            ))}
+                            {report.photos.slice(0, 3).map((photo) => {
+                                const isImage = photo.filename.match(/\.(jpg|jpeg|png|gif|webp)$/i);
+                                return (
+                                    <a
+                                        key={photo.id}
+                                        href={photo.url}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        download={photo.filename}
+                                        onClick={(e) => e.stopPropagation()}
+                                        onMouseDown={(e) => e.stopPropagation()}
+                                        onPointerDown={(e) => e.stopPropagation()}
+                                        className="relative h-12 w-12 rounded-lg overflow-hidden border border-border/40 hover:scale-105 transition-transform shadow-sm group/photo bg-card"
+                                    >
+                                        {isImage ? (
+                                            <>
+                                                <img src={photo.url} alt={photo.filename} className="w-full h-full object-cover" />
+                                                <div className="absolute inset-0 bg-black/20 opacity-0 group-hover/photo:opacity-100 transition-opacity flex items-center justify-center">
+                                                    <Download className="h-3 w-3 text-white" />
+                                                </div>
+                                            </>
+                                        ) : (
+                                            <div className="w-full h-full flex items-center justify-center bg-muted">
+                                                <File className="h-5 w-5 text-muted-foreground" />
+                                            </div>
+                                        )}
+                                    </a>
+                                );
+                            })}
                             {report.photos.length > 3 && (
                                 <div className="h-12 w-12 rounded-lg bg-muted/60 border border-border/40 flex items-center justify-center">
                                     <span className="text-[10px] font-black text-muted-foreground">+{report.photos.length - 3}</span>
@@ -225,12 +236,12 @@ function ReportCard({ report, onViewDetails, onAddPhoto, isUploadingPhoto }: { r
                         onClick={(e) => { e.stopPropagation(); onAddPhoto(report.id); }}
                         disabled={isUploadingPhoto}
                         className="h-7 w-7 rounded-lg hover:bg-muted border border-transparent hover:border-border/60 p-0"
-                        title="Adicionar foto"
+                        title="Adicionar arquivo"
                     >
                         {isUploadingPhoto ? (
                             <Loader2 className="h-3 w-3 animate-spin" />
                         ) : (
-                            <Camera className="h-3 w-3" />
+                            <Paperclip className="h-3 w-3" />
                         )}
                     </Button>
                     {report.photos && report.photos.length > 0 && (
@@ -429,14 +440,14 @@ export function ReportsKanban({ initialReports = [] }: { initialReports: Report[
 
             toast({
                 title: "Sucesso",
-                description: "Foto adicionada ao laudo",
+                description: "Arquivo adicionado ao laudo",
             });
         } catch (error) {
             console.error("Error uploading photo:", error);
             toast({
                 variant: "destructive",
                 title: "Erro",
-                description: "Falha ao fazer upload da foto",
+                description: "Falha ao fazer upload do arquivo",
             });
         } finally {
             setUploadingPhotoForReport(null);
@@ -446,7 +457,7 @@ export function ReportsKanban({ initialReports = [] }: { initialReports: Report[
     const triggerFileInput = (reportId: string) => {
         const input = document.createElement("input");
         input.type = "file";
-        input.accept = "image/*";
+        input.accept = "image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt";
         input.onchange = (e) => {
             const file = (e.target as HTMLInputElement).files?.[0];
             if (file) {
@@ -583,11 +594,11 @@ export function ReportsKanban({ initialReports = [] }: { initialReports: Report[
                                 {/* Fotos/Anexos */}
                                 <div className="space-y-4">
                                     <div className="flex items-center justify-between">
-                                        <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Fotos do Laudo</Label>
+                                        <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Fotos e Documentos</Label>
                                         <div className="flex items-center gap-2">
                                             {selectedReport.photos && selectedReport.photos.length > 0 && (
                                                 <span className="text-[10px] font-black text-primary uppercase bg-primary/10 px-2 py-0.5 rounded-lg">
-                                                    {selectedReport.photos.length} {selectedReport.photos.length === 1 ? 'foto' : 'fotos'}
+                                                    {selectedReport.photos.length} {selectedReport.photos.length === 1 ? 'arquivo' : 'arquivos'}
                                                 </span>
                                             )}
                                             <Button
@@ -600,7 +611,7 @@ export function ReportsKanban({ initialReports = [] }: { initialReports: Report[
                                                     <Loader2 className="h-3 w-3 animate-spin" />
                                                 ) : (
                                                     <>
-                                                        <Camera className="h-3 w-3 mr-1" />
+                                                        <Paperclip className="h-3 w-3 mr-1" />
                                                         Adicionar
                                                     </>
                                                 )}
@@ -610,30 +621,49 @@ export function ReportsKanban({ initialReports = [] }: { initialReports: Report[
 
                                     {selectedReport.photos && selectedReport.photos.length > 0 ? (
                                         <div className="grid grid-cols-2 gap-3">
-                                            {selectedReport.photos.map((photo) => (
-                                                <div key={photo.id} className="group relative rounded-2xl border border-border/40 overflow-hidden bg-card transition-all hover:border-primary/40 shadow-sm">
-                                                    <div className="aspect-video w-full bg-muted overflow-hidden">
-                                                        <img src={photo.url} alt={photo.filename} className="w-full h-full object-cover transition-transform group-hover:scale-110" />
+                                            {selectedReport.photos.map((photo) => {
+                                                const isImage = photo.filename.match(/\.(jpg|jpeg|png|gif|webp)$/i);
+                                                const isPDF = photo.filename.match(/\.pdf$/i);
+                                                const isDoc = photo.filename.match(/\.(doc|docx)$/i);
+                                                const isExcel = photo.filename.match(/\.(xls|xlsx)$/i);
+
+                                                return (
+                                                    <div key={photo.id} className="group relative rounded-2xl border border-border/40 overflow-hidden bg-card transition-all hover:border-primary/40 shadow-sm">
+                                                        <div className="aspect-video w-full bg-muted overflow-hidden flex items-center justify-center">
+                                                            {isImage ? (
+                                                                <img src={photo.url} alt={photo.filename} className="w-full h-full object-cover transition-transform group-hover:scale-110" />
+                                                            ) : (
+                                                                <div className="flex flex-col items-center gap-2">
+                                                                    {isPDF && <FileText className="h-10 w-10 text-red-500" />}
+                                                                    {isDoc && <FileText className="h-10 w-10 text-blue-500" />}
+                                                                    {isExcel && <FileText className="h-10 w-10 text-green-500" />}
+                                                                    {!isPDF && !isDoc && !isExcel && <File className="h-10 w-10 text-muted-foreground" />}
+                                                                    <span className="text-[9px] font-black uppercase text-muted-foreground">
+                                                                        {photo.filename.split('.').pop()?.toUpperCase()}
+                                                                    </span>
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                        <div className="p-3 flex items-center justify-between gap-2">
+                                                            <span className="text-[10px] font-black uppercase truncate flex-1 opacity-60">{photo.filename}</span>
+                                                            <a
+                                                                href={photo.url}
+                                                                download={photo.filename}
+                                                                target="_blank"
+                                                                rel="noopener noreferrer"
+                                                                className="h-7 w-7 rounded-lg bg-primary/10 flex items-center justify-center text-primary hover:bg-primary hover:text-white transition-all"
+                                                            >
+                                                                <Download className="h-3 w-3" />
+                                                            </a>
+                                                        </div>
                                                     </div>
-                                                    <div className="p-3 flex items-center justify-between gap-2">
-                                                        <span className="text-[10px] font-black uppercase truncate flex-1 opacity-60">{photo.filename}</span>
-                                                        <a
-                                                            href={photo.url}
-                                                            download={photo.filename}
-                                                            target="_blank"
-                                                            rel="noopener noreferrer"
-                                                            className="h-7 w-7 rounded-lg bg-primary/10 flex items-center justify-center text-primary hover:bg-primary hover:text-white transition-all"
-                                                        >
-                                                            <Download className="h-3 w-3" />
-                                                        </a>
-                                                    </div>
-                                                </div>
-                                            ))}
+                                                );
+                                            })}
                                         </div>
                                     ) : (
                                         <div className="flex flex-col items-center justify-center py-8 text-center border-2 border-dashed border-border/20 rounded-2xl bg-muted/5">
-                                            <Image className="h-8 w-8 mb-2 text-muted-foreground/20" />
-                                            <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60">Nenhuma foto adicionada</p>
+                                            <Paperclip className="h-8 w-8 mb-2 text-muted-foreground/20" />
+                                            <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60">Nenhum arquivo adicionado</p>
                                         </div>
                                     )}
                                 </div>
