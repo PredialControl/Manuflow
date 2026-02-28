@@ -67,6 +67,11 @@ export default async function PublicAssetPage({
             color: "bg-red-500/10 text-red-600 border-red-500/20",
             icon: XCircle,
         },
+        UNKNOWN: {
+            label: "Status Desconhecido",
+            color: "bg-gray-500/10 text-gray-600 border-gray-500/20",
+            icon: AlertTriangle,
+        },
     };
 
     const currentStatus = statusConfig[asset.operationalStatus || "OPERATIONAL"];
