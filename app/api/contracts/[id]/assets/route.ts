@@ -55,12 +55,12 @@ export async function POST(
   try {
     const { id: contractId } = await params;
     const body = await request.json();
-    const { name, type, location, frequency, checklist, image, brand, model, power, category, includeInRonda, operationalStatus } = body;
+    const { name, type, location, locationId, frequency, checklist, image, brand, model, power, category, includeInRonda, operationalStatus } = body;
 
     console.log('[ASSET_CREATE] Creating asset:', name);
     console.log('[ASSET_CREATE] Image present:', !!image, 'Length:', image?.length || 0);
 
-    if (!name || !type || !location) {
+    if (!name || !type || (!location && !locationId)) {
       return NextResponse.json(
         { message: "Campos obrigatórios faltando" },
         { status: 400 }
@@ -74,6 +74,7 @@ export async function POST(
         name,
         type,
         location,
+        locationId,
         brand,
         model,
         power,

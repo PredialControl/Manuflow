@@ -9,6 +9,14 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "@/components/ui/use-toast";
 import { Package, Upload, X, Camera, MapPin, Zap, Loader2 } from "lucide-react";
 
+type LocationOption = {
+  id: string;
+  label: string;
+  buildingName: string;
+  floorNumber: number;
+  locationName: string;
+};
+
 const frequencies = [
   { value: "DAILY", label: "Diário" },
   { value: "WEEKLY", label: "Semanal" },
@@ -32,6 +40,7 @@ interface Asset {
   name: string;
   type: string;
   location: string;
+  locationId: string | null;
   brand: string | null;
   model: string | null;
   power: string | null;
@@ -51,10 +60,27 @@ export default function EditAssetPage() {
   const [image, setImage] = useState<string | null>(null);
   const [asset, setAsset] = useState<Asset | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [locations, setLocations] = useState<LocationOption[]>([]);
+  const [loadingLocations, setLoadingLocations] = useState(true);
 
   useEffect(() => {
     fetchAsset();
+    fetchLocations();
   }, []);
+
+  async function fetchLocations() {
+    try {
+      const response = await fetch(`/api/contracts/${contractId}/locations`);
+      if (response.ok) {
+        const data = await response.json();
+        setLocations(data);
+      }
+    } catch (error) {
+      console.error("Error fetching locations:", error);
+    } finally {
+      setLoadingLocations(false);
+    }
+  }
 
   async function fetchAsset() {
     try {
@@ -100,6 +126,7 @@ export default function EditAssetPage() {
     setLoading(true);
 
     const formData = new FormData(event.currentTarget);
+    const locationIdValue = formData.get("locationId") as string;
 
     try {
       const response = await fetch(`/api/assets/${assetId}`, {
@@ -110,7 +137,7 @@ export default function EditAssetPage() {
         body: JSON.stringify({
           name: formData.get("name"),
           type: formData.get("type"),
-          location: formData.get("location"),
+          locationId: locationIdValue || null,
           brand: formData.get("brand"),
           model: formData.get("model"),
           power: formData.get("power"),
@@ -313,17 +340,35 @@ export default function EditAssetPage() {
 
               <div className="grid gap-6 sm:grid-cols-2">
                 <div className="space-y-2">
-                  <Label htmlFor="location" className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1 flex items-center gap-2">
-                    <MapPin className="h-3 w-3" /> Localização Exata
+                  <Label htmlFor="locationId" className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1 flex items-center gap-2">
+                    <MapPin className="h-3 w-3" /> Localização da Estrutura
                   </Label>
-                  <Input
-                    id="location"
-                    name="location"
-                    defaultValue={asset.location}
-                    placeholder="Ex: Piso G2 - Sala 04"
-                    className="h-12 rounded-xl bg-muted/30 focus:bg-background border-border/40 transition-all font-bold tracking-tight"
-                    required
-                  />
+                  {loadingLocations ? (
+                    <div className="flex h-12 w-full rounded-xl border border-border/40 bg-muted/30 px-4 py-2 text-sm font-bold items-center text-muted-foreground">
+                      Carregando localizações...
+                    </div>
+                  ) : locations.length > 0 ? (
+                    <select
+                      id="locationId"
+                      name="locationId"
+                      defaultValue={asset.locationId || ""}
+                      className="flex h-12 w-full rounded-xl border border-border/40 bg-muted/30 px-4 py-2 text-sm font-bold focus:bg-background focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all cursor-pointer"
+                    >
+                      <option value="">Selecione uma localização</option>
+                      {locations.map((loc) => (
+                        <option key={loc.id} value={loc.id}>
+                          {loc.label}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <div className="p-4 rounded-xl border-2 border-dashed border-amber-500/40 bg-amber-500/5">
+                      <p className="text-xs text-amber-600 font-bold">
+                        Nenhuma localização cadastrada na estrutura.
+                        Configure a estrutura do contrato primeiro na aba "Estrutura".
+                      </p>
+                    </div>
+                  )}
                 </div>
 
                 <div className="space-y-2">

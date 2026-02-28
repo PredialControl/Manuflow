@@ -43,7 +43,7 @@ export default async function StructurePage({
                                 orderBy: { name: "asc" },
                             },
                         },
-                        orderBy: { number: "asc" },
+                        orderBy: { number: "desc" },
                     },
                 },
                 orderBy: { name: "asc" },
