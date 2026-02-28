@@ -52,48 +52,63 @@ export async function POST(
     return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
   }
 
-  const { id: contractId } = await params;
-  const body = await request.json();
-  const { name, type, location, frequency, checklist, image, brand, model, power, category, includeInRonda } = body;
+  try {
+    const { id: contractId } = await params;
+    const body = await request.json();
+    const { name, type, location, frequency, checklist, image, brand, model, power, category, includeInRonda, operationalStatus } = body;
 
-  if (!name || !type || !location) {
+    console.log('[ASSET_CREATE] Creating asset:', name);
+    console.log('[ASSET_CREATE] Image present:', !!image, 'Length:', image?.length || 0);
+
+    if (!name || !type || !location) {
+      return NextResponse.json(
+        { message: "Campos obrigatórios faltando" },
+        { status: 400 }
+      );
+    }
+
+    const asset = await prisma.asset.create({
+      data: {
+        contractId,
+        companyId: session.user.companyId,
+        name,
+        type,
+        location,
+        brand,
+        model,
+        power,
+        category,
+        image,
+        frequency: frequency || "MONTHLY",
+        operationalStatus: operationalStatus || "OPERATIONAL",
+        includeInRonda: !!includeInRonda,
+      },
+    });
+
+    console.log('[ASSET_CREATE] Asset created successfully:', asset.id);
+
+    if (checklist && Array.isArray(checklist)) {
+      for (let i = 0; i < checklist.length; i++) {
+        await prisma.assetScript.create({
+          data: {
+            assetId: asset.id,
+            companyId: session.user.companyId,
+            order: i + 1,
+            question: checklist[i],
+            required: true,
+            requirePhoto: i === 0,
+          },
+        });
+      }
+    }
+
+    return NextResponse.json(asset, { status: 201 });
+  } catch (error: any) {
+    console.error('[ASSET_CREATE] Error:', error);
+    console.error('[ASSET_CREATE] Error message:', error?.message);
     return NextResponse.json(
-      { message: "Campos obrigatórios faltando" },
-      { status: 400 }
+      { message: error?.message || "Erro ao criar ativo" },
+      { status: 500 }
     );
   }
-
-  const asset = await prisma.asset.create({
-    data: {
-      contractId,
-      companyId: session.user.companyId,
-      name,
-      type,
-      location,
-      brand,
-      model,
-      power,
-      category,
-      image,
-      frequency: frequency || "MONTHLY",
-      includeInRonda: !!includeInRonda,
-    },
-  });
-
-  if (checklist && Array.isArray(checklist)) {
-    for (let i = 0; i < checklist.length; i++) {
-      await prisma.assetScript.create({
-        data: {
-          assetId: asset.id,
-          companyId: session.user.companyId,
-          order: i + 1,
-          question: checklist[i],
-          required: true,
-          requirePhoto: i === 0,
-        },
-      });
-    }
-  }
-
-  return NextResponse.json(asset, { status: 201 });
 }

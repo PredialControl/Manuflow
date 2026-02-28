@@ -83,14 +83,20 @@ export async function PATCH(
     try {
         const { assetId } = await params;
         const body = await request.json();
+
+        console.log('[ASSET_UPDATE] Updating asset:', assetId);
+        console.log('[ASSET_UPDATE] Image present:', !!body.image, 'Length:', body.image?.length || 0);
+
         const asset = await prisma.asset.update({
             where: { id: assetId },
             data: body,
         });
 
+        console.log('[ASSET_UPDATE] Asset updated successfully');
         return NextResponse.json(asset);
-    } catch (error) {
-        console.error("Error updating asset:", error);
-        return NextResponse.json({ message: "Erro ao atualizar ativo" }, { status: 500 });
+    } catch (error: any) {
+        console.error("[ASSET_UPDATE] Error:", error);
+        console.error("[ASSET_UPDATE] Error message:", error?.message);
+        return NextResponse.json({ message: error?.message || "Erro ao atualizar ativo" }, { status: 500 });
     }
 }

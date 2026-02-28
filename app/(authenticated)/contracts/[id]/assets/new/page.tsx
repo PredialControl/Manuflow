@@ -72,6 +72,9 @@ export default function NewAssetPage() {
     try {
       const response = await fetch(`/api/contracts/${contractId}/assets`, {
         method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
         body: JSON.stringify({
           name: formData.get("name"),
           type: formData.get("type"),

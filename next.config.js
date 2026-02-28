@@ -8,6 +8,12 @@ const nextConfig = {
       },
     ],
   },
+  // Increase body size limit for Base64 image uploads
+  experimental: {
+    serverActions: {
+      bodySizeLimit: '10mb',
+    },
+  },
   // Ensure that the package is correctly handled for ESM/CJS compatibility
   transpilePackages: ["@react-pdf/renderer"],
   // This is required for @react-pdf/renderer to work in Next.js
