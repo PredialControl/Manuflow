@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { Plus, Building2, FileText, ClipboardCheck, History, Settings, Package, MapPin, Users, User, UserPlus, Pencil, Trash2 } from "lucide-react";
 import { formatDate } from "@/lib/utils";
 import { ReportsKanban } from "@/components/reports-kanban";
@@ -152,32 +152,6 @@ export default async function ContractDetailPage({
       </div>
 
       <Tabs key={activeTab} value={activeTab} className="space-y-4">
-        <TabsList className="bg-muted/50 p-1 rounded-xl">
-          <TabsTrigger value="overview" asChild className="rounded-lg font-bold data-[state=active]:bg-background">
-            <Link href={`/contracts/${contract.id}`}>Overview</Link>
-          </TabsTrigger>
-          <TabsTrigger value="assets" asChild className="rounded-lg font-bold data-[state=active]:bg-background">
-            <Link href={`/contracts/${contract.id}?tab=assets`}>Ativos</Link>
-          </TabsTrigger>
-          <TabsTrigger value="relevant-items" asChild className="rounded-lg font-bold data-[state=active]:bg-background">
-            <Link href={`/contracts/${contract.id}?tab=relevant-items`}>Itens / Orçamentos</Link>
-          </TabsTrigger>
-          <TabsTrigger value="inspections" asChild className="rounded-lg font-bold data-[state=active]:bg-background">
-            <Link href={`/contracts/${contract.id}?tab=inspections`}>Rondas</Link>
-          </TabsTrigger>
-          <TabsTrigger value="reports" asChild className="rounded-lg font-bold data-[state=active]:bg-background">
-            <Link href={`/contracts/${contract.id}?tab=reports`}>Laudos</Link>
-          </TabsTrigger>
-          <TabsTrigger value="measurements" asChild className="rounded-lg font-bold data-[state=active]:bg-background">
-            <Link href={`/contracts/${contract.id}?tab=measurements`}>Medições</Link>
-          </TabsTrigger>
-
-          {isAdmin && (
-            <TabsTrigger value="team" asChild className="rounded-lg font-bold data-[state=active]:bg-background">
-              <Link href={`/contracts/${contract.id}?tab=team`}>Equipe</Link>
-            </TabsTrigger>
-          )}
-        </TabsList>
 
         <TabsContent value="overview" className="space-y-4">
           <div className="grid gap-4 md:grid-cols-3">
