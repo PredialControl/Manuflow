@@ -171,75 +171,8 @@ export function AuthenticatedLayoutClient({
     };
 
     return (
-        <div className="min-h-screen bg-background flex flex-col transition-colors duration-300">
+        <div className="min-h-screen bg-background flex transition-colors duration-300">
             <PwaInstallPrompt />
-
-            {/* Header */}
-            <header className="glass shadow-sm shadow-black/5 z-50">
-                <div className="w-full px-6 h-16 flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                        {/* Desktop sidebar toggle */}
-                        <div className="hidden lg:block">
-                            <SidebarToggle />
-                        </div>
-
-                        {/* Mobile hamburger */}
-                        <button
-                            className="lg:hidden flex items-center justify-center h-9 w-9 rounded-xl hover:bg-muted transition-colors"
-                            onClick={() => setMobileOpen(true)}
-                            aria-label="Abrir menu"
-                        >
-                            <Menu className="h-5 w-5 text-muted-foreground" />
-                        </button>
-
-                        <div className="h-8 w-[1px] bg-border mx-1 hidden lg:block" />
-
-                        <div className="flex items-center gap-3">
-                            <div className="h-9 w-9 bg-primary shadow-lg shadow-primary/20 rounded-xl flex items-center justify-center overflow-hidden">
-                                <img
-                                    src="/logo.png"
-                                    alt="Logo ManuFlow"
-                                    className="h-full w-full object-cover"
-                                    onError={(e) => {
-                                        e.currentTarget.style.display = "none";
-                                        const parent = e.currentTarget.parentElement;
-                                        if (parent) {
-                                            parent.innerHTML =
-                                                '<span class="text-white text-lg font-bold">M</span>';
-                                        }
-                                    }}
-                                />
-                            </div>
-                            <div
-                                className={cn(
-                                    "hidden sm:flex flex-col transition-opacity duration-300",
-                                    isCollapsed
-                                        ? "lg:opacity-0 lg:pointer-events-none"
-                                        : "opacity-100"
-                                )}
-                            >
-                                <span className="text-lg font-bold tracking-tight text-foreground leading-none">
-                                    ManuFlow
-                                </span>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div className="flex items-center gap-4">
-                        <div className="hidden sm:flex flex-col items-end mr-2">
-                            <span className="text-xs font-bold text-foreground leading-none">
-                                {session.user.name}
-                            </span>
-                            <span className="text-[9px] text-muted-foreground uppercase font-black tracking-tighter mt-1">
-                                {session.user.role}
-                            </span>
-                        </div>
-                        <div className="h-8 w-[1px] bg-border mx-1" />
-                        <ThemeToggle />
-                        <SignOutButton />
-                    </div>
-                </div>
-            </header>
 
             {/* Mobile Drawer */}
             <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
@@ -298,15 +231,43 @@ export function AuthenticatedLayoutClient({
                 </SheetContent>
             </Sheet>
 
-            <div className="flex flex-1 w-full px-6 gap-x-6 overflow-hidden">
+            {/* Mobile Header (Hamburger only) */}
+            <div className="lg:hidden fixed top-0 left-0 right-0 z-50 glass border-b border-border/40 px-4 py-3 flex items-center justify-between">
+                <button
+                    className="flex items-center justify-center h-9 w-9 rounded-xl hover:bg-muted transition-colors"
+                    onClick={() => setMobileOpen(true)}
+                    aria-label="Abrir menu"
+                >
+                    <Menu className="h-5 w-5 text-muted-foreground" />
+                </button>
+                <div className="flex items-center gap-3">
+                    <ThemeToggle />
+                    <SignOutButton />
+                </div>
+            </div>
+
+            <div className="flex flex-1 w-full lg:px-6 gap-x-6 overflow-hidden pt-16 lg:pt-0">
                 {/* Desktop Sidebar */}
                 <aside
                     className={cn(
                         "hidden lg:flex flex-col py-6 transition-all duration-300 ease-in-out border-r border-border/40",
-                        isCollapsed ? "w-16" : "w-48"
+                        isCollapsed ? "w-16" : "w-64"
                     )}
                 >
                     <div className="flex flex-col h-full pr-2">
+                        {/* Logo & Toggle */}
+                        <div className={cn("mb-6 flex items-center", isCollapsed ? "justify-center" : "px-3 justify-between")}>
+                            {!isCollapsed && (
+                                <div className="flex items-center gap-2">
+                                    <div className="h-8 w-8 bg-primary rounded-lg flex items-center justify-center overflow-hidden">
+                                        <img src="/logo.png" alt="ManuFlow" className="h-full w-full object-cover" onError={(e) => { e.currentTarget.style.display = "none"; e.currentTarget.parentElement!.innerHTML = '<span class="text-white font-bold text-sm">M</span>'; }} />
+                                    </div>
+                                    <span className="text-lg font-bold tracking-tight">ManuFlow</span>
+                                </div>
+                            )}
+                            <SidebarToggle />
+                        </div>
+
                         {isContractRoute && (
                             <div className="mb-6">
                                 <Link
@@ -331,6 +292,20 @@ export function AuthenticatedLayoutClient({
                                 <NavLink key={item.href} item={item} />
                             ))}
                         </nav>
+
+                        {/* User Info & Actions */}
+                        <div className="mt-auto pt-4 border-t border-border/40">
+                            {!isCollapsed && (
+                                <div className="px-3 mb-4">
+                                    <p className="text-xs font-bold text-foreground truncate">{session.user.name}</p>
+                                    <p className="text-[9px] text-muted-foreground uppercase font-black tracking-tighter">{session.user.role}</p>
+                                </div>
+                            )}
+                            <div className={cn("flex gap-2", isCollapsed ? "flex-col items-center" : "px-3")}>
+                                <ThemeToggle />
+                                <SignOutButton />
+                            </div>
+                        </div>
                     </div>
                 </aside>
 
