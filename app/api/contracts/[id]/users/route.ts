@@ -87,7 +87,7 @@ export async function POST(
         );
     }
 
-    // Check limit of 2 technicians per contract
+    // Check limit of 4 technicians per contract
     if (role === "TECHNICIAN") {
         const technicianCount = await prisma.userContract.count({
             where: {
@@ -98,12 +98,20 @@ export async function POST(
             },
         });
 
-        if (technicianCount >= 2) {
+        if (technicianCount >= 4) {
             return NextResponse.json(
-                { message: "Limite de 2 técnicos por contrato atingido" },
+                { message: "Limite de 4 técnicos por contrato atingido" },
                 { status: 400 }
             );
         }
+    }
+
+    // OWNER/ADMIN can add SUPERVISOR to contract
+    if ((role === "SUPERVISOR" || role === "ADMIN") && !isGlobalAdmin) {
+        return NextResponse.json(
+            { message: "Apenas OWNER pode adicionar Supervisores/Coordenadores" },
+            { status: 403 }
+        );
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);

@@ -358,17 +358,35 @@ export default async function ContractDetailPage({
               <h2 className="text-xl font-black tracking-tight uppercase text-muted-foreground/40 italic">Equipe Responsável</h2>
               <p className="text-xs text-muted-foreground font-bold uppercase tracking-widest mt-1">Colaboradores alocados neste contrato</p>
             </div>
-            {isAdmin && (
-              <Link href={`/contracts/${contract.id}/users/new`}>
-                <Button size="sm" className="btn-premium">
-                  <UserPlus className="h-4 w-4 mr-2" />
-                  Novo Colaborador
-                </Button>
-              </Link>
-            )}
+            <div className="flex items-center gap-3">
+              {(() => {
+                const technicianCount = contract.users.filter((uc: any) => uc.user.role === "TECHNICIAN").length;
+                return (
+                  <div className="flex items-center gap-2 bg-primary/10 px-4 py-2 rounded-xl border border-primary/20">
+                    <Users className="h-4 w-4 text-primary" />
+                    <div className="text-right">
+                      <p className="text-xs font-black text-primary uppercase tracking-widest">
+                        Técnicos
+                      </p>
+                      <p className={`text-lg font-black ${technicianCount >= 4 ? 'text-red-600' : 'text-primary'}`}>
+                        {technicianCount}/4
+                      </p>
+                    </div>
+                  </div>
+                );
+              })()}
+              {isAdmin && (
+                <Link href={`/contracts/${contract.id}/users/new`}>
+                  <Button size="sm" className="btn-premium">
+                    <UserPlus className="h-4 w-4 mr-2" />
+                    Novo Colaborador
+                  </Button>
+                </Link>
+              )}
+            </div>
           </div>
 
-          <div className="grid gap-4">
+          <div className="grid gap-6">
             {contract.users.length === 0 ? (
               <Card className="border-dashed border-border/40 bg-muted/10">
                 <CardContent className="flex flex-col items-center justify-center py-12">
@@ -377,42 +395,118 @@ export default async function ContractDetailPage({
                 </CardContent>
               </Card>
             ) : (
-              contract.users.map((uc: any) => (
-                <Card key={uc.userId} className="border-border/60 rounded-2xl bg-muted/20 hover:border-primary/20 transition-all">
-                  <CardContent className="p-4 flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                      <div className="h-12 w-12 bg-primary/10 rounded-xl flex items-center justify-center text-primary">
-                        <User className="h-6 w-6" />
-                      </div>
-                      <div>
-                        <h4 className="font-black uppercase italic tracking-tighter text-lg">{uc.user.name}</h4>
-                        <div className="flex items-center gap-2">
-                          <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">{uc.user.email}</span>
-                          <span className="h-1 w-1 rounded-full bg-border" />
-                          <span className="text-[10px] font-black uppercase tracking-widest text-primary/60">{uc.user.role}</span>
+              <>
+                {/* Supervisores e Coordenadores */}
+                {(() => {
+                  const supervisors = contract.users.filter((uc: any) =>
+                    uc.user.role === "SUPERVISOR" || uc.user.role === "ADMIN" || uc.user.role === "OWNER"
+                  );
+
+                  if (supervisors.length > 0) {
+                    return (
+                      <div className="space-y-3">
+                        <div className="flex items-center gap-2 px-1">
+                          <div className="h-1 w-1 rounded-full bg-blue-500" />
+                          <h3 className="text-xs font-black uppercase tracking-widest text-blue-600">
+                            Coordenadores & Supervisores ({supervisors.length})
+                          </h3>
+                        </div>
+                        <div className="grid gap-3">
+                          {supervisors.map((uc: any) => (
+                            <Card key={uc.userId} className="border-blue-500/40 rounded-2xl bg-blue-500/5 hover:border-blue-500/60 transition-all">
+                              <CardContent className="p-4 flex items-center justify-between">
+                                <div className="flex items-center gap-4">
+                                  <div className="h-12 w-12 bg-blue-500/20 rounded-xl flex items-center justify-center text-blue-600">
+                                    <User className="h-6 w-6" />
+                                  </div>
+                                  <div>
+                                    <h4 className="font-black uppercase italic tracking-tighter text-lg">{uc.user.name}</h4>
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">{uc.user.email}</span>
+                                      <span className="h-1 w-1 rounded-full bg-border" />
+                                      <span className="text-[10px] font-black uppercase tracking-widest text-blue-600/80">{uc.user.role}</span>
+                                    </div>
+                                  </div>
+                                </div>
+
+                                {isAdmin && (
+                                  <ContractUserActions
+                                    contractId={contract.id}
+                                    userId={uc.userId}
+                                    userName={uc.user.name}
+                                  />
+                                )}
+                              </CardContent>
+                            </Card>
+                          ))}
                         </div>
                       </div>
-                    </div>
+                    );
+                  }
+                  return null;
+                })()}
 
-                    <div className="flex items-center gap-4">
-                      {uc.user.category && (
-                        <div className="px-3 py-1 bg-background border border-border/40 rounded-full flex items-center gap-2">
-                          <div className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />
-                          <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60">{uc.user.category.replace('_', ' ')}</span>
+                {/* Técnicos */}
+                {(() => {
+                  const technicians = contract.users.filter((uc: any) => uc.user.role === "TECHNICIAN");
+
+                  if (technicians.length > 0) {
+                    return (
+                      <div className="space-y-3">
+                        <div className="flex items-center gap-2 px-1">
+                          <div className="h-1 w-1 rounded-full bg-primary" />
+                          <h3 className="text-xs font-black uppercase tracking-widest text-primary">
+                            Técnicos Residentes ({technicians.length}/4)
+                          </h3>
                         </div>
-                      )}
+                        <div className="grid gap-3">
+                          {technicians.map((uc: any) => (
+                            <Card key={uc.userId} className="border-border/60 rounded-2xl bg-muted/20 hover:border-primary/20 transition-all">
+                              <CardContent className="p-4 flex items-center justify-between">
+                                <div className="flex items-center gap-4">
+                                  <div className="h-12 w-12 bg-primary/10 rounded-xl flex items-center justify-center text-primary">
+                                    <User className="h-6 w-6" />
+                                  </div>
+                                  <div>
+                                    <h4 className="font-black uppercase italic tracking-tighter text-lg">{uc.user.name}</h4>
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">{uc.user.email}</span>
+                                      {uc.user.category && (
+                                        <>
+                                          <span className="h-1 w-1 rounded-full bg-border" />
+                                          <span className="text-[10px] font-black uppercase tracking-widest text-primary/60">{uc.user.category.replace('_', ' ')}</span>
+                                        </>
+                                      )}
+                                    </div>
+                                  </div>
+                                </div>
 
-                      {isAdmin && (
-                        <ContractUserActions
-                          contractId={contract.id}
-                          userId={uc.userId}
-                          userName={uc.user.name}
-                        />
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-              ))
+                                <div className="flex items-center gap-4">
+                                  {uc.user.category && (
+                                    <div className="px-3 py-1 bg-background border border-border/40 rounded-full flex items-center gap-2">
+                                      <div className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />
+                                      <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60">{uc.user.category.replace('_', ' ')}</span>
+                                    </div>
+                                  )}
+
+                                  {isAdmin && (
+                                    <ContractUserActions
+                                      contractId={contract.id}
+                                      userId={uc.userId}
+                                      userName={uc.user.name}
+                                    />
+                                  )}
+                                </div>
+                              </CardContent>
+                            </Card>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  }
+                  return null;
+                })()}
+              </>
             )}
           </div>
         </TabsContent>
