@@ -178,48 +178,6 @@ function ReportCard({ report, onViewDetails, onAddPhoto, isUploadingPhoto }: { r
                     </div>
                 </div>
 
-                {/* Anexos/Fotos */}
-                {report.photos && report.photos.length > 0 && (
-                    <div className="space-y-2">
-                        <div className="flex gap-1.5 flex-wrap">
-                            {report.photos.slice(0, 3).map((photo) => {
-                                const isImage = photo.filename.match(/\.(jpg|jpeg|png|gif|webp)$/i);
-                                return (
-                                    <a
-                                        key={photo.id}
-                                        href={photo.url}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        download={photo.filename}
-                                        onClick={(e) => e.stopPropagation()}
-                                        onMouseDown={(e) => e.stopPropagation()}
-                                        onPointerDown={(e) => e.stopPropagation()}
-                                        className="relative h-12 w-12 rounded-lg overflow-hidden border border-border/40 hover:scale-105 transition-transform shadow-sm group/photo bg-card"
-                                    >
-                                        {isImage ? (
-                                            <>
-                                                <img src={photo.url} alt={photo.filename} className="w-full h-full object-cover" />
-                                                <div className="absolute inset-0 bg-black/20 opacity-0 group-hover/photo:opacity-100 transition-opacity flex items-center justify-center">
-                                                    <Download className="h-3 w-3 text-white" />
-                                                </div>
-                                            </>
-                                        ) : (
-                                            <div className="w-full h-full flex items-center justify-center bg-muted">
-                                                <File className="h-5 w-5 text-muted-foreground" />
-                                            </div>
-                                        )}
-                                    </a>
-                                );
-                            })}
-                            {report.photos.length > 3 && (
-                                <div className="h-12 w-12 rounded-lg bg-muted/60 border border-border/40 flex items-center justify-center">
-                                    <span className="text-[10px] font-black text-muted-foreground">+{report.photos.length - 3}</span>
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                )}
-
                 <div className="flex gap-1.5 pt-1" onMouseDown={(e) => e.stopPropagation()} onPointerDown={(e) => e.stopPropagation()}>
                     <Button
                         variant="outline"
