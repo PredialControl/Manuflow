@@ -1060,61 +1060,6 @@ function ItemCard({ item, isDragging, onAttach }: { item: RelevantItem; isDraggi
                     )}
                 </div>
 
-                {/* Anexos */}
-                {(item.attachments.length > 0) && (
-                    <div className="space-y-2">
-                        {/* Imagens */}
-                        {item.attachments.filter((a) => a.fileType === "image").length > 0 && (
-                            <div className="flex gap-1.5 flex-wrap items-center">
-                                {item.attachments.filter((a) => a.fileType === "image").slice(0, 4).map((att) => (
-                                    <a
-                                        key={att.id}
-                                        href={att.url}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        download={att.filename}
-                                        onClick={(e) => e.stopPropagation()}
-                                        onMouseDown={(e) => e.stopPropagation()}
-                                        onPointerDown={(e) => e.stopPropagation()}
-                                        className="relative h-14 w-14 rounded-xl overflow-hidden border border-border/40 hover:scale-105 transition-transform shadow-sm group/att"
-                                    >
-                                        <img src={att.url} alt={att.filename} className="w-full h-full object-cover" />
-                                        <div className="absolute inset-0 bg-black/20 opacity-0 group-hover/att:opacity-100 transition-opacity flex items-center justify-center">
-                                            <Download className="h-3 w-3 text-white" />
-                                        </div>
-                                    </a>
-                                ))}
-                                {item.attachments.filter((a) => a.fileType === "image").length > 4 && (
-                                    <div className="h-14 w-14 rounded-xl bg-muted/60 border border-border/40 flex items-center justify-center">
-                                        <span className="text-[10px] font-black text-muted-foreground">+{item.attachments.filter((a) => a.fileType === "image").length - 4}</span>
-                                    </div>
-                                )}
-                            </div>
-                        )}
-                        {/* Outros arquivos */}
-                        {item.attachments.filter((a) => a.fileType !== "image").length > 0 && (
-                            <div className="flex flex-wrap gap-1.5">
-                                {item.attachments.filter((a) => a.fileType !== "image").map((att) => (
-                                    <a
-                                        key={att.id}
-                                        href={att.url}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        download={att.filename}
-                                        onClick={(e) => e.stopPropagation()}
-                                        onMouseDown={(e) => e.stopPropagation()}
-                                        onPointerDown={(e) => e.stopPropagation()}
-                                        className="flex items-center gap-2 text-[10px] font-black uppercase bg-muted/60 px-3 py-1.5 rounded-xl border border-border/40 hover:bg-primary/5 hover:text-primary transition-all shadow-sm"
-                                    >
-                                        <FileText className="h-3.5 w-3.5 opacity-60" />
-                                        <span className="truncate max-w-[100px]">{att.filename}</span>
-                                    </a>
-                                ))}
-                            </div>
-                        )}
-                    </div>
-                )}
-
                 <div className="pt-3 border-t border-border/40 flex items-center justify-between gap-3">
                     <div className="flex items-center gap-2 overflow-hidden">
                         <div className="h-5 w-5 rounded-full bg-primary/10 flex items-center justify-center text-[10px] font-black text-primary border border-primary/20 shrink-0">
