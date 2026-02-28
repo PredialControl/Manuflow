@@ -191,7 +191,7 @@ function DroppableColumn({
                     <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black ${column.color} ${column.bgColor} border border-current/10 shadow-sm`}>
                         {count}
                     </span>
-                    {isOwnerOrAdmin && !column.isDefault && onDelete && (
+                    {isOwnerOrAdmin && onDelete && (
                         <button
                             onClick={() => onDelete(column)}
                             className="h-6 w-6 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 flex items-center justify-center text-rose-600 transition-all"
@@ -883,23 +883,31 @@ export function ReportsKanban({
                         <DialogDescription className="text-base">
                             Tem certeza que deseja deletar a coluna{" "}
                             <span className="font-black text-foreground">"{columnToDelete?.title}"</span>?
+                            {columnToDelete?.isDefault && (
+                                <span className="block mt-2 text-amber-600 font-bold">
+                                    ⚠️ Esta é uma coluna padrão do sistema
+                                </span>
+                            )}
                         </DialogDescription>
                     </DialogHeader>
                     <div className="py-4">
-                        <div className="p-4 bg-amber-500/10 border-2 border-amber-500/20 rounded-xl">
+                        <div className="p-4 bg-red-500/10 border-2 border-red-500/20 rounded-xl">
                             <div className="flex items-start gap-3">
-                                <AlertTriangle className="h-5 w-5 text-amber-600 mt-0.5 flex-shrink-0" />
+                                <AlertTriangle className="h-5 w-5 text-red-600 mt-0.5 flex-shrink-0" />
                                 <div className="space-y-2">
-                                    <p className="text-sm font-bold text-amber-600">
-                                        ⚠️ ATENÇÃO: Perda de Dados
+                                    <p className="text-sm font-bold text-red-600">
+                                        ⚠️ ATENÇÃO: Perda de Dados Permanente
                                     </p>
-                                    <p className="text-xs text-amber-600/80 font-medium">
-                                        Todos os laudos nesta coluna serão{" "}
+                                    <p className="text-xs text-red-600/80 font-medium">
+                                        Todos os laudos nesta coluna ({columnToDelete?.status[0]}) serão{" "}
                                         <span className="font-black">automaticamente movidos</span>{" "}
-                                        para a coluna "Em andamento".
+                                        para a coluna "Em andamento" (IN_PROGRESS).
                                     </p>
-                                    <p className="text-xs text-amber-600/80 font-medium">
-                                        Esta ação <span className="font-black">não pode ser desfeita</span>.
+                                    <p className="text-xs text-red-600/80 font-medium">
+                                        A coluna será <span className="font-black">permanentemente deletada</span> do banco de dados.
+                                    </p>
+                                    <p className="text-xs text-red-600/80 font-medium">
+                                        Esta ação <span className="font-black">NÃO pode ser desfeita</span>.
                                     </p>
                                 </div>
                             </div>

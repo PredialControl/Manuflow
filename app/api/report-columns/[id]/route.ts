@@ -46,38 +46,29 @@ export async function DELETE(
             );
         }
 
-        // Não permitir deletar colunas padrão
-        if (column.isDefault) {
-            return NextResponse.json(
-                { error: "Cannot delete default columns" },
-                { status: 400 }
-            );
-        }
+        // Contar quantos reports existem nesta coluna usando $queryRaw para evitar problemas com enum
+        const reportsCountResult = await prisma.$queryRaw<[{ count: bigint }]>`
+            SELECT COUNT(*) as count
+            FROM "Report"
+            WHERE "companyId" = ${companyId}
+            AND "status" = ${column.statusKey}
+        `;
 
-        // Contar quantos reports existem nesta coluna
-        const reportsCount = await prisma.report.count({
-            where: {
-                companyId,
-                status: column.statusKey as any,
-            },
-        });
+        const reportsCount = Number(reportsCountResult[0]?.count || 0);
 
         // Deletar a coluna
         await prisma.reportColumn.delete({
             where: { id },
         });
 
-        // Se existem reports nesta coluna, movê-los para "IN_PROGRESS"
+        // Se existem reports nesta coluna, movê-los para "IN_PROGRESS" usando $executeRaw
         if (reportsCount > 0) {
-            await prisma.report.updateMany({
-                where: {
-                    companyId,
-                    status: column.statusKey as any,
-                },
-                data: {
-                    status: "IN_PROGRESS" as any,
-                },
-            });
+            await prisma.$executeRaw`
+                UPDATE "Report"
+                SET "status" = 'IN_PROGRESS'
+                WHERE "companyId" = ${companyId}
+                AND "status" = ${column.statusKey}
+            `;
         }
 
         return NextResponse.json({
