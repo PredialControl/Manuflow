@@ -131,6 +131,7 @@ export default async function ContractDetailPage({
   );
   const maintenanceAssets = contract.assets.filter((a: any) => a.operationalStatus === 'MAINTENANCE');
   const stoppedAssets = contract.assets.filter((a: any) => a.operationalStatus === 'NOT_OPERATIONAL');
+  const operationalAssets = contract.assets.filter((a: any) => a.operationalStatus === 'OPERATIONAL');
 
   // Calcular conformidade: 100% - penalidades
   // Cada laudo vencido: -10%
@@ -245,30 +246,27 @@ export default async function ContractDetailPage({
               </CardHeader>
               <CardContent>
                 <div className="space-y-2">
-                  {stoppedAssets.length > 0 && (
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-muted-foreground font-bold flex items-center gap-2">
-                        <div className="h-2 w-2 bg-red-500 rounded-full" />
-                        Parados
-                      </span>
-                      <span className="font-black text-red-600 dark:text-red-400">{stoppedAssets.length}</span>
-                    </div>
-                  )}
-                  {maintenanceAssets.length > 0 && (
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-muted-foreground font-bold flex items-center gap-2">
-                        <div className="h-2 w-2 bg-yellow-500 rounded-full" />
-                        Manutenção
-                      </span>
-                      <span className="font-black text-yellow-600 dark:text-yellow-400">{maintenanceAssets.length}</span>
-                    </div>
-                  )}
-                  {stoppedAssets.length === 0 && maintenanceAssets.length === 0 && (
-                    <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400">
-                      <div className="h-2 w-2 bg-emerald-500 rounded-full animate-pulse" />
-                      <span className="text-sm font-black">Todos OK</span>
-                    </div>
-                  )}
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground font-bold flex items-center gap-2">
+                      <div className={`h-2 w-2 bg-emerald-500 rounded-full ${operationalAssets.length > 0 ? 'animate-pulse' : ''}`} />
+                      Operacionais
+                    </span>
+                    <span className="font-black text-emerald-600 dark:text-emerald-400">{operationalAssets.length}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground font-bold flex items-center gap-2">
+                      <div className="h-2 w-2 bg-yellow-500 rounded-full" />
+                      Manutenção
+                    </span>
+                    <span className="font-black text-yellow-600 dark:text-yellow-400">{maintenanceAssets.length}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground font-bold flex items-center gap-2">
+                      <div className="h-2 w-2 bg-red-500 rounded-full" />
+                      Parados
+                    </span>
+                    <span className="font-black text-red-600 dark:text-red-400">{stoppedAssets.length}</span>
+                  </div>
                 </div>
               </CardContent>
             </Card>

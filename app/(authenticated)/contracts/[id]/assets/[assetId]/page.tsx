@@ -27,6 +27,7 @@ import {
 } from "lucide-react";
 import { formatDate } from "@/lib/utils";
 import { DeleteAssetButton } from "@/components/delete-asset-button";
+import { QRCodeDisplay } from "@/components/qr-code-display";
 
 export const dynamic = "force-dynamic";
 
@@ -94,8 +95,9 @@ export default async function AssetDetailPage({
         notFound();
     }
 
-    // Identificador único para o QR Code (URL da página)
-    const qrCodeValue = `${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/contracts/${params.id}/assets/${params.assetId}`;
+    // Identificador único para o QR Code (URL pública da página)
+    const baseUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000';
+    const qrCodeValue = `${baseUrl}/asset/${params.assetId}`;
 
     return (
         <div className="space-y-8 animate-in pb-20">
@@ -388,13 +390,17 @@ export default async function AssetDetailPage({
                         </CardHeader>
                         <CardContent className="flex flex-col items-center gap-6 pb-8">
                             <div className="p-6 bg-white rounded-3xl shadow-xl border border-muted ring-8 ring-primary/5">
-                                {/* Aqui futuramente integraria com uma lib de QR, mas agora deixamos o placeholder visual premium */}
-                                <div className="h-40 w-40 bg-muted flex items-center justify-center rounded-2xl overflow-hidden relative border border-dashed border-primary/20">
-                                    <QrCode className="h-24 w-24 text-primary opacity-20" />
-                                    <div className="absolute inset-0 flex items-center justify-center">
-                                        <span className="text-[8px] font-black uppercase tracking-widest text-primary/40 bg-white/80 backdrop-blur-sm px-2 py-1 rounded-lg">ID: {asset.id.slice(-6).toUpperCase()}</span>
-                                    </div>
-                                </div>
+                                {/* QR Code funcional - aponta para página pública com informações em tempo real */}
+                                <QRCodeDisplay value={qrCodeValue} size={160} />
+                            </div>
+
+                            <div className="w-full space-y-2">
+                                <p className="text-[10px] font-black uppercase tracking-widest text-center text-muted-foreground/60">
+                                    ID: {asset.id.slice(-8).toUpperCase()}
+                                </p>
+                                <p className="text-[9px] text-center text-muted-foreground/50">
+                                    Escaneie para ver informações atualizadas em tempo real
+                                </p>
                             </div>
 
                             <Button variant="outline" className="w-full rounded-2xl border-primary/30 h-12 text-xs font-black uppercase tracking-widest text-primary hover:bg-primary hover:text-white transition-all">

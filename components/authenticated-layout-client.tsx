@@ -22,6 +22,7 @@ import {
     Sparkles,
     DollarSign,
     Menu,
+    Network,
 } from "lucide-react";
 
 interface Session {
@@ -86,6 +87,7 @@ export function AuthenticatedLayoutClient({
             : [
                 { href: `/contracts/${contractId}`, label: "Visão Geral", icon: LayoutDashboard },
                 { href: `/contracts/${contractId}?tab=assets`, label: "Ativos", icon: Package },
+                { href: `/contracts/${contractId}/structure`, label: "Estrutura", icon: Network },
                 { href: `/contracts/${contractId}?tab=relevant-items`, label: "Itens / Orçamentos", icon: Sparkles },
                 { href: `/contracts/${contractId}?tab=inspections`, label: "Rondas", icon: ClipboardCheck },
                 { href: `/contracts/${contractId}?tab=reports`, label: "Laudos", icon: FileText },

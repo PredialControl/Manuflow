@@ -5,7 +5,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { Droplets, Zap, Flame, Calendar, TrendingUp, TrendingDown, Activity, Filter, Clock } from "lucide-react";
 import { cn, formatDate } from "@/lib/utils";
-import { subDays, isAfter, startOfWeek, startOfMonth, startOfYear } from "date-fns";
+import { subDays, isAfter, startOfWeek, startOfMonth, startOfYear, parse, isValid } from "date-fns";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 type MeasurementType = "WATER" | "ENERGY" | "GAS";
 
@@ -36,7 +38,9 @@ interface SupervisorMeasurementsDashboardProps {
 }
 
 export function SupervisorMeasurementsDashboard({ devices }: SupervisorMeasurementsDashboardProps) {
-    const [timeRange, setTimeRange] = useState<"week" | "month" | "year" | "all">("month");
+    const [timeRange, setTimeRange] = useState<"week" | "month" | "year" | "all" | "custom">("month");
+    const [startDate, setStartDate] = useState("");
+    const [endDate, setEndDate] = useState("");
 
     const typeIcons = {
         WATER: Droplets,
@@ -53,14 +57,34 @@ export function SupervisorMeasurementsDashboard({ devices }: SupervisorMeasureme
     // Filtrar entradas por período
     const getFilteredEntries = (entries: Entry[]) => {
         const now = new Date();
-        let startDate: Date;
+        let filterStartDate: Date | null = null;
+        let filterEndDate: Date | null = null;
 
-        if (timeRange === "week") startDate = startOfWeek(now);
-        else if (timeRange === "month") startDate = startOfMonth(now);
-        else if (timeRange === "year") startDate = startOfYear(now);
-        else return entries;
+        if (timeRange === "week") filterStartDate = startOfWeek(now);
+        else if (timeRange === "month") filterStartDate = startOfMonth(now);
+        else if (timeRange === "year") filterStartDate = startOfYear(now);
+        else if (timeRange === "custom") {
+            if (startDate) {
+                const parsed = parse(startDate, "yyyy-MM-dd", new Date());
+                if (isValid(parsed)) filterStartDate = parsed;
+            }
+            if (endDate) {
+                const parsed = parse(endDate, "yyyy-MM-dd", new Date());
+                if (isValid(parsed)) {
+                    filterEndDate = new Date(parsed);
+                    filterEndDate.setHours(23, 59, 59, 999);
+                }
+            }
+        } else {
+            return entries;
+        }
 
-        return entries.filter(e => isAfter(new Date(e.createdAt), startDate));
+        return entries.filter(e => {
+            const entryDate = new Date(e.createdAt);
+            if (filterStartDate && entryDate < filterStartDate) return false;
+            if (filterEndDate && entryDate > filterEndDate) return false;
+            return filterStartDate ? isAfter(entryDate, filterStartDate) || entryDate.getTime() === filterStartDate.getTime() : true;
+        });
     };
 
     // Preparar dados para gráficos
@@ -85,9 +109,15 @@ export function SupervisorMeasurementsDashboard({ devices }: SupervisorMeasureme
         const oldest = filtered[filtered.length - 1];
         const consumption = latest.value - oldest.value;
 
+        let period = "total";
+        if (timeRange === "week") period = "esta semana";
+        else if (timeRange === "month") period = "este mês";
+        else if (timeRange === "year") period = "este ano";
+        else if (timeRange === "custom") period = "no período";
+
         return {
             total: consumption,
-            period: timeRange === "week" ? "esta semana" : timeRange === "month" ? "este mês" : "este ano",
+            period,
             count: filtered.length
         };
     };
@@ -123,72 +153,71 @@ export function SupervisorMeasurementsDashboard({ devices }: SupervisorMeasureme
     return (
         <div className="space-y-8">
             {/* Filtros e Cabeçalho */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-card/40 p-6 rounded-[2rem] border border-border/40 backdrop-blur-md">
-                <div className="flex items-center gap-3">
-                    <div className="h-12 w-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary">
-                        <Activity className="h-6 w-6" />
+            <div className="flex flex-col gap-4 bg-card/40 p-6 rounded-[2rem] border border-border/40 backdrop-blur-md">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div className="flex items-center gap-3">
+                        <div className="h-12 w-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary">
+                            <Activity className="h-6 w-6" />
+                        </div>
+                        <div>
+                            <h1 className="text-2xl font-black tracking-tight uppercase italic">Dashboard de Consumo</h1>
+                            <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground opacity-60">Análise de medidores e eficiência</p>
+                        </div>
                     </div>
-                    <div>
-                        <h1 className="text-2xl font-black tracking-tight uppercase italic">Dashboard de Consumo</h1>
-                        <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground opacity-60">Análise de medidores e eficiência</p>
+
+                    <div className="flex bg-muted/50 p-1.5 rounded-2xl border border-border/20">
+                        {[
+                            { id: "week", label: "Semana" },
+                            { id: "month", label: "Mês" },
+                            { id: "year", label: "Ano" },
+                            { id: "custom", label: "Período" },
+                            { id: "all", label: "Tudo" },
+                        ].map((range) => (
+                            <button
+                                key={range.id}
+                                onClick={() => setTimeRange(range.id as any)}
+                                className={cn(
+                                    "px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all",
+                                    timeRange === range.id
+                                        ? "bg-background text-primary shadow-lg"
+                                        : "text-muted-foreground hover:bg-background/40 hover:text-foreground"
+                                )}
+                            >
+                                {range.label}
+                            </button>
+                        ))}
                     </div>
                 </div>
 
-                <div className="flex bg-muted/50 p-1.5 rounded-2xl border border-border/20">
-                    {[
-                        { id: "week", label: "Semana" },
-                        { id: "month", label: "Mês" },
-                        { id: "year", label: "Ano" },
-                        { id: "all", label: "Tudo" },
-                    ].map((range) => (
-                        <button
-                            key={range.id}
-                            onClick={() => setTimeRange(range.id as any)}
-                            className={cn(
-                                "px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all",
-                                timeRange === range.id
-                                    ? "bg-background text-primary shadow-lg"
-                                    : "text-muted-foreground hover:bg-background/40 hover:text-foreground"
-                            )}
-                        >
-                            {range.label}
-                        </button>
-                    ))}
-                </div>
-            </div>
-
-            {/* Resumo Consolidados */}
-            <div className="grid gap-6 md:grid-cols-3">
-                {["WATER", "ENERGY", "GAS"].map((type) => {
-                    const typeDevices = devices.filter(d => d.type === type);
-                    const totalCons = typeDevices.reduce((sum, d) => sum + (getAccumulatedStats(d)?.total || 0), 0);
-                    const Icon = typeIcons[type as MeasurementType];
-                    const colors = typeColors[type as MeasurementType];
-                    const unit = typeDevices[0]?.unit || "";
-
-                    return (
-                        <Card key={type} className="card-premium overflow-hidden border-none bg-muted/20 relative group">
-                            <div className={cn("absolute top-0 right-0 h-24 w-24 -mr-8 -mt-8 rounded-full blur-3xl opacity-10 transition-opacity group-hover:opacity-30", type === "WATER" ? "bg-blue-500" : type === "ENERGY" ? "bg-yellow-500" : "bg-orange-500")} />
-                            <CardContent className="p-6">
-                                <div className="flex items-center gap-4 mb-4">
-                                    <div className={cn("h-12 w-12 rounded-2xl flex items-center justify-center", colors.bg)}>
-                                        <Icon className={cn("h-6 w-6", colors.text)} />
-                                    </div>
-                                    <div>
-                                        <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60">Total {type === "WATER" ? "Água" : type === "ENERGY" ? "Energia" : "Gás"}</p>
-                                        <div className="flex items-baseline gap-2">
-                                            <span className="text-3xl font-black tracking-tighter">{totalCons.toFixed(1)}</span>
-                                            <span className="text-xs font-bold text-muted-foreground">{unit}</span>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div className="flex items-center gap-2 text-[10px] font-bold text-muted-foreground/40 uppercase tracking-widest">
-                                    <Clock className="h-3 w-3" /> acumulado {timeRange === "week" ? "esta semana" : timeRange === "month" ? "este mês" : timeRange === "year" ? "este ano" : "total"}
-                                </div>
-                            </CardContent>
-                        </Card>
-                    );
-                })}
+                {/* Filtro de data customizada */}
+                {timeRange === "custom" && (
+                    <div className="flex flex-col sm:flex-row gap-4 pt-2 border-t border-border/30">
+                        <div className="flex-1 space-y-2">
+                            <Label htmlFor="start-date" className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60">
+                                Data Início
+                            </Label>
+                            <Input
+                                id="start-date"
+                                type="date"
+                                value={startDate}
+                                onChange={(e) => setStartDate(e.target.value)}
+                                className="rounded-xl border-border/50"
+                            />
+                        </div>
+                        <div className="flex-1 space-y-2">
+                            <Label htmlFor="end-date" className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60">
+                                Data Fim
+                            </Label>
+                            <Input
+                                id="end-date"
+                                type="date"
+                                value={endDate}
+                                onChange={(e) => setEndDate(e.target.value)}
+                                className="rounded-xl border-border/50"
+                            />
+                        </div>
+                    </div>
+                )}
             </div>
 
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">

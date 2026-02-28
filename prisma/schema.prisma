@@ -123,6 +123,9 @@ model Company {
   users               User[]
   contracts           Contract[]
   assets              Asset[]
+  buildings           Building[]
+  floors              Floor[]
+  locations           Location[]
   assetScripts        AssetScript[]
   inspections         Inspection[]
   inspectionSteps     InspectionStep[]
@@ -187,6 +190,7 @@ model Contract {
 
   companyOwner    Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
   assets          Asset[]
+  buildings       Building[]
   users           UserContract[]
   reports         Report[]
   inspections     Inspection[]
@@ -219,7 +223,8 @@ model Asset {
   name                String
   type                String
   category            String?             // Specialty category (e.g., AR_CONDICIONADO, CIVIL, ELETRICA)
-  location            String
+  location            String?             // Legacy field - will be replaced by locationId
+  locationId          String?             // Reference to Location model
   brand               String?
   model               String?
   power               String?
@@ -234,6 +239,7 @@ model Asset {
 
   company         Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
   contract        Contract  @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  locationRef     Location? @relation(fields: [locationId], references: [id], onDelete: SetNull)
   scripts         AssetScript[]
   inspections     Inspection[]
   reports         Report[]
@@ -241,6 +247,64 @@ model Asset {
 
   @@index([companyId])
   @@index([companyId, active])
+  @@index([locationId])
+}
+
+// Hierarquia de localização: Building > Floor > Location > Asset
+
+model Building {
+  id          String    @id @default(cuid())
+  contractId  String
+  companyId   String
+  name        String
+  description String?
+  active      Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  company     Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  contract    Contract  @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  floors      Floor[]
+
+  @@index([companyId])
+  @@index([contractId])
+}
+
+model Floor {
+  id          String    @id @default(cuid())
+  buildingId  String
+  companyId   String
+  number      Int       // Floor number (can be negative for basements)
+  name        String?   // Optional custom name (e.g., "Térreo", "Subsolo 1")
+  active      Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  company     Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  building    Building  @relation(fields: [buildingId], references: [id], onDelete: Cascade)
+  locations   Location[]
+
+  @@index([companyId])
+  @@index([buildingId])
+  @@unique([buildingId, number]) // Prevent duplicate floor numbers in same building
+}
+
+model Location {
+  id          String    @id @default(cuid())
+  floorId     String
+  companyId   String
+  name        String    // e.g., "Sala 301", "Copa", "Recepção"
+  description String?
+  active      Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  company     Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  floor       Floor     @relation(fields: [floorId], references: [id], onDelete: Cascade)
+  assets      Asset[]
+
+  @@index([companyId])
+  @@index([floorId])
 }
 
 model AssetScript {
