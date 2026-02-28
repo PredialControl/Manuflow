@@ -16,6 +16,8 @@ import {
     Calendar,
     TrendingUp,
     X,
+    Pencil,
+    AlertTriangle,
 } from "lucide-react";
 import { cn, formatDate } from "@/lib/utils";
 import { useToast } from "@/components/ui/use-toast";
@@ -46,6 +48,9 @@ type Entry = {
     date: string | Date;
     user: { name: string };
     notes?: string;
+    editedBy?: string;
+    previousValue?: number;
+    updatedAt?: string | Date;
 };
 
 type Device = {
@@ -73,6 +78,12 @@ export function MeasurementManager({ contractId, devices: initialDevices, isAdmi
 
     // Confirmation state
     const [showConfirmation, setShowConfirmation] = useState(false);
+
+    // Edit state
+    const [isEditOpen, setIsEditOpen] = useState(false);
+    const [selectedEntry, setSelectedEntry] = useState<Entry | null>(null);
+    const [editValue, setEditValue] = useState("");
+    const [editNotes, setEditNotes] = useState("");
 
     // Form states for new device
     const [newDevice, setNewDevice] = useState({
@@ -235,6 +246,80 @@ export function MeasurementManager({ contractId, devices: initialDevices, isAdmi
         }
     };
 
+    // Open edit dialog
+    const handleOpenEdit = (entry: Entry, device: Device) => {
+        setSelectedEntry(entry);
+        setSelectedDevice(device);
+        setEditValue(entry.value.toString());
+        setEditNotes(entry.notes || "");
+        setIsEditOpen(true);
+    };
+
+    // Save edited entry
+    const handleSaveEdit = async () => {
+        if (!selectedEntry || !selectedDevice) return;
+
+        const newValue = parseFloat(editValue.replace(',', '.'));
+
+        if (isNaN(newValue)) {
+            return toast({ title: "Erro", description: "Valor inválido", variant: "destructive" });
+        }
+
+        // Check if value changed
+        if (newValue === selectedEntry.value) {
+            return toast({ title: "Info", description: "Nenhuma alteração detectada", variant: "default" });
+        }
+
+        // Calculate percentage change for warning
+        const percentChange = Math.abs((newValue - selectedEntry.value) / selectedEntry.value) * 100;
+
+        if (percentChange > 50) {
+            const confirmed = confirm(
+                `⚠️ ATENÇÃO!\n\nA diferença é de ${percentChange.toFixed(1)}%\n\nValor anterior: ${selectedEntry.value}\nNovo valor: ${newValue}\n\nTem certeza que deseja continuar?`
+            );
+            if (!confirmed) return;
+        }
+
+        setLoading(true);
+
+        try {
+            const res = await fetch(`/api/measurements/${selectedEntry.id}`, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    value: newValue,
+                    notes: editNotes,
+                })
+            });
+
+            if (!res.ok) throw new Error();
+            const updated = await res.json();
+
+            // Update local state
+            setDevices(devices.map(d =>
+                d.id === selectedDevice.id
+                    ? {
+                        ...d,
+                        entries: d.entries.map(e =>
+                            e.id === selectedEntry.id ? { ...updated, user: e.user } : e
+                        )
+                    }
+                    : d
+            ));
+
+            setIsEditOpen(false);
+            toast({
+                title: "Leitura editada!",
+                description: `${selectedEntry.value} → ${newValue} ${selectedDevice.unit}`,
+                variant: "success",
+            });
+        } catch (error) {
+            toast({ title: "Erro", description: "Erro ao editar leitura", variant: "destructive" });
+        } finally {
+            setLoading(false);
+        }
+    };
+
     return (
         <div className="space-y-6">
             <div className="flex items-center justify-between">
@@ -388,6 +473,7 @@ export function MeasurementManager({ contractId, devices: initialDevices, isAdmi
                                                             <th className="text-left px-3 py-2 font-black text-[10px] uppercase tracking-widest text-muted-foreground/50">Data</th>
                                                             <th className="text-right px-3 py-2 font-black text-[10px] uppercase tracking-widest text-muted-foreground/50">Leitura</th>
                                                             <th className="text-right px-3 py-2 font-black text-[10px] uppercase tracking-widest text-muted-foreground/50">Consumo</th>
+                                                            <th className="text-center px-3 py-2 font-black text-[10px] uppercase tracking-widest text-muted-foreground/50 w-12"></th>
                                                         </tr>
                                                     </thead>
                                                     <tbody>
@@ -396,16 +482,27 @@ export function MeasurementManager({ contractId, devices: initialDevices, isAdmi
                                                             const consumption = prevEntry ? entry.value - prevEntry.value : null;
 
                                                             return (
-                                                                <tr key={entry.id} className={cn("border-b border-border/20 last:border-0", idx % 2 === 0 ? "bg-background" : "bg-muted/10")}>
+                                                                <tr key={entry.id} className={cn("border-b border-border/20 last:border-0 group", idx % 2 === 0 ? "bg-background" : "bg-muted/10")}>
                                                                     <td className="px-3 py-2">
                                                                         <div className="flex items-center gap-1.5">
                                                                             <Calendar className="h-3 w-3 opacity-40" />
                                                                             <span className="font-bold text-muted-foreground/80">{formatDate(entry.date)}</span>
+                                                                            {entry.editedBy && (
+                                                                                <div className="ml-1 group/edit relative">
+                                                                                    <Pencil className="h-3 w-3 text-amber-600" />
+                                                                                    <div className="absolute left-0 top-full mt-1 hidden group-hover/edit:block z-10 bg-popover text-popover-foreground text-[10px] p-2 rounded-lg shadow-lg border border-border w-40">
+                                                                                        <p className="font-bold">Editada</p>
+                                                                                        {entry.previousValue && <p className="text-muted-foreground">Anterior: {entry.previousValue}</p>}
+                                                                                    </div>
+                                                                                </div>
+                                                                            )}
                                                                         </div>
                                                                         <span className="text-[10px] text-muted-foreground/50 ml-4.5">{entry.user.name}</span>
                                                                     </td>
                                                                     <td className="px-3 py-2 text-right">
-                                                                        <span className="font-black text-foreground">{entry.value} {device.unit}</span>
+                                                                        <span className={cn("font-black", entry.editedBy ? "text-amber-600" : "text-foreground")}>
+                                                                            {entry.value} {device.unit}
+                                                                        </span>
                                                                     </td>
                                                                     <td className="px-3 py-2 text-right">
                                                                         {consumption !== null ? (
@@ -418,6 +515,15 @@ export function MeasurementManager({ contractId, devices: initialDevices, isAdmi
                                                                         ) : (
                                                                             <span className="text-muted-foreground/40 text-[10px]">Primeira</span>
                                                                         )}
+                                                                    </td>
+                                                                    <td className="px-3 py-2 text-center">
+                                                                        <button
+                                                                            onClick={() => handleOpenEdit(entry, device)}
+                                                                            className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-muted rounded-lg"
+                                                                            title="Editar leitura"
+                                                                        >
+                                                                            <Pencil className="h-3.5 w-3.5 text-muted-foreground hover:text-primary" />
+                                                                        </button>
                                                                     </td>
                                                                 </tr>
                                                             );
@@ -606,6 +712,134 @@ export function MeasurementManager({ contractId, devices: initialDevices, isAdmi
                         >
                             {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Check className="h-4 w-4 mr-2" />}
                             Salvar
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Edit Entry Dialog */}
+            <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
+                <DialogContent className="sm:max-w-[500px] w-[95vw] rounded-[2rem] max-h-[90vh] overflow-y-auto">
+                    <DialogHeader>
+                        <DialogTitle className="text-2xl font-black tracking-tighter">Editar Leitura</DialogTitle>
+                        <DialogDescription className="font-medium text-muted-foreground">
+                            Corrija o valor caso tenha sido digitado incorretamente
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    <div className="grid gap-4 py-4">
+                        {selectedEntry && (
+                            <>
+                                {/* Current Value Display */}
+                                <div className="p-4 bg-muted/30 rounded-xl border border-border/40">
+                                    <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/50 mb-2">
+                                        Valor Atual
+                                    </p>
+                                    <div className="flex items-baseline gap-2">
+                                        <span className="text-3xl font-black text-muted-foreground line-through">
+                                            {selectedEntry.value}
+                                        </span>
+                                        <span className="text-lg font-bold text-muted-foreground/70">
+                                            {selectedDevice?.unit}
+                                        </span>
+                                    </div>
+                                    {selectedEntry.previousValue && (
+                                        <div className="mt-2 p-2 bg-amber-500/10 rounded-lg border border-amber-500/20">
+                                            <div className="flex items-center gap-2">
+                                                <AlertTriangle className="h-4 w-4 text-amber-600" />
+                                                <div>
+                                                    <p className="text-xs font-bold text-amber-600">
+                                                        Esta leitura já foi editada anteriormente
+                                                    </p>
+                                                    <p className="text-[10px] text-amber-600/70">
+                                                        Valor original: {selectedEntry.previousValue} {selectedDevice?.unit}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* New Value Input */}
+                                <div className="space-y-2">
+                                    <Label htmlFor="edit-value" className="text-xs font-black uppercase tracking-widest opacity-60">
+                                        Novo Valor ({selectedDevice?.unit})
+                                    </Label>
+                                    <Input
+                                        id="edit-value"
+                                        type="text"
+                                        inputMode="numeric"
+                                        placeholder="Digite o valor correto"
+                                        className="rounded-2xl border-border/50 text-2xl font-black h-14"
+                                        value={editValue}
+                                        onChange={(e) => setEditValue(e.target.value)}
+                                        autoFocus
+                                    />
+                                    {editValue && parseFloat(editValue.replace(',', '.')) !== selectedEntry.value && (
+                                        <div className="flex items-center gap-2 p-2 bg-blue-500/10 rounded-lg border border-blue-500/20">
+                                            <TrendingUp className="h-4 w-4 text-blue-600" />
+                                            <p className="text-xs font-bold text-blue-600">
+                                                Diferença: {(parseFloat(editValue.replace(',', '.')) - selectedEntry.value).toFixed(2)} {selectedDevice?.unit}
+                                            </p>
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Notes */}
+                                <div className="space-y-2">
+                                    <Label htmlFor="edit-notes" className="text-xs font-black uppercase tracking-widest opacity-60">
+                                        Observações (Opcional)
+                                    </Label>
+                                    <Input
+                                        id="edit-notes"
+                                        placeholder="Ex: Correção de digitação"
+                                        className="rounded-xl border-border/50"
+                                        value={editNotes}
+                                        onChange={(e) => setEditNotes(e.target.value)}
+                                    />
+                                </div>
+
+                                {/* Warning for large changes */}
+                                {editValue && (() => {
+                                    const newVal = parseFloat(editValue.replace(',', '.'));
+                                    const percentChange = Math.abs((newVal - selectedEntry.value) / selectedEntry.value) * 100;
+                                    return percentChange > 20 && (
+                                        <div className="p-3 bg-amber-500/10 rounded-xl border border-amber-500/20">
+                                            <div className="flex items-center gap-2">
+                                                <AlertTriangle className="h-5 w-5 text-amber-600" />
+                                                <div>
+                                                    <p className="text-xs font-bold text-amber-600">
+                                                        ⚠️ Mudança significativa detectada ({percentChange.toFixed(1)}%)
+                                                    </p>
+                                                    <p className="text-[10px] text-amber-600/70 mt-0.5">
+                                                        Verifique se o valor está correto antes de salvar
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    );
+                                })()}
+                            </>
+                        )}
+                    </div>
+
+                    <DialogFooter className="gap-2">
+                        <Button
+                            variant="outline"
+                            className="flex-1 rounded-xl"
+                            onClick={() => setIsEditOpen(false)}
+                            disabled={loading}
+                        >
+                            <X className="h-4 w-4 mr-2" />
+                            Cancelar
+                        </Button>
+                        <Button
+                            className="flex-1 btn-premium rounded-xl"
+                            onClick={handleSaveEdit}
+                            disabled={loading || !editValue}
+                        >
+                            {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Check className="h-4 w-4 mr-2" />}
+                            Salvar Edição
                         </Button>
                     </DialogFooter>
                 </DialogContent>
