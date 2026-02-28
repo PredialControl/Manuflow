@@ -10,7 +10,6 @@ import {
     AlertTriangle,
     XCircle,
     FileText,
-    Wrench,
 } from "lucide-react";
 import { formatDate } from "@/lib/utils";
 import Image from "next/image";
@@ -36,15 +35,6 @@ export default async function PublicAssetPage({
                 where: { status: "COMPLETED" },
                 orderBy: { completedAt: "desc" },
                 take: 1,
-                include: {
-                    user: {
-                        select: { name: true },
-                    },
-                },
-            },
-            maintenances: {
-                orderBy: { createdAt: "desc" },
-                take: 5,
                 include: {
                     user: {
                         select: { name: true },
@@ -196,44 +186,6 @@ export default async function PublicAssetPage({
                                     </p>
                                 </div>
                             )}
-                        </CardContent>
-                    </Card>
-                )}
-
-                {/* Maintenance History */}
-                {asset.maintenances.length > 0 && (
-                    <Card className="card-premium">
-                        <CardHeader>
-                            <CardTitle className="text-lg font-black uppercase tracking-tight flex items-center gap-2">
-                                <Wrench className="h-5 w-5 text-primary" />
-                                Histórico de Manutenções
-                            </CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <div className="space-y-3">
-                                {asset.maintenances.map((maintenance) => (
-                                    <div
-                                        key={maintenance.id}
-                                        className="p-4 bg-muted/20 rounded-xl border border-border/30"
-                                    >
-                                        <div className="flex items-start justify-between gap-4">
-                                            <div className="flex-1">
-                                                <p className="font-bold text-sm">
-                                                    {maintenance.description}
-                                                </p>
-                                                <p className="text-xs text-muted-foreground mt-1">
-                                                    {maintenance.user.name}
-                                                </p>
-                                            </div>
-                                            <div className="text-right">
-                                                <p className="text-xs font-bold text-muted-foreground">
-                                                    {formatDate(maintenance.createdAt)}
-                                                </p>
-                                            </div>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
                         </CardContent>
                     </Card>
                 )}
