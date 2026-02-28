@@ -61,7 +61,6 @@ export function AuthenticatedLayoutClient({
                 ? [
                     { href: "/dashboard", label: "Minhas Tarefas", icon: LayoutDashboard },
                     { href: "/ronda", label: "Ronda Técnica", icon: ClipboardCheck },
-                    { href: "/relevant-items", label: "Itens / Orçamentos", icon: Sparkles },
                 ]
                 : session.user.role === "SUPERVISOR"
                     ? [
@@ -71,7 +70,6 @@ export function AuthenticatedLayoutClient({
                     : [
                         { href: "/dashboard", label: "Geral", icon: LayoutDashboard },
                         { href: "/contracts", label: "Contratos", icon: Building2 },
-                        { href: "/relevant-items", label: "Itens / Orçamentos", icon: Sparkles },
                     ];
 
     if (session.user.role === "ADMIN" || session.user.role === "OWNER") {

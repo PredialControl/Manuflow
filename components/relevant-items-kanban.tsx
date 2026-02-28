@@ -136,11 +136,18 @@ type PendingFile = {
 interface RelevantItemsKanbanProps {
     initialItems: RelevantItem[];
     contractId?: string;
+    contracts?: Array<{ id: string; name: string }>;
 }
 
-export function RelevantItemsKanban({ initialItems = [], contractId }: RelevantItemsKanbanProps) {
+export function RelevantItemsKanban({ initialItems = [], contractId, contracts }: RelevantItemsKanbanProps) {
     const { toast } = useToast();
     const [items, setItems] = useState<RelevantItem[]>(initialItems || []);
+    const [selectedContractFilter, setSelectedContractFilter] = useState<string>("");
+
+    // Filtrar items por contrato selecionado
+    const filteredItems = selectedContractFilter
+        ? items.filter(item => item.contract.id === selectedContractFilter)
+        : items;
 
     // Expor função de abrir modal para os cards
     useEffect(() => {

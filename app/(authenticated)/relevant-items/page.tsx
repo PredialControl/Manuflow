@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
 export default async function RelevantItemsPage({
     searchParams,
 }: {
-    searchParams: { contractId?: string };
+    searchParams: Promise<{ contractId?: string }>;
 }) {
     const session = await getServerSession(authOptions);
 
@@ -18,6 +18,7 @@ export default async function RelevantItemsPage({
         redirect("/login");
     }
 
+    const params = await searchParams;
     const companyWhereClause = getCompanyWhereClause(session);
 
     const where: any = {
@@ -26,8 +27,8 @@ export default async function RelevantItemsPage({
     };
 
     // Filter by contract if specified
-    if (searchParams.contractId) {
-        where.contractId = searchParams.contractId;
+    if (params.contractId) {
+        where.contractId = params.contractId;
     }
 
     const items = await prisma.relevantItem.findMany({
@@ -65,11 +66,39 @@ export default async function RelevantItemsPage({
         }
     });
 
+    // Buscar contratos para o filtro
+    const contracts = await prisma.contract.findMany({
+        where: {
+            ...companyWhereClause,
+            active: true,
+            deletedAt: null,
+        },
+        select: {
+            id: true,
+            name: true,
+        },
+        orderBy: {
+            name: "asc"
+        }
+    });
+
     return (
-        <div className="container mx-auto p-6">
+        <div className="space-y-8 animate-in">
+            <div className="flex items-center justify-between">
+                <div>
+                    <h1 className="text-3xl font-black tracking-tighter uppercase">
+                        Itens / Orçamentos
+                    </h1>
+                    <p className="text-sm font-bold text-muted-foreground uppercase tracking-widest mt-1">
+                        {params.contractId ? `Filtrado por contrato` : "Todos os contratos"}
+                    </p>
+                </div>
+            </div>
+
             <RelevantItemsKanban
                 initialItems={items as any}
-                contractId={searchParams.contractId}
+                contractId={params.contractId}
+                contracts={contracts}
             />
         </div>
     );
