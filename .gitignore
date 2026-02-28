@@ -50,3 +50,6 @@ users_db.txt
 /backups/
 *.sql
 *.dump
+
+# credentials (NÃO commitar - contém senhas)
+CREDENTIALS.md
