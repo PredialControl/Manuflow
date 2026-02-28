@@ -15,7 +15,6 @@ export async function GET(
 
         const { id } = await params;
 
-        // Buscar todas as localizações do contrato organizadas hierarquicamente
         const floors = await prisma.floor.findMany({
             where: {
                 contractId: id,
@@ -25,27 +24,28 @@ export async function GET(
             include: {
                 locations: {
                     where: { active: true },
+                    include: {
+                        assets: {
+                            where: { active: true },
+                            select: {
+                                id: true,
+                                name: true,
+                                type: true,
+                                operationalStatus: true,
+                            },
+                        },
+                    },
                     orderBy: { name: "asc" },
                 },
             },
             orderBy: { number: "desc" },
         });
 
-        // Formatar para um array simples de opções de localização
-        const locationOptions = floors.flatMap(floor =>
-            floor.locations.map(location => ({
-                id: location.id,
-                label: `${floor.number}º Andar - ${location.name}`,
-                floorNumber: floor.number,
-                locationName: location.name,
-            }))
-        );
-
-        return NextResponse.json(locationOptions);
+        return NextResponse.json({ floors });
     } catch (error) {
-        console.error("Error fetching locations:", error);
+        console.error("Error fetching structure:", error);
         return NextResponse.json(
-            { error: "Failed to fetch locations" },
+            { error: "Failed to fetch structure" },
             { status: 500 }
         );
     }

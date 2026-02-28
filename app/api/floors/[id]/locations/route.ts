@@ -20,7 +20,7 @@ export async function POST(
         // Buscar andar para validar permissão
         const floor = await prisma.floor.findUnique({
             where: { id },
-            select: { companyId: true, building: { select: { name: true } }, number: true },
+            select: { companyId: true, number: true },
         });
 
         if (!floor || floor.companyId !== session.user.companyId) {
@@ -36,7 +36,7 @@ export async function POST(
             },
         });
 
-        console.log(`[LOCATION_CREATE] User ${session.user.name} created location ${name} on floor ${floor.number} in building ${floor.building.name}`);
+        console.log(`[LOCATION_CREATE] User ${session.user.name} created location ${name} on floor ${floor.number}`);
 
         return NextResponse.json(location);
     } catch (error: any) {

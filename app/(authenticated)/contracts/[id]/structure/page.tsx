@@ -2,7 +2,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { redirect, notFound } from "next/navigation";
-import { BuildingHierarchyManager } from "@/components/building-hierarchy-manager";
+import { FloorHierarchyManager } from "@/components/floor-hierarchy-manager";
 
 export default async function StructurePage({
     params,
@@ -17,36 +17,30 @@ export default async function StructurePage({
 
     const { id } = await params;
 
-    // Buscar contrato com prédios, andares e locais
+    // Buscar contrato com andares e locais
     const contract = await prisma.contract.findUnique({
         where: { id },
         include: {
-            buildings: {
+            floors: {
                 where: { active: true },
                 include: {
-                    floors: {
+                    locations: {
                         where: { active: true },
                         include: {
-                            locations: {
+                            assets: {
                                 where: { active: true },
-                                include: {
-                                    assets: {
-                                        where: { active: true },
-                                        select: {
-                                            id: true,
-                                            name: true,
-                                            type: true,
-                                            operationalStatus: true,
-                                        },
-                                    },
+                                select: {
+                                    id: true,
+                                    name: true,
+                                    type: true,
+                                    operationalStatus: true,
                                 },
-                                orderBy: { name: "asc" },
                             },
                         },
-                        orderBy: { number: "desc" },
+                        orderBy: { name: "asc" },
                     },
                 },
-                orderBy: { name: "asc" },
+                orderBy: { number: "desc" },
             },
         },
     });
@@ -66,14 +60,14 @@ export default async function StructurePage({
                         Estrutura do Contrato
                     </h1>
                     <p className="text-sm font-bold text-muted-foreground uppercase tracking-widest mt-1">
-                        {contract.name} - Gerenciamento de Prédios, Andares e Locais
+                        {contract.name} - Gerenciamento de Andares e Locais
                     </p>
                 </div>
             </div>
 
-            <BuildingHierarchyManager
+            <FloorHierarchyManager
                 contractId={contract.id}
-                buildings={contract.buildings as any}
+                floors={contract.floors as any}
                 isAdmin={isAdmin}
             />
         </div>

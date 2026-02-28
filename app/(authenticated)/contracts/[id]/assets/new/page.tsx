@@ -13,7 +13,6 @@ import Link from "next/link";
 type LocationOption = {
   id: string;
   label: string;
-  buildingName: string;
   floorNumber: number;
   locationName: string;
 };

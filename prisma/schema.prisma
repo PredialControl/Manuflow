@@ -123,7 +123,6 @@ model Company {
   users               User[]
   contracts           Contract[]
   assets              Asset[]
-  buildings           Building[]
   floors              Floor[]
   locations           Location[]
   assetScripts        AssetScript[]
@@ -190,7 +189,7 @@ model Contract {
 
   companyOwner    Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
   assets          Asset[]
-  buildings       Building[]
+  floors          Floor[]
   users           UserContract[]
   reports         Report[]
   inspections     Inspection[]
@@ -252,27 +251,9 @@ model Asset {
 
 // Hierarquia de localização: Building > Floor > Location > Asset
 
-model Building {
-  id          String    @id @default(cuid())
-  contractId  String
-  companyId   String
-  name        String
-  description String?
-  active      Boolean   @default(true)
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-
-  company     Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  contract    Contract  @relation(fields: [contractId], references: [id], onDelete: Cascade)
-  floors      Floor[]
-
-  @@index([companyId])
-  @@index([contractId])
-}
-
 model Floor {
   id          String    @id @default(cuid())
-  buildingId  String
+  contractId  String
   companyId   String
   number      Int       // Floor number (can be negative for basements)
   name        String?   // Optional custom name (e.g., "Térreo", "Subsolo 1")
@@ -281,12 +262,12 @@ model Floor {
   updatedAt   DateTime  @updatedAt
 
   company     Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  building    Building  @relation(fields: [buildingId], references: [id], onDelete: Cascade)
+  contract    Contract  @relation(fields: [contractId], references: [id], onDelete: Cascade)
   locations   Location[]
 
   @@index([companyId])
-  @@index([buildingId])
-  @@unique([buildingId, number]) // Prevent duplicate floor numbers in same building
+  @@index([contractId])
+  @@unique([contractId, number]) // Prevent duplicate floor numbers in same contract
 }
 
 model Location {

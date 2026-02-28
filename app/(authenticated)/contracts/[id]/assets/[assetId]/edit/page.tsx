@@ -12,7 +12,6 @@ import { Package, Upload, X, Camera, MapPin, Zap, Loader2 } from "lucide-react";
 type LocationOption = {
   id: string;
   label: string;
-  buildingName: string;
   floorNumber: number;
   locationName: string;
 };
