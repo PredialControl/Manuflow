@@ -45,3 +45,8 @@ next-env.d.ts
 api-debug.log
 users_db.txt
 .env.local
+
+# database backups (NÃO commitar - podem conter dados sensíveis)
+/backups/
+*.sql
+*.dump

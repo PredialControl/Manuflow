@@ -10,8 +10,12 @@
     "db:generate": "prisma generate",
     "db:push": "prisma db push",
     "db:migrate": "prisma migrate dev",
+    "db:migrate:deploy": "prisma migrate deploy",
     "db:studio": "prisma studio",
-    "db:seed": "npx tsx prisma/seed.ts"
+    "db:seed": "npx tsx prisma/seed.ts",
+    "db:backup": "node scripts/backup-db.js",
+    "db:backup-and-migrate": "npm run db:backup && npm run db:migrate",
+    "production:check": "node scripts/check-production.js"
   },
   "prisma": {
     "seed": "npx tsx prisma/seed.ts"
