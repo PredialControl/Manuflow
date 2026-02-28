@@ -81,20 +81,6 @@ const columns: KanbanColumn[] = [
         bgColor: "bg-orange-500/10",
     },
     {
-        id: "budget_pending",
-        title: "Aguardando orçamento",
-        status: ["BUDGET_PENDING"],
-        color: "text-purple-600 dark:text-purple-400",
-        bgColor: "bg-purple-500/10",
-    },
-    {
-        id: "budgeting",
-        title: "Em orçamento",
-        status: ["BUDGETING"],
-        color: "text-indigo-600 dark:text-indigo-400",
-        bgColor: "bg-indigo-500/10",
-    },
-    {
         id: "approved_execution",
         title: "Aprovado para execução",
         status: ["APPROVED_FOR_EXECUTION"],
