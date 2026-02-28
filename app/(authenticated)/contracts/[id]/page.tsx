@@ -57,6 +57,9 @@ export default async function ContractDetailPage({
           asset: true,
           user: { select: { name: true } },
           contract: { select: { name: true } },
+          photos: {
+            orderBy: { createdAt: "desc" },
+          },
         },
         orderBy: { createdAt: "desc" },
 

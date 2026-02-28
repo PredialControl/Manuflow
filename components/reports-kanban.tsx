@@ -1,9 +1,10 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Eye, Download, Calendar, Building2, FileText, History, Clock, Loader2, Paperclip, Image } from "lucide-react";
+import { Eye, Download, Calendar, Building2, FileText, History, Clock, Loader2, Paperclip, Image, Camera, Plus } from "lucide-react";
+import { useToast } from "@/components/ui/use-toast";
 import Link from "next/link";
 import { formatDate } from "@/lib/utils";
 import {
@@ -123,7 +124,7 @@ const columns: KanbanColumn[] = [
     },
 ];
 
-function ReportCard({ report, onViewDetails }: { report: Report; onViewDetails: (id: string) => void }) {
+function ReportCard({ report, onViewDetails, onAddPhoto, isUploadingPhoto }: { report: Report; onViewDetails: (id: string) => void; onAddPhoto: (reportId: string) => void; isUploadingPhoto: boolean; }) {
     const {
         attributes,
         listeners,
@@ -218,15 +219,24 @@ function ReportCard({ report, onViewDetails }: { report: Report; onViewDetails: 
                         <Eye className="h-3 w-3 mr-1" />
                         Ver Detalhes
                     </Button>
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={(e) => { e.stopPropagation(); onAddPhoto(report.id); }}
+                        disabled={isUploadingPhoto}
+                        className="h-7 w-7 rounded-lg hover:bg-muted border border-transparent hover:border-border/60 p-0"
+                        title="Adicionar foto"
+                    >
+                        {isUploadingPhoto ? (
+                            <Loader2 className="h-3 w-3 animate-spin" />
+                        ) : (
+                            <Camera className="h-3 w-3" />
+                        )}
+                    </Button>
                     {report.photos && report.photos.length > 0 && (
-                        <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-7 w-7 rounded-lg hover:bg-muted border border-transparent hover:border-border/60 p-0"
-                            title={`${report.photos.length} foto${report.photos.length > 1 ? 's' : ''}`}
-                        >
-                            <Image className="h-3 w-3" />
-                        </Button>
+                        <div className="h-7 w-7 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center">
+                            <span className="text-[9px] font-black text-primary">{report.photos.length}</span>
+                        </div>
                     )}
                 </div>
             </div>
@@ -279,6 +289,9 @@ export function ReportsKanban({ initialReports = [] }: { initialReports: Report[
     const [activeId, setActiveId] = useState<string | null>(null);
     const [selectedReport, setSelectedReport] = useState<Report | null>(null);
     const [loadingDetail, setLoadingDetail] = useState(false);
+    const [uploadingPhotoForReport, setUploadingPhotoForReport] = useState<string | null>(null);
+    const fileInputRef = useRef<HTMLInputElement>(null);
+    const { toast } = useToast();
 
     // Sync state when props change
     React.useEffect(() => {
@@ -382,6 +395,67 @@ export function ReportsKanban({ initialReports = [] }: { initialReports: Report[
         }
     };
 
+    const handleUploadPhoto = async (reportId: string, file: File) => {
+        setUploadingPhotoForReport(reportId);
+        try {
+            const formData = new FormData();
+            formData.append("file", file);
+
+            const res = await fetch(`/api/reports/${reportId}/photos`, {
+                method: "POST",
+                body: formData,
+            });
+
+            if (!res.ok) throw new Error("Falha no upload");
+
+            const newPhoto = await res.json();
+
+            // Atualizar o report no estado
+            setReports((prev) =>
+                prev.map((report) =>
+                    report.id === reportId
+                        ? { ...report, photos: [...(report.photos || []), newPhoto] }
+                        : report
+                )
+            );
+
+            // Se a modal está aberta, atualizar também
+            if (selectedReport && selectedReport.id === reportId) {
+                setSelectedReport({
+                    ...selectedReport,
+                    photos: [...(selectedReport.photos || []), newPhoto],
+                });
+            }
+
+            toast({
+                title: "Sucesso",
+                description: "Foto adicionada ao laudo",
+            });
+        } catch (error) {
+            console.error("Error uploading photo:", error);
+            toast({
+                variant: "destructive",
+                title: "Erro",
+                description: "Falha ao fazer upload da foto",
+            });
+        } finally {
+            setUploadingPhotoForReport(null);
+        }
+    };
+
+    const triggerFileInput = (reportId: string) => {
+        const input = document.createElement("input");
+        input.type = "file";
+        input.accept = "image/*";
+        input.onchange = (e) => {
+            const file = (e.target as HTMLInputElement).files?.[0];
+            if (file) {
+                handleUploadPhoto(reportId, file);
+            }
+        };
+        input.click();
+    };
+
     return (
         <>
             <DndContext
@@ -404,7 +478,13 @@ export function ReportsKanban({ initialReports = [] }: { initialReports: Report[
                             <SortableContext items={columnReports.map((r) => r.id)}>
                                 {columnReports.length > 0 ? (
                                     columnReports.map((report) => (
-                                        <ReportCard key={report.id} report={report} onViewDetails={handleViewDetails} />
+                                        <ReportCard
+                                            key={report.id}
+                                            report={report}
+                                            onViewDetails={handleViewDetails}
+                                            onAddPhoto={triggerFileInput}
+                                            isUploadingPhoto={uploadingPhotoForReport === report.id}
+                                        />
                                     ))
                                 ) : (
                                     <div className="flex flex-col items-center justify-center h-32 text-[10px] uppercase tracking-widest text-muted-foreground/40 border-2 border-dashed border-border/20 rounded-[1.5rem] bg-secondary/10">
@@ -501,15 +581,34 @@ export function ReportsKanban({ initialReports = [] }: { initialReports: Report[
                                 </div>
 
                                 {/* Fotos/Anexos */}
-                                {selectedReport.photos && selectedReport.photos.length > 0 && (
-                                    <div className="space-y-4">
-                                        <div className="flex items-center justify-between">
-                                            <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Fotos do Laudo</Label>
-                                            <span className="text-[10px] font-black text-primary uppercase bg-primary/10 px-2 py-0.5 rounded-lg">
-                                                {selectedReport.photos.length} {selectedReport.photos.length === 1 ? 'foto' : 'fotos'}
-                                            </span>
+                                <div className="space-y-4">
+                                    <div className="flex items-center justify-between">
+                                        <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Fotos do Laudo</Label>
+                                        <div className="flex items-center gap-2">
+                                            {selectedReport.photos && selectedReport.photos.length > 0 && (
+                                                <span className="text-[10px] font-black text-primary uppercase bg-primary/10 px-2 py-0.5 rounded-lg">
+                                                    {selectedReport.photos.length} {selectedReport.photos.length === 1 ? 'foto' : 'fotos'}
+                                                </span>
+                                            )}
+                                            <Button
+                                                onClick={() => triggerFileInput(selectedReport.id)}
+                                                disabled={uploadingPhotoForReport === selectedReport.id}
+                                                size="sm"
+                                                className="h-7 rounded-lg text-[10px] font-black uppercase"
+                                            >
+                                                {uploadingPhotoForReport === selectedReport.id ? (
+                                                    <Loader2 className="h-3 w-3 animate-spin" />
+                                                ) : (
+                                                    <>
+                                                        <Camera className="h-3 w-3 mr-1" />
+                                                        Adicionar
+                                                    </>
+                                                )}
+                                            </Button>
                                         </div>
+                                    </div>
 
+                                    {selectedReport.photos && selectedReport.photos.length > 0 ? (
                                         <div className="grid grid-cols-2 gap-3">
                                             {selectedReport.photos.map((photo) => (
                                                 <div key={photo.id} className="group relative rounded-2xl border border-border/40 overflow-hidden bg-card transition-all hover:border-primary/40 shadow-sm">
@@ -531,8 +630,13 @@ export function ReportsKanban({ initialReports = [] }: { initialReports: Report[
                                                 </div>
                                             ))}
                                         </div>
-                                    </div>
-                                )}
+                                    ) : (
+                                        <div className="flex flex-col items-center justify-center py-8 text-center border-2 border-dashed border-border/20 rounded-2xl bg-muted/5">
+                                            <Image className="h-8 w-8 mb-2 text-muted-foreground/20" />
+                                            <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60">Nenhuma foto adicionada</p>
+                                        </div>
+                                    )}
+                                </div>
 
                                 <div className="pt-4">
                                     <Link href={`/reports/${selectedReport.id}`}>
