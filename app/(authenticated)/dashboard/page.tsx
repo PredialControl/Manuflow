@@ -3,7 +3,7 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Building2, FileText, AlertTriangle, CheckCircle, TrendingUp } from "lucide-react";
+import { Building2, FileText, AlertTriangle, CheckCircle, TrendingUp, DollarSign, XCircle, PauseCircle } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { TechnicianDashboard } from "@/components/technician-dashboard";
@@ -22,7 +22,10 @@ export default async function DashboardPage() {
   const contractWhereClause = getContractWhereClause(session);
   const companyWhereClause = getCompanyWhereClause(session);
 
-  const [contracts, reports] = await Promise.all([
+  const isOwner = session.user.role === "OWNER";
+  const isAdmin = session.user.role === "ADMIN" || session.user.role === "OWNER";
+
+  const [contracts, reports, allContracts] = await Promise.all([
     prisma.contract.count({
       where: { ...contractWhereClause, active: true },
     }),
@@ -36,6 +39,20 @@ export default async function DashboardPage() {
         status: true,
       },
     }),
+    // Buscar todos os contratos com detalhes financeiros para OWNER/ADMIN
+    isOwner || isAdmin ? prisma.contract.findMany({
+      where: { ...contractWhereClause, active: true },
+      select: {
+        id: true,
+        name: true,
+        company: true,
+        paymentStatus: true,
+        paymentDueDate: true,
+        monthlyValue: true,
+        createdAt: true,
+      },
+      orderBy: { createdAt: 'desc' },
+    }) : Promise.resolve([]),
   ]);
 
   const now = new Date();
@@ -66,6 +83,15 @@ export default async function DashboardPage() {
       ? "bg-amber-500/5"
       : "bg-rose-500/5";
 
+  // Calcular métricas financeiras para OWNER/ADMIN
+  const contractsEmDia = allContracts.filter(c => c.paymentStatus === "EM_DIA");
+  const contractsVencidos = allContracts.filter(c => c.paymentStatus === "VENCIDO");
+  const contractsSuspensos = allContracts.filter(c => c.paymentStatus === "SUSPENSO");
+  const contractsCancelados = allContracts.filter(c => c.paymentStatus === "CANCELADO");
+
+  const receitaMensal = contractsEmDia.reduce((sum, c) => sum + (c.monthlyValue || 0), 0);
+  const receitaPotencialVencida = contractsVencidos.reduce((sum, c) => sum + (c.monthlyValue || 0), 0);
+
   if (session.user.role === "TECHNICIAN" || session.user.role === "SUPERVISOR") {
     return <TechnicianDashboard />;
   }
@@ -78,6 +104,92 @@ export default async function DashboardPage() {
           Monitoramento de Conformidade e Contratos
         </p>
       </div>
+
+      {/* Dashboard Financeiro - Apenas para OWNER/ADMIN */}
+      {(isOwner || isAdmin) && (
+        <>
+          <div>
+            <h2 className="text-xl font-black tracking-tight uppercase text-muted-foreground/40 italic mb-4">
+              Status Financeiro
+            </h2>
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+              <Card className="card-premium group border-emerald-500/40 bg-emerald-500/5">
+                <CardHeader className="flex flex-row items-center justify-between pb-2">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-emerald-600">
+                    Contratos Em Dia
+                  </span>
+                  <CheckCircle className="h-4 w-4 text-emerald-500 opacity-40 group-hover:opacity-100 transition-opacity" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-3xl font-black tracking-tighter text-emerald-600">
+                    {contractsEmDia.length}
+                  </div>
+                  <p className="text-xs text-emerald-600/70 font-bold mt-2">
+                    R$ {receitaMensal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}/mês
+                  </p>
+                </CardContent>
+              </Card>
+
+              <Card className="card-premium group border-rose-500/40 bg-rose-500/5">
+                <CardHeader className="flex flex-row items-center justify-between pb-2">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-rose-600">
+                    Inadimplentes
+                  </span>
+                  <XCircle className="h-4 w-4 text-rose-500 opacity-40 group-hover:opacity-100 transition-opacity" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-3xl font-black tracking-tighter text-rose-600">
+                    {contractsVencidos.length}
+                  </div>
+                  <p className="text-xs text-rose-600/70 font-bold mt-2">
+                    R$ {receitaPotencialVencida.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}/mês em risco
+                  </p>
+                </CardContent>
+              </Card>
+
+              <Card className="card-premium group border-amber-500/40 bg-amber-500/5">
+                <CardHeader className="flex flex-row items-center justify-between pb-2">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-amber-600">
+                    Suspensos
+                  </span>
+                  <PauseCircle className="h-4 w-4 text-amber-500 opacity-40 group-hover:opacity-100 transition-opacity" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-3xl font-black tracking-tighter text-amber-600">
+                    {contractsSuspensos.length}
+                  </div>
+                  <p className="text-xs text-amber-600/70 font-bold mt-2">
+                    Temporariamente inativos
+                  </p>
+                </CardContent>
+              </Card>
+
+              <Card className="card-premium group border-primary/40 bg-primary/5">
+                <CardHeader className="flex flex-row items-center justify-between pb-2">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-primary">
+                    Receita Mensal
+                  </span>
+                  <DollarSign className="h-4 w-4 text-primary opacity-40 group-hover:opacity-100 transition-opacity" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-3xl font-black tracking-tighter text-primary">
+                    R$ {receitaMensal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                  </div>
+                  <p className="text-xs text-primary/70 font-bold mt-2">
+                    {contractsEmDia.length} contrato{contractsEmDia.length !== 1 ? 's' : ''} ativo{contractsEmDia.length !== 1 ? 's' : ''}
+                  </p>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+
+          <div>
+            <h2 className="text-xl font-black tracking-tight uppercase text-muted-foreground/40 italic mb-4">
+              Conformidade Técnica
+            </h2>
+          </div>
+        </>
+      )}
 
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
         {[
@@ -160,6 +272,97 @@ export default async function DashboardPage() {
           </Card>
         ))}
       </div>
+
+      {/* Lista de Contratos com Status de Pagamento - Apenas para OWNER/ADMIN */}
+      {(isOwner || isAdmin) && allContracts.length > 0 && (
+        <div>
+          <h2 className="text-xl font-black tracking-tight uppercase text-muted-foreground/40 italic mb-4">
+            Status dos Contratos
+          </h2>
+          <Card className="border-border/60 shadow-xl rounded-[2rem] overflow-hidden">
+            <CardHeader className="bg-muted/30 border-b border-border/40 p-6">
+              <CardTitle className="text-lg font-bold text-primary">
+                Todos os Contratos ({allContracts.length})
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-6">
+              <div className="space-y-3">
+                {allContracts.map((contract) => (
+                  <Link
+                    key={contract.id}
+                    href={`/contracts/${contract.id}`}
+                    className="block"
+                  >
+                    <div className={cn(
+                      "p-4 rounded-xl border-2 transition-all hover:scale-[1.01] hover:shadow-lg",
+                      contract.paymentStatus === "EM_DIA" && "border-emerald-500/40 bg-emerald-500/5 hover:border-emerald-500/60",
+                      contract.paymentStatus === "VENCIDO" && "border-rose-500/40 bg-rose-500/5 hover:border-rose-500/60",
+                      contract.paymentStatus === "SUSPENSO" && "border-amber-500/40 bg-amber-500/5 hover:border-amber-500/60",
+                      contract.paymentStatus === "CANCELADO" && "border-muted bg-muted/20 hover:border-muted-foreground/40"
+                    )}>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-4">
+                          <div className={cn(
+                            "h-12 w-12 rounded-xl flex items-center justify-center",
+                            contract.paymentStatus === "EM_DIA" && "bg-emerald-500/20 text-emerald-600",
+                            contract.paymentStatus === "VENCIDO" && "bg-rose-500/20 text-rose-600",
+                            contract.paymentStatus === "SUSPENSO" && "bg-amber-500/20 text-amber-600",
+                            contract.paymentStatus === "CANCELADO" && "bg-muted text-muted-foreground"
+                          )}>
+                            <Building2 className="h-6 w-6" />
+                          </div>
+                          <div>
+                            <h4 className="font-black uppercase italic tracking-tighter text-lg">
+                              {contract.name}
+                            </h4>
+                            <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                              {contract.company}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-6">
+                          {contract.monthlyValue && (
+                            <div className="text-right">
+                              <p className="text-xs font-black uppercase tracking-widest text-muted-foreground">
+                                Valor Mensal
+                              </p>
+                              <p className="text-lg font-black text-foreground">
+                                R$ {contract.monthlyValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                              </p>
+                            </div>
+                          )}
+
+                          <div className={cn(
+                            "px-4 py-2 rounded-xl font-black uppercase tracking-widest text-xs",
+                            contract.paymentStatus === "EM_DIA" && "bg-emerald-500/20 text-emerald-700 border-2 border-emerald-500/40",
+                            contract.paymentStatus === "VENCIDO" && "bg-rose-500/20 text-rose-700 border-2 border-rose-500/40",
+                            contract.paymentStatus === "SUSPENSO" && "bg-amber-500/20 text-amber-700 border-2 border-amber-500/40",
+                            contract.paymentStatus === "CANCELADO" && "bg-muted text-muted-foreground border-2 border-border"
+                          )}>
+                            {contract.paymentStatus === "EM_DIA" && "✓ EM DIA"}
+                            {contract.paymentStatus === "VENCIDO" && "✗ INADIMPLENTE"}
+                            {contract.paymentStatus === "SUSPENSO" && "⊘ SUSPENSO"}
+                            {contract.paymentStatus === "CANCELADO" && "− CANCELADO"}
+                          </div>
+                        </div>
+                      </div>
+
+                      {contract.paymentDueDate && (
+                        <div className="mt-3 pt-3 border-t border-border/20">
+                          <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                            Vencimento: {new Date(contract.paymentDueDate).toLocaleDateString('pt-BR')}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
     </div>
   );
 }
