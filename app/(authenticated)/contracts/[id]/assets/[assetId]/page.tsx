@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import {
     ArrowLeft,
@@ -19,12 +20,30 @@ import {
     Printer,
     ChevronRight,
     Package,
-    Info
+    Info,
+    ClipboardList,
+    CheckCircle2,
+    AlertCircle
 } from "lucide-react";
 import { formatDate } from "@/lib/utils";
 import { DeleteAssetButton } from "@/components/delete-asset-button";
 
 export const dynamic = "force-dynamic";
+
+const FREQUENCY_LABELS: Record<string, string> = {
+  DAILY: "Diário",
+  WEEKLY: "Semanal",
+  MONTHLY: "Mensal",
+  QUARTERLY: "Trimestral",
+  SEMIANNUAL: "Semestral",
+  ANNUAL: "Anual",
+};
+
+const INSPECTION_STATUS_LABELS: Record<string, string> = {
+  PENDING: "Pendente",
+  IN_PROGRESS: "Em Andamento",
+  COMPLETED: "Concluída",
+};
 
 export default async function AssetDetailPage({
     params,
@@ -46,13 +65,17 @@ export default async function AssetDetailPage({
         },
         include: {
             contract: true,
+            scripts: {
+                orderBy: { order: "asc" },
+            },
             reports: {
                 where: { deletedAt: null },
                 orderBy: { createdAt: "desc" },
                 take: 5,
             },
             inspections: {
-                orderBy: { createdAt: "desc" },
+                where: { status: "COMPLETED" },
+                orderBy: { completedAt: "desc" },
                 take: 5,
                 include: {
                     user: { select: { name: true } }
@@ -152,7 +175,7 @@ export default async function AssetDetailPage({
                                         </div>
                                         <div>
                                             <p className="text-[8px] font-black uppercase tracking-widest opacity-60">Frequência</p>
-                                            <p className="font-bold text-sm uppercase tracking-tight">{asset.frequency}</p>
+                                            <p className="font-bold text-sm uppercase tracking-tight">{FREQUENCY_LABELS[asset.frequency] || asset.frequency}</p>
                                         </div>
                                     </div>
                                 </div>
@@ -192,6 +215,48 @@ export default async function AssetDetailPage({
                         </Card>
                     )}
 
+                    {/* Checklist de Inspeção */}
+                    {asset.scripts && asset.scripts.length > 0 && (
+                        <Card className="border-border/40 shadow-xl rounded-2xl overflow-hidden bg-muted/5">
+                            <CardHeader className="pb-2 border-b border-border/20">
+                                <CardTitle className="text-sm font-black uppercase tracking-widest italic flex items-center gap-2">
+                                    <ClipboardList className="h-4 w-4 text-primary" />
+                                    Checklist de Ronda
+                                </CardTitle>
+                                <CardDescription className="text-[10px] font-bold uppercase tracking-wider">
+                                    Perguntas verificadas durante a inspeção técnica
+                                </CardDescription>
+                            </CardHeader>
+                            <CardContent className="pt-4 space-y-3">
+                                {asset.scripts.map((script, index) => (
+                                    <div
+                                        key={script.id}
+                                        className="flex items-start gap-4 p-4 bg-background rounded-xl border border-border/40 hover:border-primary/40 transition-all"
+                                    >
+                                        <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary font-black shrink-0">
+                                            {index + 1}
+                                        </div>
+                                        <div className="flex-1">
+                                            <p className="text-sm font-bold leading-relaxed">{script.question}</p>
+                                            <div className="flex items-center gap-2 mt-2">
+                                                {script.required && (
+                                                    <Badge variant="outline" className="text-[9px] font-black uppercase bg-red-500/10 text-red-600 border-red-500/30">
+                                                        Obrigatório
+                                                    </Badge>
+                                                )}
+                                                {script.requirePhoto && (
+                                                    <Badge variant="outline" className="text-[9px] font-black uppercase bg-blue-500/10 text-blue-600 border-blue-500/30">
+                                                        Requer Foto
+                                                    </Badge>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </CardContent>
+                        </Card>
+                    )}
+
                     {/* Activity Section */}
                     <div className="grid gap-6 md:grid-cols-2">
                         {/* Inspections History */}
@@ -212,13 +277,15 @@ export default async function AssetDetailPage({
                                     <div className="space-y-4">
                                         {asset.inspections.map((insp) => (
                                             <div key={insp.id} className="flex items-center justify-between p-3 rounded-xl border border-border/40 hover:bg-muted/30 transition-colors">
-                                                <div>
-                                                    <p className="text-[10px] font-black uppercase tracking-tight italic">{insp.user.name}</p>
-                                                    <p className="text-[9px] font-bold text-muted-foreground uppercase">{formatDate(insp.createdAt)}</p>
+                                                <div className="flex items-center gap-2">
+                                                    <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                                                    <div>
+                                                        <p className="text-[10px] font-black uppercase tracking-tight italic">{insp.user.name}</p>
+                                                        <p className="text-[9px] font-bold text-muted-foreground uppercase">{insp.completedAt ? formatDate(insp.completedAt) : formatDate(insp.createdAt)}</p>
+                                                    </div>
                                                 </div>
-                                                <span className={`text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-md ${insp.status === 'COMPLETED' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-amber-500/10 text-amber-500'
-                                                    }`}>
-                                                    {insp.status}
+                                                <span className="text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-500">
+                                                    {INSPECTION_STATUS_LABELS[insp.status] || insp.status}
                                                 </span>
                                             </div>
                                         ))}
@@ -261,6 +328,55 @@ export default async function AssetDetailPage({
 
                 {/* Right Column: QR Code & Quick Info */}
                 <div className="lg:col-span-4 space-y-8">
+                    {/* Última Ronda - Card Destacado */}
+                    <Card className={`border-2 shadow-2xl rounded-3xl overflow-hidden ${asset.inspections.length > 0 ? 'border-green-500/30 bg-green-500/5' : 'border-amber-500/30 bg-amber-500/5'}`}>
+                        <CardHeader className="pb-4">
+                            <CardTitle className="text-sm font-black uppercase tracking-widest italic flex items-center gap-2">
+                                <History className="h-5 w-5 text-primary" />
+                                Status da Última Ronda
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            {asset.inspections.length > 0 ? (
+                                <div className="space-y-4">
+                                    <div className="flex items-center gap-3 p-4 bg-green-500/10 rounded-xl border border-green-500/20">
+                                        <CheckCircle2 className="h-8 w-8 text-green-600 shrink-0" />
+                                        <div className="flex-1">
+                                            <p className="text-sm font-black uppercase text-green-600">Concluída</p>
+                                            <p className="text-xs text-muted-foreground font-bold">
+                                                {asset.inspections[0].completedAt ? formatDate(asset.inspections[0].completedAt) : formatDate(asset.inspections[0].createdAt)}
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <div className="space-y-2 px-2">
+                                        <div className="flex justify-between items-center">
+                                            <span className="text-xs font-black uppercase tracking-widest text-muted-foreground">Técnico</span>
+                                            <p className="text-sm font-bold">{asset.inspections[0].user.name}</p>
+                                        </div>
+                                        {asset.inspections[0].notes && (
+                                            <div className="space-y-2 pt-2">
+                                                <span className="text-xs font-black uppercase tracking-widest text-muted-foreground">Observações</span>
+                                                <p className="text-xs text-muted-foreground bg-muted/30 p-3 rounded-xl leading-relaxed">
+                                                    {asset.inspections[0].notes}
+                                                </p>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="flex flex-col items-center justify-center py-8 text-center">
+                                    <AlertCircle className="h-12 w-12 text-amber-500/40 mb-3" />
+                                    <p className="text-sm font-black uppercase text-amber-600">
+                                        Aguardando Primeira Ronda
+                                    </p>
+                                    <p className="text-xs text-muted-foreground mt-1">
+                                        Nenhuma inspeção realizada ainda
+                                    </p>
+                                </div>
+                            )}
+                        </CardContent>
+                    </Card>
+
                     {/* QR IDENTIFICATION */}
                     <Card className="border-primary/20 bg-gradient-to-br from-primary/[0.03] to-background shadow-2xl rounded-3xl overflow-hidden text-center relative">
                         <div className="absolute top-0 right-0 p-4">

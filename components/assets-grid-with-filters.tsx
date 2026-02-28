@@ -8,6 +8,16 @@ import { Badge } from "@/components/ui/badge";
 import { Package, MapPin, Plus, Filter, X } from "lucide-react";
 import { DeleteAssetButton } from "@/components/delete-asset-button";
 
+// Tradução de frequências
+const FREQUENCY_LABELS: Record<string, string> = {
+  DAILY: "Diário",
+  WEEKLY: "Semanal",
+  MONTHLY: "Mensal",
+  QUARTERLY: "Trimestral",
+  SEMIANNUAL: "Semestral",
+  ANNUAL: "Anual",
+};
+
 interface Asset {
   id: string;
   name: string;
@@ -222,7 +232,7 @@ export function AssetsGridWithFilters({ assets, contractId, isAdmin }: AssetsGri
                     <div className="pt-4 border-t border-border/40 flex items-center justify-between">
                       <div className="flex flex-col">
                         <span className="text-[9px] font-black text-muted-foreground/50 uppercase tracking-tighter">Frequência</span>
-                        <span className="text-xs font-black uppercase tracking-widest">{asset.frequency}</span>
+                        <span className="text-xs font-black uppercase tracking-widest">{FREQUENCY_LABELS[asset.frequency] || asset.frequency}</span>
                       </div>
                       <div className="h-8 w-8 rounded-full bg-primary/5 flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-white transition-all">
                         <Plus className="h-4 w-4" />
