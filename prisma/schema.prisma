@@ -559,6 +559,9 @@ model MeasurementEntry {
   date            DateTime          @default(now())
   notes           String?
   createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  editedBy        String?           // ID do usuário que editou
+  previousValue   Float?            // Valor anterior antes da edição
 
   company         Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
   device          MeasurementDevice @relation(fields: [deviceId], references: [id], onDelete: Cascade)
