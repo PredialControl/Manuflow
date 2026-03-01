@@ -46,7 +46,10 @@ export async function DELETE(
             );
         }
 
-        // Contar quantos reports existem nesta coluna usando $queryRaw para evitar problemas com enum
+        console.log(`[DELETE COLUMN] Deleting column: ${column.title} (${column.statusKey})`);
+
+        // IMPORTANTE: Primeiro mover os reports, DEPOIS deletar a coluna
+        // Contar e mover reports ANTES de deletar
         const reportsCountResult = await prisma.$queryRaw<[{ count: bigint }]>`
             SELECT COUNT(*) as count
             FROM "Report"
@@ -55,30 +58,43 @@ export async function DELETE(
         `;
 
         const reportsCount = Number(reportsCountResult[0]?.count || 0);
+        console.log(`[DELETE COLUMN] Found ${reportsCount} reports in column ${column.statusKey}`);
 
-        // Deletar a coluna
-        await prisma.reportColumn.delete({
-            where: { id },
-        });
-
-        // Se existem reports nesta coluna, movê-los para "IN_PROGRESS" usando $executeRaw
+        // Se existem reports nesta coluna, movê-los para "IN_PROGRESS" ANTES de deletar a coluna
         if (reportsCount > 0) {
+            console.log(`[DELETE COLUMN] Moving ${reportsCount} reports to IN_PROGRESS`);
             await prisma.$executeRaw`
                 UPDATE "Report"
                 SET "status" = 'IN_PROGRESS'
                 WHERE "companyId" = ${companyId}
                 AND "status" = ${column.statusKey}
             `;
+            console.log(`[DELETE COLUMN] Reports moved successfully`);
         }
+
+        // Agora sim, deletar a coluna
+        console.log(`[DELETE COLUMN] Deleting column from database`);
+        await prisma.reportColumn.delete({
+            where: { id },
+        });
+        console.log(`[DELETE COLUMN] Column deleted successfully`);
 
         return NextResponse.json({
             message: "Column deleted successfully",
             reportsAffected: reportsCount,
         });
-    } catch (error) {
-        console.error("Error deleting report column:", error);
+    } catch (error: any) {
+        console.error("[DELETE COLUMN] Error deleting report column:", error);
+        console.error("[DELETE COLUMN] Error details:", {
+            message: error.message,
+            code: error.code,
+            meta: error.meta,
+        });
         return NextResponse.json(
-            { error: "Failed to delete column" },
+            {
+                error: "Failed to delete column",
+                details: error.message,
+            },
             { status: 500 }
         );
     }
