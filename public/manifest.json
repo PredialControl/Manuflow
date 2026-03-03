@@ -2,7 +2,7 @@
   "name": "ManuFlow",
   "short_name": "ManuFlow",
   "description": "Sistema de Gestão Técnica - Manutenção, Laudos e Rondas",
-  "start_url": "/dashboard",
+  "start_url": "/",
   "display": "standalone",
   "background_color": "#0F172A",
   "theme_color": "#0F766E",
