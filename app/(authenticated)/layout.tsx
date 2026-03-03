@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { authOptions } from "@/lib/auth";
 import { SidebarProvider } from "@/components/sidebar-context";
 import { AuthenticatedLayoutClient } from "@/components/authenticated-layout-client";
+import { SessionProviderWrapper } from "@/components/session-provider-wrapper";
 
 export const dynamic = "force-dynamic";
 
@@ -18,10 +19,12 @@ export default async function AuthenticatedLayout({
   }
 
   return (
-    <SidebarProvider>
-      <AuthenticatedLayoutClient session={session}>
-        {children}
-      </AuthenticatedLayoutClient>
-    </SidebarProvider>
+    <SessionProviderWrapper session={session}>
+      <SidebarProvider>
+        <AuthenticatedLayoutClient session={session}>
+          {children}
+        </AuthenticatedLayoutClient>
+      </SidebarProvider>
+    </SessionProviderWrapper>
   );
 }
