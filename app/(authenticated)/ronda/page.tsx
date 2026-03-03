@@ -11,9 +11,12 @@ interface Asset {
   type: string;
   location: string;
   image: string | null;
+  itemType: "ASSET" | "DEVICE";
   _count: {
     scripts: number;
   };
+  unit?: string;
+  serialNumber?: string;
 }
 
 export default function RondaPage() {
@@ -84,7 +87,13 @@ export default function RondaPage() {
             <Card
               key={asset.id}
               className="border-2 border-border hover:border-primary transition-all cursor-pointer active:scale-[0.98] shadow-lg"
-              onClick={() => router.push(`/ronda/${asset.id}`)}
+              onClick={() => {
+                if (asset.itemType === "DEVICE") {
+                  router.push(`/measurements?deviceId=${asset.id}`);
+                } else {
+                  router.push(`/ronda/${asset.id}`);
+                }
+              }}
             >
               <CardContent className="p-0">
                 <div className="flex items-center gap-4 p-5">
@@ -113,9 +122,16 @@ export default function RondaPage() {
                     <p className="text-sm text-muted-foreground font-bold uppercase tracking-wide mt-1">
                       {asset.location}
                     </p>
-                    <p className="text-xs text-primary font-black uppercase tracking-widest mt-2">
-                      {asset._count.scripts} {asset._count.scripts === 1 ? 'PERGUNTA' : 'PERGUNTAS'}
-                    </p>
+                    {asset.itemType === "DEVICE" ? (
+                      <p className="text-xs text-primary font-black uppercase tracking-widest mt-2">
+                        LEITURA • {asset.unit}
+                        {asset.serialNumber && ` • ${asset.serialNumber}`}
+                      </p>
+                    ) : (
+                      <p className="text-xs text-primary font-black uppercase tracking-widest mt-2">
+                        {asset._count.scripts} {asset._count.scripts === 1 ? 'PERGUNTA' : 'PERGUNTAS'}
+                      </p>
+                    )}
                   </div>
 
                   {/* Arrow */}
