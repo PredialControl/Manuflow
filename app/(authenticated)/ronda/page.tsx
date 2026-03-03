@@ -121,9 +121,17 @@ export default function RondaPage() {
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       {/* Header */}
       <div className="bg-primary text-white p-6 pb-8 shadow-2xl">
-        <div className="flex items-center gap-3 mb-2">
-          <ClipboardCheck className="h-8 w-8" />
-          <h1 className="text-3xl font-black uppercase tracking-tight">Ronda Técnica</h1>
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center gap-3">
+            <ClipboardCheck className="h-8 w-8" />
+            <h1 className="text-3xl font-black uppercase tracking-tight">Ronda Técnica</h1>
+          </div>
+          <Button
+            onClick={() => router.push("/debug-ronda")}
+            className="bg-yellow-500 hover:bg-yellow-600 text-black font-bold text-xs px-3 py-1 rounded"
+          >
+            🔍 DEBUG
+          </Button>
         </div>
         <p className="text-sm opacity-90 font-bold uppercase tracking-wide">
           Selecione o equipamento para iniciar
