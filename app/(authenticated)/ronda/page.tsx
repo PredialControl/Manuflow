@@ -28,6 +28,17 @@ export default function RondaPage() {
 
   useEffect(() => {
     fetchAssets();
+
+    // Timeout de segurança - se após 10s ainda estiver carregando, força erro
+    const timeout = setTimeout(() => {
+      if (loading) {
+        console.error("[RONDA] TIMEOUT! Forçando fim do loading após 10s");
+        setLoading(false);
+        setError("Timeout ao carregar dados. Tente novamente.");
+      }
+    }, 10000);
+
+    return () => clearTimeout(timeout);
   }, []);
 
   async function fetchAssets() {
@@ -57,11 +68,14 @@ export default function RondaPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background p-4">
+      <div className="min-h-screen flex items-center justify-center bg-white dark:bg-gray-900 p-4">
         <div className="flex flex-col items-center gap-4">
           <Loader2 className="h-12 w-12 animate-spin text-primary" />
-          <p className="text-lg font-bold text-muted-foreground uppercase tracking-widest">
+          <p className="text-lg font-bold text-gray-600 dark:text-gray-300 uppercase tracking-widest">
             Carregando...
+          </p>
+          <p className="text-xs text-gray-400 dark:text-gray-500 mt-2">
+            Buscando equipamentos e medidores
           </p>
         </div>
       </div>
@@ -70,7 +84,7 @@ export default function RondaPage() {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-background">
+      <div className="min-h-screen bg-white dark:bg-gray-900">
         <div className="bg-primary text-white p-6 pb-8 shadow-2xl">
           <div className="flex items-center gap-3 mb-2">
             <ClipboardCheck className="h-8 w-8" />
@@ -83,13 +97,16 @@ export default function RondaPage() {
               <p className="text-lg font-bold text-red-600 dark:text-red-400 mb-4">
                 {error}
               </p>
+              <p className="text-sm text-gray-600 dark:text-gray-400 mb-6">
+                Verifique sua conexão e tente novamente
+              </p>
               <Button
                 onClick={() => {
                   setError(null);
                   setLoading(true);
                   fetchAssets();
                 }}
-                className="rounded-xl"
+                className="rounded-xl bg-primary"
               >
                 Tentar Novamente
               </Button>
@@ -101,7 +118,7 @@ export default function RondaPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       {/* Header */}
       <div className="bg-primary text-white p-6 pb-8 shadow-2xl">
         <div className="flex items-center gap-3 mb-2">
@@ -114,15 +131,15 @@ export default function RondaPage() {
       </div>
 
       {/* Asset List */}
-      <div className="p-4 space-y-4 pb-24">
+      <div className="p-4 space-y-4 pb-24 bg-gray-50 dark:bg-gray-900">
         {assets.length === 0 ? (
-          <Card className="border-2 border-dashed border-border">
+          <Card className="border-2 border-dashed border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800">
             <CardContent className="flex flex-col items-center justify-center py-12 text-center">
-              <ClipboardCheck className="h-16 w-16 text-muted-foreground/30 mb-4" />
-              <p className="text-lg font-bold text-muted-foreground">
+              <ClipboardCheck className="h-16 w-16 text-gray-400 dark:text-gray-500 mb-4" />
+              <p className="text-lg font-bold text-gray-700 dark:text-gray-200">
                 Nenhum equipamento disponível
               </p>
-              <p className="text-sm text-muted-foreground/60 mt-2">
+              <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
                 Contate o administrador para configurar os ativos
               </p>
             </CardContent>
@@ -131,7 +148,7 @@ export default function RondaPage() {
           assets.map((asset) => (
             <Card
               key={asset.id}
-              className="border-2 border-border hover:border-primary transition-all cursor-pointer active:scale-[0.98] shadow-lg"
+              className="border-2 border-gray-200 dark:border-gray-700 hover:border-primary transition-all cursor-pointer active:scale-[0.98] shadow-lg bg-white dark:bg-gray-800"
               onClick={() => {
                 if (asset.itemType === "DEVICE") {
                   router.push(`/measurements?deviceId=${asset.id}`);
@@ -161,10 +178,10 @@ export default function RondaPage() {
 
                   {/* Asset Info */}
                   <div className="flex-1 min-w-0">
-                    <h3 className="text-xl font-black uppercase tracking-tight text-foreground truncate">
+                    <h3 className="text-xl font-black uppercase tracking-tight text-gray-900 dark:text-white truncate">
                       {asset.name}
                     </h3>
-                    <p className="text-sm text-muted-foreground font-bold uppercase tracking-wide mt-1">
+                    <p className="text-sm text-gray-600 dark:text-gray-300 font-bold uppercase tracking-wide mt-1">
                       {asset.location}
                     </p>
                     {asset.itemType === "DEVICE" ? (
