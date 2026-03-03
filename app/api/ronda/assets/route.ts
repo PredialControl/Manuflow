@@ -13,6 +13,7 @@ export async function GET() {
 
   try {
     const contractWhereClause = getContractWhereClause(session);
+    const userCategory = (session.user as any).category;
 
     // Buscar ativos que estão marcados para incluir na ronda
     const assets = await prisma.asset.findMany({
@@ -20,6 +21,9 @@ export async function GET() {
         active: true,
         deletedAt: null,
         includeInRonda: true,
+        frequency: "DAILY", // Apenas ativos com vistoria diária
+        // Filtrar por categoria se o técnico tiver uma categoria específica
+        ...(userCategory ? { category: userCategory } : {}),
         contract: {
           ...contractWhereClause,
           active: true,
