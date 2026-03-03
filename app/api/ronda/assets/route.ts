@@ -22,8 +22,14 @@ export async function GET() {
         deletedAt: null,
         includeInRonda: true,
         frequency: "DAILY", // Apenas ativos com vistoria diária
-        // Filtrar por categoria se o técnico tiver uma categoria específica
-        ...(userCategory ? { category: userCategory } : {}),
+        // Filtrar por categoria: técnico vê GERAL + sua categoria específica
+        ...(userCategory ? {
+          OR: [
+            { category: userCategory }, // Ativos da categoria do técnico
+            { category: "GERAL" },      // Ativos gerais (todos veem)
+            { category: null },          // Ativos sem categoria (todos veem)
+          ]
+        } : {}),
         contract: {
           ...contractWhereClause,
           active: true,
