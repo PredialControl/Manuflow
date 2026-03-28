@@ -30,70 +30,33 @@ const withPWA = require("@ducanh2912/next-pwa").default({
   skipWaiting: true,
   clientsClaim: true,
   cleanupOutdatedCaches: true,
-  // Cache offline: páginas e APIs do técnico
+  // IMPORTANT: APIs nunca ficam em cache — dados sempre frescos direto da rede
   workboxOptions: {
     runtimeCaching: [
-      // APIs autenticadas — SEMPRE NetworkFirst para nunca servir dados de outro usuário do cache
-      {
-        urlPattern: /^https:\/\/.*\/api\/technician\/.*/i,
-        handler: "NetworkFirst",
-        options: {
-          cacheName: "technician-api-v2",
-          networkTimeoutSeconds: 8,
-          expiration: { maxEntries: 50, maxAgeSeconds: 60 * 60 }, // 1h max (só p/ offline)
-          cacheableResponse: { statuses: [0, 200] },
-        },
-      },
-      {
-        urlPattern: /^https:\/\/.*\/api\/chamados.*/i,
-        handler: "NetworkFirst",
-        options: {
-          cacheName: "chamados-api-v2",
-          networkTimeoutSeconds: 8,
-          expiration: { maxEntries: 100, maxAgeSeconds: 60 * 60 },
-          cacheableResponse: { statuses: [0, 200] },
-        },
-      },
-      {
-        urlPattern: /^https:\/\/.*\/api\/inspections.*/i,
-        handler: "NetworkFirst",
-        options: {
-          cacheName: "inspections-api-v2",
-          networkTimeoutSeconds: 8,
-          expiration: { maxEntries: 50, maxAgeSeconds: 60 * 60 },
-          cacheableResponse: { statuses: [0, 200] },
-        },
-      },
-      // Páginas do técnico — NetworkFirst com fallback do cache
-      {
-        urlPattern: /^\/(dashboard|chamados|ronda|inspections).*/i,
-        handler: "NetworkFirst",
-        options: {
-          cacheName: "technician-pages-v2",
-          networkTimeoutSeconds: 8,
-          expiration: { maxEntries: 20, maxAgeSeconds: 60 * 60 },
-          cacheableResponse: { statuses: [0, 200] },
-        },
-      },
-      // Imagens — CacheFirst
+      // Imagens — CacheFirst (não mudam com frequência)
       {
         urlPattern: /\.(?:jpg|jpeg|gif|png|svg|ico|webp)$/i,
         handler: "CacheFirst",
         options: {
-          cacheName: "static-image-assets",
+          cacheName: "static-images-v3",
           expiration: { maxEntries: 64, maxAgeSeconds: 30 * 24 * 60 * 60 },
           cacheableResponse: { statuses: [0, 200] },
         },
       },
-      // JS/CSS estático — StaleWhileRevalidate
+      // JS/CSS do Next.js — StaleWhileRevalidate
       {
         urlPattern: /\/_next\/static\/.*/i,
         handler: "StaleWhileRevalidate",
         options: {
-          cacheName: "next-static",
+          cacheName: "next-static-v3",
           expiration: { maxEntries: 200, maxAgeSeconds: 30 * 24 * 60 * 60 },
           cacheableResponse: { statuses: [0, 200] },
         },
+      },
+      // TODAS as rotas de API — NetworkOnly (NUNCA usar cache para dados autenticados)
+      {
+        urlPattern: /\/api\/.*/i,
+        handler: "NetworkOnly",
       },
     ],
   },

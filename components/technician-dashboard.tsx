@@ -56,15 +56,28 @@ export function TechnicianDashboard() {
     const [devices, setDevices] = useState<any[]>([]);
     const [chamados, setChamados] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
 
     async function loadAll() {
         setLoading(true);
+        setError(null);
         try {
             const [roundsRes, devicesRes, chamadosRes] = await Promise.all([
-                fetch("/api/technician/pending"),
-                fetch("/api/technician/devices"),
-                fetch("/api/chamados"),
+                fetch("/api/technician/pending", { cache: "no-store" }),
+                fetch("/api/technician/devices", { cache: "no-store" }),
+                fetch("/api/chamados", { cache: "no-store" }),
             ]);
+
+            if (!roundsRes.ok || !devicesRes.ok || !chamadosRes.ok) {
+                const statuses = [roundsRes.status, devicesRes.status, chamadosRes.status];
+                if (statuses.some(s => s === 401)) {
+                    setError("Sessão expirada. Faça login novamente.");
+                } else {
+                    setError(`Erro do servidor (${statuses.join(", ")}). Tente novamente.`);
+                }
+                return;
+            }
+
             const [roundsData, devicesData, chamadosData] = await Promise.all([
                 roundsRes.json(),
                 devicesRes.json(),
@@ -73,8 +86,9 @@ export function TechnicianDashboard() {
             setRounds(Array.isArray(roundsData) ? roundsData : []);
             setDevices(Array.isArray(devicesData) ? devicesData : []);
             setChamados(Array.isArray(chamadosData) ? chamadosData : []);
-        } catch (error) {
-            console.error("Error loading tasks:", error);
+        } catch (err) {
+            console.error("Error loading tasks:", err);
+            setError("Sem conexão com o servidor. Verifique sua internet.");
         } finally {
             setLoading(false);
         }
@@ -86,11 +100,38 @@ export function TechnicianDashboard() {
         return () => clearInterval(interval);
     }, []);
 
-    if (loading && rounds.length === 0 && chamados.length === 0) {
+    if (loading && rounds.length === 0 && chamados.length === 0 && !error) {
         return (
             <div className="flex flex-col items-center justify-center min-h-[400px] gap-4">
                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
                 <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Carregando tarefas...</p>
+            </div>
+        );
+    }
+
+    if (error) {
+        return (
+            <div className="flex flex-col items-center justify-center min-h-[400px] gap-6 p-6">
+                <div className="text-center space-y-2">
+                    <p className="text-lg font-black text-rose-600 uppercase tracking-tight">{error}</p>
+                    <p className="text-xs text-muted-foreground font-bold">Tente atualizar os dados abaixo</p>
+                </div>
+                <div className="flex flex-col gap-3 w-full max-w-xs">
+                    <Button
+                        onClick={loadAll}
+                        className="rounded-xl font-black uppercase tracking-widest text-xs"
+                    >
+                        <RefreshCcw className="h-4 w-4 mr-2" />
+                        Tentar Novamente
+                    </Button>
+                    <a
+                        href="/atualizar"
+                        className="flex items-center justify-center gap-2 py-3 px-4 rounded-xl border-2 border-border text-sm font-black uppercase tracking-widest text-muted-foreground hover:border-primary hover:text-primary transition-colors"
+                    >
+                        <RefreshCcw className="h-4 w-4" />
+                        Limpar Cache e Recarregar
+                    </a>
+                </div>
             </div>
         );
     }
@@ -150,14 +191,23 @@ export function TechnicianDashboard() {
                     <h1 className="text-3xl font-black tracking-tighter uppercase italic leading-none">
                         Minhas Tarefas
                     </h1>
-                    <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={loadAll}
-                        className="rounded-xl hover:bg-primary/5 text-primary"
-                    >
-                        <RefreshCcw className={cn("h-4 w-4", loading && "animate-spin")} />
-                    </Button>
+                    <div className="flex items-center gap-1">
+                        <a
+                            href="/atualizar"
+                            title="Limpar cache e recarregar"
+                            className="h-9 w-9 flex items-center justify-center rounded-xl hover:bg-rose-500/10 text-muted-foreground/40 hover:text-rose-500 transition-colors"
+                        >
+                            <span className="text-[8px] font-black">CACHE</span>
+                        </a>
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={loadAll}
+                            className="rounded-xl hover:bg-primary/5 text-primary"
+                        >
+                            <RefreshCcw className={cn("h-4 w-4", loading && "animate-spin")} />
+                        </Button>
+                    </div>
                 </div>
             </div>
 
