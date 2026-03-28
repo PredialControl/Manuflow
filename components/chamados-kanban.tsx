@@ -278,6 +278,22 @@ export function ChamadosKanban({ contractId, showNewButton = true, role }: Props
                                                                 {new Date(call.openedAt).toLocaleDateString("pt-BR")}
                                                             </p>
 
+                                                            {/* Waiting material info — always visible when relevant */}
+                                                            {call.waitingMaterial && (
+                                                                <div className="bg-orange-50 border border-orange-200 rounded-lg p-2 space-y-1">
+                                                                    <p className="text-[9px] font-black uppercase tracking-widest text-orange-700">
+                                                                        Material aguardando
+                                                                    </p>
+                                                                    <p className="text-xs text-orange-900 font-medium">{call.waitingMaterial}</p>
+                                                                    {call.waitingMaterialLink && (
+                                                                        <a href={call.waitingMaterialLink} target="_blank" rel="noopener noreferrer"
+                                                                            className="text-[9px] text-blue-600 underline block truncate">
+                                                                            {call.waitingMaterialLink}
+                                                                        </a>
+                                                                    )}
+                                                                </div>
+                                                            )}
+
                                                             {/* Expanded Detail */}
                                                             {selected?.id === call.id && (
                                                                 <div className="border-t border-border/40 pt-3 space-y-3 animate-in">

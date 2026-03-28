@@ -747,6 +747,11 @@ model ServiceCall {
   executionCategory   String?          // Categoria do que foi feito (ex: Troca de peça)
   executionNotes      String?          // Texto livre: o que foi feito
 
+  // Aguardando material/peça
+  waitingMaterial     String?          // Descrição do material necessário
+  waitingMaterialPhoto String?         // Foto do material (url)
+  waitingMaterialLink  String?         // Link do material (ex: fornecedor, manual)
+
   createdAt       DateTime             @default(now())
   updatedAt       DateTime             @updatedAt
   deletedAt       DateTime?

@@ -5,8 +5,9 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import {
     Wrench, Clock, CheckCircle2, AlertCircle, ChevronDown, ChevronUp,
-    Camera, Loader2, X, Upload, ImageIcon, Star
+    Camera, Loader2, X, Upload, ImageIcon, Star, Package, Link as LinkIcon
 } from "lucide-react";
+import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -386,6 +387,130 @@ function ConcluirModal({
     );
 }
 
+// ─── Modal: Aguardando Material ────────────────────────────────────────────────
+function AguardandoMaterialModal({
+    chamado,
+    open,
+    onClose,
+    onSuccess,
+}: {
+    chamado: any;
+    open: boolean;
+    onClose: () => void;
+    onSuccess: (updated: any) => void;
+}) {
+    const [material, setMaterial] = useState("");
+    const [photo, setPhoto] = useState<string | null>(null);
+    const [link, setLink] = useState("");
+    const [saving, setSaving] = useState(false);
+
+    async function handleAguardar() {
+        if (!material.trim()) {
+            alert("Descreva qual material/peça está aguardando.");
+            return;
+        }
+        setSaving(true);
+        try {
+            const res = await fetch(`/api/chamados/${chamado.id}`, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    status: "WAITING_PARTS",
+                    waitingMaterial: material.trim(),
+                    waitingMaterialPhoto: photo || null,
+                    waitingMaterialLink: link.trim() || null,
+                }),
+            });
+            if (!res.ok) throw new Error("Falha ao atualizar chamado");
+            const updated = await res.json();
+            onSuccess(updated);
+            onClose();
+        } catch {
+            alert("Erro ao atualizar chamado. Tente novamente.");
+        } finally {
+            setSaving(false);
+        }
+    }
+
+    return (
+        <Dialog open={open} onOpenChange={v => !v && onClose()}>
+            <DialogContent className="max-w-sm">
+                <DialogHeader>
+                    <DialogTitle className="flex items-center gap-2">
+                        <Package className="w-5 h-5 text-orange-500" />
+                        Aguardando Material
+                    </DialogTitle>
+                    <DialogDescription>
+                        Informe qual peça ou material está aguardando para continuar o serviço.
+                    </DialogDescription>
+                </DialogHeader>
+
+                <div className="space-y-4 py-2">
+                    <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wider truncate">
+                        {chamado.title}
+                    </p>
+
+                    {/* O que precisa */}
+                    <div className="space-y-1.5">
+                        <Label className="text-xs font-bold uppercase tracking-wider">
+                            Material / Peça necessária <span className="text-red-500">*</span>
+                        </Label>
+                        <Textarea
+                            placeholder="Ex: Filtro de ar 20x25x1, Correia do ventilador modelo X, Fusível 10A..."
+                            value={material}
+                            onChange={e => setMaterial(e.target.value)}
+                            rows={3}
+                            className="text-sm resize-none"
+                        />
+                    </div>
+
+                    {/* Foto do material */}
+                    <div className="space-y-1.5">
+                        <Label className="text-xs font-bold uppercase tracking-wider">
+                            Foto do material / referência
+                        </Label>
+                        <PhotoUploadSlot
+                            label="Foto da peça, etiqueta ou referência"
+                            value={photo}
+                            onChange={setPhoto}
+                            chamadoId={chamado.id}
+                            type="pre"
+                        />
+                    </div>
+
+                    {/* Link */}
+                    <div className="space-y-1.5">
+                        <Label className="text-xs font-bold uppercase tracking-wider flex items-center gap-1">
+                            <LinkIcon className="w-3 h-3" />
+                            Link (opcional)
+                        </Label>
+                        <Input
+                            placeholder="Ex: https://mercadolivre.com/item/..."
+                            value={link}
+                            onChange={e => setLink(e.target.value)}
+                            className="text-sm"
+                        />
+                    </div>
+                </div>
+
+                <DialogFooter className="gap-2">
+                    <Button variant="outline" onClick={onClose} disabled={saving}>
+                        Cancelar
+                    </Button>
+                    <Button
+                        onClick={handleAguardar}
+                        disabled={saving || !material.trim()}
+                        className="bg-orange-500 hover:bg-orange-600 text-white"
+                    >
+                        {saving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+                        Confirmar
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+    );
+}
+
 // ─── Card do chamado ──────────────────────────────────────────────────────────
 function ChamadoCard({
     chamado,
@@ -397,9 +522,13 @@ function ChamadoCard({
     const [expanded, setExpanded] = useState(false);
     const [showIniciarModal, setShowIniciarModal] = useState(false);
     const [showConcluirModal, setShowConcluirModal] = useState(false);
+    const [showAguardandoModal, setShowAguardandoModal] = useState(false);
 
     const isOpen = chamado.status === "OPEN";
-    const isInProgress = chamado.status === "IN_PROGRESS" || chamado.status === "WAITING_PARTS" || chamado.status === "WAITING_APPROVAL";
+    const isInProgress = chamado.status === "IN_PROGRESS";
+    const isWaitingParts = chamado.status === "WAITING_PARTS";
+    const isWaitingApproval = chamado.status === "WAITING_APPROVAL";
+    const isActive = isInProgress || isWaitingParts || isWaitingApproval;
     const isCompleted = chamado.status === "COMPLETED" || chamado.status === "CANCELLED";
 
     return (
@@ -412,9 +541,10 @@ function ChamadoCard({
                 >
                     {/* Ícone de status */}
                     <div className={`mt-0.5 flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center
-                        ${isOpen ? "bg-yellow-100" : isInProgress ? "bg-blue-100" : "bg-green-100"}`}>
+                        ${isOpen ? "bg-yellow-100" : isWaitingParts ? "bg-orange-100" : isActive ? "bg-blue-100" : "bg-green-100"}`}>
                         {isOpen && <Clock className="w-4 h-4 text-yellow-600" />}
-                        {isInProgress && <Wrench className="w-4 h-4 text-blue-600" />}
+                        {isWaitingParts && <Package className="w-4 h-4 text-orange-600" />}
+                        {(isInProgress || isWaitingApproval) && <Wrench className="w-4 h-4 text-blue-600" />}
                         {isCompleted && <CheckCircle2 className="w-4 h-4 text-green-600" />}
                     </div>
 
@@ -491,9 +621,31 @@ function ChamadoCard({
                             </div>
                         )}
 
+                        {/* Info de material aguardando */}
+                        {chamado.waitingMaterial && (
+                            <div className="bg-orange-50 border border-orange-200 rounded-lg p-3 space-y-2">
+                                <p className="text-xs font-bold text-orange-800 uppercase tracking-wider flex items-center gap-1">
+                                    <Package className="w-3 h-3" /> Material aguardando
+                                </p>
+                                <p className="text-sm text-orange-900">{chamado.waitingMaterial}</p>
+                                {chamado.waitingMaterialPhoto && (
+                                    // eslint-disable-next-line @next/next/no-img-element
+                                    <img src={chamado.waitingMaterialPhoto} alt="Material"
+                                        className="h-16 w-16 object-cover rounded-lg border border-orange-200" />
+                                )}
+                                {chamado.waitingMaterialLink && (
+                                    <a href={chamado.waitingMaterialLink} target="_blank" rel="noopener noreferrer"
+                                        className="text-xs text-blue-600 underline flex items-center gap-1">
+                                        <LinkIcon className="w-3 h-3" />
+                                        {chamado.waitingMaterialLink.slice(0, 50)}...
+                                    </a>
+                                )}
+                            </div>
+                        )}
+
                         {/* Botões de ação */}
                         {!isCompleted && (
-                            <div className="flex gap-2 pt-1">
+                            <div className="flex gap-2 pt-1 flex-wrap">
                                 {isOpen && (
                                     <Button
                                         size="sm"
@@ -504,15 +656,26 @@ function ChamadoCard({
                                         Iniciar
                                     </Button>
                                 )}
-                                {isInProgress && (
-                                    <Button
-                                        size="sm"
-                                        className="flex-1 bg-green-600 hover:bg-green-700 text-white font-bold"
-                                        onClick={() => setShowConcluirModal(true)}
-                                    >
-                                        <CheckCircle2 className="w-4 h-4 mr-2" />
-                                        Concluir
-                                    </Button>
+                                {(isInProgress || isWaitingParts) && (
+                                    <>
+                                        <Button
+                                            size="sm"
+                                            variant="outline"
+                                            className="border-orange-400 text-orange-700 hover:bg-orange-50 font-bold"
+                                            onClick={() => setShowAguardandoModal(true)}
+                                        >
+                                            <Package className="w-4 h-4 mr-1.5" />
+                                            Ag. Material
+                                        </Button>
+                                        <Button
+                                            size="sm"
+                                            className="flex-1 bg-green-600 hover:bg-green-700 text-white font-bold"
+                                            onClick={() => setShowConcluirModal(true)}
+                                        >
+                                            <CheckCircle2 className="w-4 h-4 mr-2" />
+                                            Concluir
+                                        </Button>
+                                    </>
                                 )}
                             </div>
                         )}
@@ -543,6 +706,17 @@ function ChamadoCard({
                     chamado={chamado}
                     open={showConcluirModal}
                     onClose={() => setShowConcluirModal(false)}
+                    onSuccess={updated => {
+                        onUpdate(updated);
+                        setExpanded(true);
+                    }}
+                />
+            )}
+            {showAguardandoModal && (
+                <AguardandoMaterialModal
+                    chamado={chamado}
+                    open={showAguardandoModal}
+                    onClose={() => setShowAguardandoModal(false)}
                     onSuccess={updated => {
                         onUpdate(updated);
                         setExpanded(true);

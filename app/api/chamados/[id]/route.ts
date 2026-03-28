@@ -57,7 +57,8 @@ export async function PUT(
     try {
         const body = await req.json();
         const { title, description, priority, status, assignedToId, resolution, notes,
-                preExecutionPhotos, executionPhotos, executionCategory, executionNotes } = body;
+                preExecutionPhotos, executionPhotos, executionCategory, executionNotes,
+                waitingMaterial, waitingMaterialPhoto, waitingMaterialLink } = body;
 
         let companyId = session.user.companyId;
         if (!companyId) {
@@ -93,6 +94,11 @@ export async function PUT(
         if (executionPhotos !== undefined) updateData.executionPhotos = executionPhotos;
         if (executionCategory !== undefined) updateData.executionCategory = executionCategory;
         if (executionNotes !== undefined) updateData.executionNotes = executionNotes;
+
+        // Aguardando material
+        if (waitingMaterial !== undefined) updateData.waitingMaterial = waitingMaterial;
+        if (waitingMaterialPhoto !== undefined) updateData.waitingMaterialPhoto = waitingMaterialPhoto;
+        if (waitingMaterialLink !== undefined) updateData.waitingMaterialLink = waitingMaterialLink;
 
         if (status === "IN_PROGRESS" && !existing.startedAt) {
             updateData.startedAt = new Date();
