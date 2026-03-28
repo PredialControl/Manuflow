@@ -563,13 +563,16 @@ export default async function ContractDetailPage({
           />
         </TabsContent>
 
-        <TabsContent value="chamados" className="space-y-4 pt-4">
-          <ChamadosKanban
-            contractId={contract.id}
-            showNewButton={isAdmin || session.user.role === "SUPERVISOR"}
-            role={session.user.role}
-          />
-        </TabsContent>
+        {/* A aba chamados só é exibida para ADMIN e SUPERVISOR — técnicos acessam via /chamados */}
+        {session.user.role !== "TECHNICIAN" && (
+          <TabsContent value="chamados" className="space-y-4 pt-4">
+            <ChamadosKanban
+              contractId={contract.id}
+              showNewButton={isAdmin || session.user.role === "SUPERVISOR"}
+              role={session.user.role}
+            />
+          </TabsContent>
+        )}
 
       </Tabs>
     </div>

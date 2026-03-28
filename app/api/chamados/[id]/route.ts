@@ -56,7 +56,8 @@ export async function PUT(
 
     try {
         const body = await req.json();
-        const { title, description, priority, status, assignedToId, resolution, notes } = body;
+        const { title, description, priority, status, assignedToId, resolution, notes,
+                preExecutionPhotos, executionPhotos, executionCategory, executionNotes } = body;
 
         let companyId = session.user.companyId;
         if (!companyId) {
@@ -86,6 +87,12 @@ export async function PUT(
             notes: notes ?? existing.notes,
             updatedAt: new Date(),
         };
+
+        // Campos do fluxo técnico
+        if (preExecutionPhotos !== undefined) updateData.preExecutionPhotos = preExecutionPhotos;
+        if (executionPhotos !== undefined) updateData.executionPhotos = executionPhotos;
+        if (executionCategory !== undefined) updateData.executionCategory = executionCategory;
+        if (executionNotes !== undefined) updateData.executionNotes = executionNotes;
 
         if (status === "IN_PROGRESS" && !existing.startedAt) {
             updateData.startedAt = new Date();

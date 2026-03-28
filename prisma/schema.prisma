@@ -741,6 +741,12 @@ model ServiceCall {
   resolution      String?              // Como foi resolvido
   notes           String?
 
+  // Fluxo do técnico
+  preExecutionPhotos  String[]         // Fotos antes de iniciar (obrigatório ao clicar Iniciar)
+  executionPhotos     String[]         // Fotos de execução (obrigatório ao concluir)
+  executionCategory   String?          // Categoria do que foi feito (ex: Troca de peça)
+  executionNotes      String?          // Texto livre: o que foi feito
+
   createdAt       DateTime             @default(now())
   updatedAt       DateTime             @updatedAt
   deletedAt       DateTime?
