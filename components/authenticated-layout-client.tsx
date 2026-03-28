@@ -176,7 +176,7 @@ export function AuthenticatedLayoutClient({
     };
 
     return (
-        <div className="min-h-screen bg-background flex transition-colors duration-300">
+        <div className="h-screen bg-background flex flex-col overflow-hidden transition-colors duration-300">
             <PwaInstallPrompt />
 
             {/* Mobile Drawer */}
@@ -251,7 +251,7 @@ export function AuthenticatedLayoutClient({
                 </div>
             </div>
 
-            <div className="flex flex-1 w-full lg:px-6 gap-x-6 overflow-hidden pt-16 lg:pt-0">
+            <div className="flex flex-1 w-full lg:px-6 gap-x-6 overflow-hidden pt-14 lg:pt-0 min-h-0">
                 {/* Desktop Sidebar */}
                 <aside
                     className={cn(
@@ -315,7 +315,7 @@ export function AuthenticatedLayoutClient({
                 </aside>
 
                 {/* Main Content */}
-                <main className="flex-1 py-10 overflow-auto animate-in scrollbar-hide pb-24 lg:pb-10">
+                <main className="flex-1 py-6 lg:py-10 overflow-y-auto animate-in scrollbar-hide pb-24 lg:pb-10 min-h-0">
                     <div className="w-full">{children}</div>
                 </main>
             </div>
