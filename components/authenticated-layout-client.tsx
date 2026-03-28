@@ -179,7 +179,7 @@ export function AuthenticatedLayoutClient({
     };
 
     return (
-        <div className="h-screen bg-background flex flex-col overflow-hidden transition-colors duration-300">
+        <div className="h-dvh bg-background flex flex-col overflow-hidden transition-colors duration-300">
             <PwaInstallPrompt />
             <OfflineBanner />
 

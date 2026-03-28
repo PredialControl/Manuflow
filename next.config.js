@@ -27,6 +27,9 @@ const withPWA = require("@ducanh2912/next-pwa").default({
   register: true,
   scope: "/",
   sw: "service-worker.js",
+  skipWaiting: true,
+  clientsClaim: true,
+  cleanupOutdatedCaches: true,
   // Cache offline: páginas e APIs do técnico
   workboxOptions: {
     runtimeCaching: [
