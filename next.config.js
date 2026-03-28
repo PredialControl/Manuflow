@@ -33,22 +33,24 @@ const withPWA = require("@ducanh2912/next-pwa").default({
   // Cache offline: páginas e APIs do técnico
   workboxOptions: {
     runtimeCaching: [
-      // APIs do técnico — StaleWhileRevalidate: serve do cache instantâneo, atualiza em background
+      // APIs autenticadas — SEMPRE NetworkFirst para nunca servir dados de outro usuário do cache
       {
         urlPattern: /^https:\/\/.*\/api\/technician\/.*/i,
-        handler: "StaleWhileRevalidate",
+        handler: "NetworkFirst",
         options: {
-          cacheName: "technician-api",
-          expiration: { maxEntries: 50, maxAgeSeconds: 24 * 60 * 60 }, // 24h
+          cacheName: "technician-api-v2",
+          networkTimeoutSeconds: 8,
+          expiration: { maxEntries: 50, maxAgeSeconds: 60 * 60 }, // 1h max (só p/ offline)
           cacheableResponse: { statuses: [0, 200] },
         },
       },
       {
         urlPattern: /^https:\/\/.*\/api\/chamados.*/i,
-        handler: "StaleWhileRevalidate",
+        handler: "NetworkFirst",
         options: {
-          cacheName: "chamados-api",
-          expiration: { maxEntries: 100, maxAgeSeconds: 24 * 60 * 60 },
+          cacheName: "chamados-api-v2",
+          networkTimeoutSeconds: 8,
+          expiration: { maxEntries: 100, maxAgeSeconds: 60 * 60 },
           cacheableResponse: { statuses: [0, 200] },
         },
       },
@@ -56,9 +58,9 @@ const withPWA = require("@ducanh2912/next-pwa").default({
         urlPattern: /^https:\/\/.*\/api\/inspections.*/i,
         handler: "NetworkFirst",
         options: {
-          cacheName: "inspections-api",
-          networkTimeoutSeconds: 5,
-          expiration: { maxEntries: 50, maxAgeSeconds: 24 * 60 * 60 },
+          cacheName: "inspections-api-v2",
+          networkTimeoutSeconds: 8,
+          expiration: { maxEntries: 50, maxAgeSeconds: 60 * 60 },
           cacheableResponse: { statuses: [0, 200] },
         },
       },
@@ -67,9 +69,9 @@ const withPWA = require("@ducanh2912/next-pwa").default({
         urlPattern: /^\/(dashboard|chamados|ronda|inspections).*/i,
         handler: "NetworkFirst",
         options: {
-          cacheName: "technician-pages",
-          networkTimeoutSeconds: 5,
-          expiration: { maxEntries: 20, maxAgeSeconds: 24 * 60 * 60 },
+          cacheName: "technician-pages-v2",
+          networkTimeoutSeconds: 8,
+          expiration: { maxEntries: 20, maxAgeSeconds: 60 * 60 },
           cacheableResponse: { statuses: [0, 200] },
         },
       },
