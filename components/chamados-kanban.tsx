@@ -75,6 +75,12 @@ interface ServiceCall {
     contract: { id: string; name: string; company: string };
     asset?: { id: string; name: string; type: string; location?: string };
     notes?: string;
+    // Fluxo técnico
+    waitingMaterial?: string;
+    waitingMaterialLink?: string;
+    waitingMaterialPhoto?: string;
+    executionCategory?: string;
+    executionNotes?: string;
 }
 
 interface Props {
