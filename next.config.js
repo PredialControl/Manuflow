@@ -23,7 +23,7 @@ const nextConfig = {
 
 const withPWA = require("@ducanh2912/next-pwa").default({
   dest: "public",
-  disable: process.env.NODE_ENV === "development",
+  disable: true, // Desativado temporariamente — service worker causava blank screens no iOS (interceptava requests sem cookies)
   register: true,
   scope: "/",
   sw: "service-worker.js",
