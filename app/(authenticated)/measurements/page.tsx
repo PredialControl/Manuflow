@@ -32,7 +32,7 @@ export default async function MeasurementsPage() {
                     },
                 },
                 orderBy: { createdAt: "desc" },
-                take: 15,
+                take: 200,
             },
             contract: {
                 select: {
