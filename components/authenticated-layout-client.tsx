@@ -9,6 +9,8 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { SidebarToggle } from "@/components/sidebar-toggle";
 import { useSidebar } from "@/components/sidebar-context";
 import { PwaInstallPrompt } from "@/components/pwa-install-prompt";
+import { OfflineBanner } from "@/components/offline-banner";
+import { useOfflineQueue } from "@/hooks/use-offline-queue";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import {
     LayoutDashboard,
@@ -45,6 +47,7 @@ export function AuthenticatedLayoutClient({
     const pathname = usePathname();
     const searchParams = useSearchParams();
     const [mobileOpen, setMobileOpen] = useState(false);
+    useOfflineQueue(); // Ativa sync automático ao reconectar
 
     // Detect if we are inside a contract route
     const contractMatch = pathname.match(/\/contracts\/([^/]+)/);
@@ -178,6 +181,7 @@ export function AuthenticatedLayoutClient({
     return (
         <div className="h-screen bg-background flex flex-col overflow-hidden transition-colors duration-300">
             <PwaInstallPrompt />
+            <OfflineBanner />
 
             {/* Mobile Drawer */}
             <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>

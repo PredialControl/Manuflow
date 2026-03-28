@@ -6,7 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { toast } from "@/components/ui/use-toast";
-import { ChevronRight, Camera, CheckCircle, AlertTriangle, XCircle, Loader2 } from "lucide-react";
+import { ChevronRight, Camera, CheckCircle, AlertTriangle, XCircle, Loader2, WifiOff } from "lucide-react";
+import { enqueueAction } from "@/hooks/use-offline-queue";
 
 type StepStatus = "OK" | "WARNING" | "CRITICAL" | "SKIPPED";
 
@@ -185,12 +186,26 @@ export default function NewInspectionPage() {
   async function completeInspection() {
     setSaving(true);
     try {
+      // Se offline: enfileira e navega sem esperar
+      if (!navigator.onLine) {
+        enqueueAction({
+          url: "/api/inspections/complete",
+          method: "POST",
+          body: { steps: inspectionSteps },
+          description: "Finalizar ronda",
+        });
+        toast({
+          title: "Salvo offline",
+          description: "Ronda salva! Será enviada quando conectar.",
+        });
+        router.push("/inspections");
+        return;
+      }
+
       const res = await fetch("/api/inspections/complete", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          steps: inspectionSteps,
-        }),
+        body: JSON.stringify({ steps: inspectionSteps }),
       });
 
       if (!res.ok) throw new Error("Erro ao finalizar inspeção");
@@ -202,11 +217,18 @@ export default function NewInspectionPage() {
 
       router.push("/inspections");
     } catch (error: any) {
-      toast({
-        variant: "destructive",
-        title: "Erro",
-        description: error.message,
+      // Falhou na rede mesmo estando "online" — enfileira
+      enqueueAction({
+        url: "/api/inspections/complete",
+        method: "POST",
+        body: { steps: inspectionSteps },
+        description: "Finalizar ronda (retry)",
       });
+      toast({
+        title: "Salvo para sincronizar",
+        description: "Sem conexão. A ronda será enviada automaticamente.",
+      });
+      router.push("/inspections");
     } finally {
       setSaving(false);
     }
