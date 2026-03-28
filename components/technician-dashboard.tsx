@@ -174,10 +174,10 @@ export function TechnicianDashboard() {
 
             {/* Resumo de pendências */}
             <div className="grid grid-cols-3 gap-3">
-                <Card className={cn("shadow-none rounded-2xl", pendingRounds > 0 ? "bg-amber-500/5 border-amber-500/20" : "bg-emerald-500/5 border-emerald-500/20")}>
+                <Card className={cn("shadow-none rounded-2xl", pendingRounds.length > 0 ? "bg-amber-500/5 border-amber-500/20" : "bg-emerald-500/5 border-emerald-500/20")}>
                     <CardContent className="p-3 text-center">
-                        <ClipboardCheck className={cn("h-5 w-5 mx-auto mb-1", pendingRounds > 0 ? "text-amber-500" : "text-emerald-500")} />
-                        <p className={cn("text-xl font-black", pendingRounds > 0 ? "text-amber-600" : "text-emerald-600")}>{pendingRounds}</p>
+                        <ClipboardCheck className={cn("h-5 w-5 mx-auto mb-1", pendingRounds.length > 0 ? "text-amber-500" : "text-emerald-500")} />
+                        <p className={cn("text-xl font-black", pendingRounds.length > 0 ? "text-amber-600" : "text-emerald-600")}>{pendingRounds.length}</p>
                         <p className="text-[8px] font-black uppercase tracking-widest text-muted-foreground/60">Rondas</p>
                     </CardContent>
                 </Card>
@@ -322,7 +322,7 @@ export function TechnicianDashboard() {
                 <div className="flex items-center gap-2">
                     <ClipboardCheck className="h-4 w-4 text-amber-500" />
                     <h2 className="text-sm font-black uppercase tracking-widest text-amber-600">
-                        Ronda Técnica {rounds.length > 0 && `(${pendingRounds} pendentes)`}
+                        Ronda Técnica {rounds.length > 0 && `(${pendingRounds.length} pendentes)`}
                     </h2>
                 </div>
 
