@@ -23,6 +23,7 @@ import {
     DollarSign,
     Menu,
     Network,
+    Wrench,
 } from "lucide-react";
 
 interface Session {
@@ -61,15 +62,18 @@ export function AuthenticatedLayoutClient({
                 ? [
                     { href: "/dashboard", label: "Minhas Tarefas", icon: LayoutDashboard },
                     { href: "/ronda", label: "Ronda Técnica", icon: ClipboardCheck },
+                    { href: "/chamados", label: "Chamados", icon: Wrench },
                 ]
                 : session.user.role === "SUPERVISOR"
                     ? [
                         { href: "/dashboard", label: "Geral", icon: LayoutDashboard },
                         { href: "/contracts", label: "Contratos", icon: Building2 },
+                        { href: "/chamados", label: "Chamados", icon: Wrench },
                     ]
                     : [
                         { href: "/dashboard", label: "Geral", icon: LayoutDashboard },
                         { href: "/contracts", label: "Contratos", icon: Building2 },
+                        { href: "/chamados", label: "Chamados", icon: Wrench },
                     ];
 
     if (session.user.role === "ADMIN" || session.user.role === "OWNER") {
@@ -90,6 +94,7 @@ export function AuthenticatedLayoutClient({
                 { href: `/contracts/${contractId}?tab=inspections`, label: "Rondas", icon: ClipboardCheck },
                 { href: `/contracts/${contractId}?tab=reports`, label: "Laudos", icon: FileText },
                 { href: `/contracts/${contractId}?tab=measurements`, label: "Medições", icon: Gauge },
+                { href: `/contracts/${contractId}?tab=chamados`, label: "Chamados", icon: Wrench },
             ];
 
     if (

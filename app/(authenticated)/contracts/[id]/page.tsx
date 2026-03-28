@@ -6,12 +6,13 @@ import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent } from "@/components/ui/tabs";
-import { Plus, Building2, FileText, ClipboardCheck, History, Settings, Package, MapPin, Users, User, UserPlus, Pencil, Trash2 } from "lucide-react";
+import { Plus, Building2, FileText, ClipboardCheck, History, Settings, Package, MapPin, Users, User, UserPlus, Pencil, Trash2, Wrench } from "lucide-react";
 import { formatDate } from "@/lib/utils";
 import { ReportsKanban } from "@/components/reports-kanban";
 import { RelevantItemsKanban } from "@/components/relevant-items-kanban";
 import { MeasurementManager } from "@/components/measurement-manager";
 import { SupervisorMeasurementsDashboard } from "@/components/supervisor-measurements-dashboard";
+import { ChamadosKanban } from "@/components/chamados-kanban";
 
 import { ContractUserActions } from "@/components/contract-user-actions";
 import { ScheduleManager } from "@/components/schedule-manager";
@@ -559,6 +560,14 @@ export default async function ContractDetailPage({
           <RelevantItemsKanban
             initialItems={contract.relevantItems as any}
             contractId={contract.id}
+          />
+        </TabsContent>
+
+        <TabsContent value="chamados" className="space-y-4 pt-4">
+          <ChamadosKanban
+            contractId={contract.id}
+            showNewButton={isAdmin || session.user.role === "SUPERVISOR"}
+            role={session.user.role}
           />
         </TabsContent>
 

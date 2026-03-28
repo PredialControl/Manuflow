@@ -142,6 +142,7 @@ model Company {
   relevantItems       RelevantItem[]
   relevantItemAttachments RelevantItemAttachment[]
   reportColumns       ReportColumn[]
+  serviceCalls        ServiceCall[]
 }
 
 model User {
@@ -166,6 +167,8 @@ model User {
   relevantItems RelevantItem[]
   relevantItemAttachments RelevantItemAttachment[]
   relevantItemHistory RelevantItemHistory[]
+  openedServiceCalls  ServiceCall[] @relation("ServiceCallOpener")
+  assignedServiceCalls ServiceCall[] @relation("ServiceCallAssignee")
 
   @@index([companyId])
   @@index([companyId, role])
@@ -199,6 +202,7 @@ model Contract {
   scheduledInspections ScheduledInspection[]
   measurementDevices   MeasurementDevice[]
   relevantItems   RelevantItem[]
+  serviceCalls    ServiceCall[]
 
   @@index([companyId])
   @@index([companyId, active])
@@ -227,6 +231,7 @@ model Asset {
   locationId          String?             // Reference to Location model
   brand               String?
   model               String?
+  serialNumber        String?
   power               String?
   image               String?
   frequency           Frequency           @default(MONTHLY)
@@ -237,6 +242,17 @@ model Asset {
   updatedAt           DateTime            @updatedAt
   deletedAt           DateTime?
 
+  // Garantia
+  installationDate    DateTime?           // Data de instalação
+  warrantyExpiry      DateTime?           // Data de vencimento da garantia
+
+  // Controle de Bancada Externa
+  isInExternalMaintenance Boolean         @default(false)
+  externalCompany     String?             // Nome/empresa da bancada
+  externalMaintenanceSince DateTime?      // Data que saiu para bancada
+  expectedReturnDate  DateTime?           // Previsão de retorno
+  externalMaintenanceNotes String?        // Observações
+
   company         Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
   contract        Contract  @relation(fields: [contractId], references: [id], onDelete: Cascade)
   locationRef     Location? @relation(fields: [locationId], references: [id], onDelete: SetNull)
@@ -244,6 +260,7 @@ model Asset {
   inspections     Inspection[]
   reports         Report[]
   scheduleSteps   ScheduledInspectionStep[]
+  serviceCalls    ServiceCall[]
 
   @@index([companyId])
   @@index([companyId, active])
@@ -684,6 +701,60 @@ model RelevantItemAttachment {
   user            User           @relation(fields: [uploadedBy], references: [id], onDelete: Cascade)
 
   @@index([companyId])
+}
+
+// ─── Chamados de Manutenção (Service Calls) ──────────────────────────────────
+
+enum ServiceCallStatus {
+  OPEN              // Aberto
+  IN_PROGRESS       // Em Atendimento
+  WAITING_PARTS     // Aguardando Peças
+  WAITING_APPROVAL  // Aguardando Aprovação
+  COMPLETED         // Concluído
+  CANCELLED         // Cancelado
+}
+
+enum ServiceCallPriority {
+  LOW       // Baixa
+  MEDIUM    // Média
+  HIGH      // Alta
+  CRITICAL  // Crítica
+}
+
+model ServiceCall {
+  id              String               @id @default(cuid())
+  companyId       String
+  contractId      String
+  assetId         String?
+  openedById      String               // Quem abriu o chamado
+  assignedToId    String?              // Técnico responsável
+
+  title           String
+  description     String?
+  priority        ServiceCallPriority  @default(MEDIUM)
+  status          ServiceCallStatus    @default(OPEN)
+
+  openedAt        DateTime             @default(now())
+  startedAt       DateTime?
+  completedAt     DateTime?
+
+  resolution      String?              // Como foi resolvido
+  notes           String?
+
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+  deletedAt       DateTime?
+
+  company         Company              @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  contract        Contract             @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  asset           Asset?               @relation(fields: [assetId], references: [id], onDelete: SetNull)
+  openedBy        User                 @relation("ServiceCallOpener", fields: [openedById], references: [id], onDelete: Cascade)
+  assignedTo      User?                @relation("ServiceCallAssignee", fields: [assignedToId], references: [id], onDelete: SetNull)
+
+  @@index([companyId])
+  @@index([companyId, status])
+  @@index([companyId, contractId])
+  @@index([assignedToId])
 }
 
 model RelevantItemHistory {

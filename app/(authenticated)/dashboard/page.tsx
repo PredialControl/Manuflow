@@ -3,7 +3,7 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Building2, FileText, AlertTriangle, CheckCircle, TrendingUp, DollarSign, XCircle, PauseCircle } from "lucide-react";
+import { Building2, FileText, AlertTriangle, CheckCircle, TrendingUp, DollarSign, XCircle, PauseCircle, Wrench, Shield, Factory } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { TechnicianDashboard } from "@/components/technician-dashboard";
@@ -25,7 +25,10 @@ export default async function DashboardPage() {
   const isOwner = session.user.role === "OWNER";
   const isAdmin = session.user.role === "ADMIN" || session.user.role === "OWNER";
 
-  const [contracts, reports, allContracts] = await Promise.all([
+  const now = new Date();
+  const in30Days = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+
+  const [contracts, reports, allContracts, openChamados, assetsInBancada, warrantyExpiring] = await Promise.all([
     prisma.contract.count({
       where: { ...contractWhereClause, active: true },
     }),
@@ -53,9 +56,35 @@ export default async function DashboardPage() {
       },
       orderBy: { createdAt: 'desc' },
     }) : Promise.resolve([]),
+    // Chamados abertos — usa (prisma as any) até prisma generate rodar
+    isAdmin || isOwner ? (prisma as any).serviceCall.count({
+      where: {
+        ...companyWhereClause,
+        deletedAt: null,
+        status: { in: ["OPEN", "IN_PROGRESS", "WAITING_PARTS", "WAITING_APPROVAL"] },
+      },
+    }).catch(() => 0) : Promise.resolve(0),
+    // Ativos em bancada externa
+    isAdmin || isOwner ? (prisma as any).asset.count({
+      where: {
+        ...companyWhereClause,
+        active: true,
+        isInExternalMaintenance: true,
+      },
+    }).catch(() => 0) : Promise.resolve(0),
+    // Garantias vencendo nos próximos 30 dias
+    isAdmin || isOwner ? (prisma as any).asset.count({
+      where: {
+        ...companyWhereClause,
+        active: true,
+        warrantyExpiry: {
+          gte: now,
+          lte: in30Days,
+        },
+      },
+    }).catch(() => 0) : Promise.resolve(0),
   ]);
 
-  const now = new Date();
   const in60Days = new Date(now.getTime() + 60 * 24 * 60 * 60 * 1000);
 
   type ReportData = { expirationDate: Date; status: string };
@@ -189,6 +218,50 @@ export default async function DashboardPage() {
             </h2>
           </div>
         </>
+      )}
+
+      {/* Alertas Operacionais - Chamados + Bancada + Garantias */}
+      {(isOwner || isAdmin) && (openChamados > 0 || assetsInBancada > 0 || warrantyExpiring > 0) && (
+        <div className="grid gap-4 md:grid-cols-3">
+          {openChamados > 0 && (
+            <Link href="/chamados">
+              <Card className="card-premium group border-rose-500/40 bg-rose-500/5 cursor-pointer hover:border-rose-500/60 transition-all">
+                <CardHeader className="flex flex-row items-center justify-between pb-2">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-rose-600">Chamados Abertos</span>
+                  <Wrench className="h-4 w-4 text-rose-500 opacity-40 group-hover:opacity-100 transition-opacity" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-3xl font-black tracking-tighter text-rose-600">{openChamados}</div>
+                  <p className="text-xs text-rose-600/70 font-bold mt-2">Ordens de serviço pendentes</p>
+                </CardContent>
+              </Card>
+            </Link>
+          )}
+          {assetsInBancada > 0 && (
+            <Card className="card-premium group border-amber-500/40 bg-amber-500/5">
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <span className="text-[10px] font-black uppercase tracking-widest text-amber-600">Em Bancada</span>
+                <Factory className="h-4 w-4 text-amber-500 opacity-40 group-hover:opacity-100 transition-opacity" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-3xl font-black tracking-tighter text-amber-600">{assetsInBancada}</div>
+                <p className="text-xs text-amber-600/70 font-bold mt-2">Equipamentos em manutenção externa</p>
+              </CardContent>
+            </Card>
+          )}
+          {warrantyExpiring > 0 && (
+            <Card className="card-premium group border-blue-500/40 bg-blue-500/5">
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <span className="text-[10px] font-black uppercase tracking-widest text-blue-600">Garantias Vencendo</span>
+                <Shield className="h-4 w-4 text-blue-500 opacity-40 group-hover:opacity-100 transition-opacity" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-3xl font-black tracking-tighter text-blue-600">{warrantyExpiring}</div>
+                <p className="text-xs text-blue-600/70 font-bold mt-2">Vencem nos próximos 30 dias</p>
+              </CardContent>
+            </Card>
+          )}
+        </div>
       )}
 
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">

@@ -28,6 +28,7 @@ import {
 import { formatDate } from "@/lib/utils";
 import { DeleteAssetButton } from "@/components/delete-asset-button";
 import { QRCodeDisplay } from "@/components/qr-code-display";
+import { AssetWarrantyBancada } from "@/components/asset-warranty-bancada";
 
 export const dynamic = "force-dynamic";
 
@@ -57,7 +58,7 @@ export default async function AssetDetailPage({
         redirect("/login");
     }
 
-    const asset = await prisma.asset.findFirst({
+    const asset = await (prisma as any).asset.findFirst({
         where: {
             id: params.assetId,
             contractId: params.id,
@@ -89,7 +90,7 @@ export default async function AssetDetailPage({
                 }
             }
         },
-    });
+    }) as any;
 
     if (!asset) {
         notFound();
@@ -230,7 +231,7 @@ export default async function AssetDetailPage({
                                 </CardDescription>
                             </CardHeader>
                             <CardContent className="pt-4 space-y-3">
-                                {asset.scripts.map((script, index) => (
+                                {asset.scripts.map((script: any, index: number) => (
                                     <div
                                         key={script.id}
                                         className="flex items-start gap-4 p-4 bg-background rounded-xl border border-border/40 hover:border-primary/40 transition-all"
@@ -277,7 +278,7 @@ export default async function AssetDetailPage({
                                     <p className="text-xs font-bold text-muted-foreground py-8 text-center uppercase tracking-widest">Nenhuma ronda registrada</p>
                                 ) : (
                                     <div className="space-y-4">
-                                        {asset.inspections.map((insp) => (
+                                        {asset.inspections.map((insp: any) => (
                                             <div key={insp.id} className="flex items-center justify-between p-3 rounded-xl border border-border/40 hover:bg-muted/30 transition-colors">
                                                 <div className="flex items-center gap-2">
                                                     <CheckCircle2 className="h-4 w-4 text-emerald-600" />
@@ -312,7 +313,7 @@ export default async function AssetDetailPage({
                                     <p className="text-xs font-bold text-muted-foreground py-8 text-center uppercase tracking-widest">Nenhum laudo encontrado</p>
                                 ) : (
                                     <div className="space-y-4">
-                                        {asset.reports.map((report) => (
+                                        {asset.reports.map((report: any) => (
                                             <Link href={`/contracts/${params.id}?tab=reports`} key={report.id} className="flex items-center justify-between p-3 rounded-xl border border-border/40 hover:border-primary/40 hover:bg-primary/5 transition-all block">
                                                 <div>
                                                     <p className="text-[10px] font-black uppercase tracking-tight">{report.title}</p>
@@ -429,6 +430,19 @@ export default async function AssetDetailPage({
                             </div>
                         </CardContent>
                     </Card>
+
+                    {/* Garantia + Bancada Externa */}
+                    <AssetWarrantyBancada
+                        assetId={asset.id}
+                        installationDate={asset.installationDate?.toISOString()}
+                        warrantyExpiry={asset.warrantyExpiry?.toISOString()}
+                        isInExternalMaintenance={asset.isInExternalMaintenance}
+                        externalCompany={asset.externalCompany}
+                        externalMaintenanceSince={asset.externalMaintenanceSince?.toISOString()}
+                        expectedReturnDate={asset.expectedReturnDate?.toISOString()}
+                        externalMaintenanceNotes={asset.externalMaintenanceNotes}
+                        canEdit={["ADMIN", "OWNER", "SUPERVISOR"].includes(session.user.role)}
+                    />
                 </div>
             </div>
         </div>
