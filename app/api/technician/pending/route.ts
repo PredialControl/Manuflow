@@ -29,8 +29,14 @@ export async function GET() {
             active: true,
             deletedAt: null,
             includeInRonda: true,
-            // Filter by category if user has one
-            ...((session.user as any).category ? { category: (session.user as any).category } : {}),
+            // Se o técnico tem categoria específica, filtra por ela OU por GERAL
+            // (GERAL = ativo visível a todos os técnicos independente de categoria)
+            ...((session.user as any).category ? {
+                OR: [
+                    { category: (session.user as any).category },
+                    { category: "GERAL" },
+                ]
+            } : {}),
         },
         include: {
             contract: { select: { name: true } },
